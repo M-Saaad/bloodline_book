@@ -21,6 +21,8 @@ import { createServiceClient } from "../supabase/admin";
 import {
   mapBreeding,
   mapContact,
+  mapFarmSettings,
+  mapLactation,
   mapMedia,
   mapMedical,
   mapMeta,
@@ -95,6 +97,10 @@ export type HomeData = {
   contacts: Contact[];
   transactions: Transaction[];
   animals: Animal[];
+  lactations: FarmDatabase["lactations"];
+  breeding_events: BreedingEvent[];
+  medical_events: MedicalEvent[];
+  farm_settings: FarmDatabase["farm_settings"];
   vet_contacts: FarmDatabase["vet_contacts"];
   meta: FarmDatabase["meta"];
   quickEntry: QuickEntryProps;
@@ -107,6 +113,10 @@ export const loadHomeData = cache(async (): Promise<HomeData> => {
       contacts: db.contacts,
       transactions: db.transactions,
       animals: db.animals,
+      lactations: db.lactations ?? [],
+      breeding_events: db.breeding_events,
+      medical_events: db.medical_events,
+      farm_settings: db.farm_settings,
       vet_contacts: db.vet_contacts,
       meta: db.meta,
       quickEntry: quickEntryPropsFromDb(db),
@@ -114,13 +124,17 @@ export const loadHomeData = cache(async (): Promise<HomeData> => {
   }
 
   const client = createServiceClient();
-  const [contacts, transactions, metaRows, animalRows, vetContacts, quickEntry] =
+  const [contacts, transactions, metaRows, animalRows, vetContacts, lactations, breeding, medical, farmSettingsRows, quickEntry] =
     await Promise.all([
       selectAll(client, "contacts"),
       selectAll(client, "transactions"),
       selectAll(client, "app_meta"),
       selectAll(client, "animals"),
       selectAllOptional(client, "vet_contacts"),
+      selectAllOptional(client, "lactations"),
+      selectAllOptional(client, "breeding_events"),
+      selectAllOptional(client, "medical_events"),
+      selectAllOptional(client, "farm_settings"),
       getQuickEntryData(),
     ]);
 
@@ -128,6 +142,10 @@ export const loadHomeData = cache(async (): Promise<HomeData> => {
     contacts: contacts.map(mapContact),
     transactions: filterLedgerTxs(transactions),
     animals: animalRows.map(mapAnimal),
+    lactations: lactations.map(mapLactation),
+    breeding_events: breeding.map(mapBreeding),
+    medical_events: medical.map(mapMedical),
+    farm_settings: mapFarmSettings(farmSettingsRows[0]),
     vet_contacts: vetContacts.map(mapVetContact),
     meta: mapMeta(metaRows[0]),
     quickEntry,
@@ -138,6 +156,8 @@ export type AnimalsListData = {
   animals: Animal[];
   contacts: Contact[];
   breeding_events: BreedingEvent[];
+  lactations: FarmDatabase["lactations"];
+  medical_events: MedicalEvent[];
   quickEntry: QuickEntryProps;
 };
 
@@ -148,15 +168,19 @@ export const loadAnimalsListData = cache(async (): Promise<AnimalsListData> => {
       animals: db.animals,
       contacts: db.contacts,
       breeding_events: db.breeding_events,
+      lactations: db.lactations ?? [],
+      medical_events: db.medical_events,
       quickEntry: quickEntryPropsFromDb(db),
     };
   }
 
   const client = createServiceClient();
-  const [animals, contacts, breeding] = await Promise.all([
+  const [animals, contacts, breeding, lactations, medical] = await Promise.all([
     selectAll(client, "animals"),
     selectAll(client, "contacts"),
     selectAll(client, "breeding_events"),
+    selectAllOptional(client, "lactations"),
+    selectAllOptional(client, "medical_events"),
   ]);
 
   const mappedAnimals = await mapAnimalsWithParents(client, animals);
@@ -166,11 +190,15 @@ export const loadAnimalsListData = cache(async (): Promise<AnimalsListData> => {
   db.animals = mappedAnimals;
   db.contacts = mappedContacts;
   db.breeding_events = mappedBreeding;
+  db.lactations = lactations.map(mapLactation);
+  db.medical_events = medical.map(mapMedical);
 
   return {
     animals: mappedAnimals,
     contacts: mappedContacts,
     breeding_events: mappedBreeding,
+    lactations: lactations.map(mapLactation),
+    medical_events: medical.map(mapMedical),
     quickEntry: quickEntryPropsFromDb(db),
   };
 });

@@ -6,8 +6,6 @@ import { animalParentLabel, sireLabel } from "@/lib/livestock/animal-parents";
 import { isSupabaseDb } from "@/lib/db";
 import { saleReceiptAmount } from "@/lib/livestock/cancel-sale";
 import { loadAnimalProfileData, contactNameFrom } from "@/lib/db/queries";
-import { BottomNav } from "@/components/BottomNav";
-import { QuickEntryLoader } from "@/components/QuickEntryLoader";
 import { AnimalEditor } from "@/components/AnimalEditor";
 import { AnimalMediaGallery } from "@/components/AnimalMediaGallery";
 import {
@@ -443,8 +441,6 @@ export default async function AnimalProfilePage({
         )}
       </section>
 
-      <QuickEntryLoader {...data.quickEntry} canWrite={canWrite} />
-      <BottomNav active={sp.from === "health" ? "health" : "goats"} />
     </main>
   );
 }

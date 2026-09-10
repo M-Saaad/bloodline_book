@@ -217,6 +217,7 @@ export interface VetContact {
 }
 
 export interface FarmSettings {
+  farm_name?: string | null;
   gestation_days: number;
   gestation_early_days: number;
   gestation_late_days: number;

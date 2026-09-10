@@ -2,13 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Search } from "lucide-react";
+import { Chip } from "@/components/ui/Chip";
 
 const filters = [
   { id: "all", label: "All" },
-  { id: "active", label: "Active" },
-  { id: "purchased", label: "Purchased" },
-  { id: "born", label: "Born" },
-  { id: "breeding", label: "Breeding" },
+  { id: "does", label: "Does" },
+  { id: "bucks", label: "Bucks" },
+  { id: "kids", label: "Kids" },
 ];
 
 export function AnimalsFilters() {
@@ -42,26 +43,25 @@ export function AnimalsFilters() {
   }
 
   return (
-    <div className="mb-4 space-y-2">
-      <input
-        type="search"
-        placeholder="Search name or description…"
-        defaultValue={q}
-        onChange={(e) => onSearch(e.target.value)}
-        className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-base"
-      />
+    <div className="space-y-2.5">
+      <div className="flex h-[38px] items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--field-bg)] px-2.5">
+        <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)]" strokeWidth={1.8} />
+        <input
+          type="search"
+          placeholder="Search by name, tattoo, or ADGA#"
+          defaultValue={q}
+          onChange={(e) => onSearch(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-muted)]"
+        />
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map((f) => (
-          <button
+          <Chip
             key={f.id}
-            type="button"
+            label={f.label}
+            selected={current === f.id}
             onClick={() => setFilter(f.id)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${
-              current === f.id ? "bg-emerald-700 text-white" : "bg-white text-stone-600 ring-1 ring-stone-200"
-            }`}
-          >
-            {f.label}
-          </button>
+          />
         ))}
       </div>
     </div>
