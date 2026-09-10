@@ -1,8 +1,17 @@
+export function formatUsd(n: number): string {
+  const value = Number(n) || 0;
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+  return `${sign}$${formatted}`;
+}
+
+/** @deprecated Use formatUsd — kept for gradual migration */
 export function formatPkr(n: number): string {
-  const rounded = Math.round(Number(n) || 0);
-  const sign = rounded < 0 ? "-" : "";
-  const abs = String(Math.abs(rounded)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `${sign}Rs ${abs}`;
+  return formatUsd(n);
 }
 
 const displayDateFormatter = new Intl.DateTimeFormat("en-GB", {

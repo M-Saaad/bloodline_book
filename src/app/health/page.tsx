@@ -134,6 +134,12 @@ function HealthPageView({
         subtitle={`${summary.activeCount} active goats · Ultrasound day 40–75 · CDT & CL yearly · FAMACHA checks · external deworm 2d after internal`}
       />
 
+      <p className="mb-4">
+        <Link href="/vet" className="text-sm font-semibold text-emerald-800">
+          Vet contacts →
+        </Link>
+      </p>
+
       {!canWrite && <ViewOnlyBanner />}
 
       <Suspense fallback={<div className="mb-4 h-10 animate-pulse rounded-xl bg-stone-200" />}>

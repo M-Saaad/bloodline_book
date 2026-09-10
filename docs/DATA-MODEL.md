@@ -60,6 +60,37 @@ interface MedicalEvent {
 
 Vaccine schedules are **disease-target-first** (`lib/livestock/vaccine-schedule.ts`). Dewormer catalogs are **drug-class-first** (`lib/livestock/medical-notes.ts`). Custom products remain extensible via event history (same pattern as the original custom vaccine/dewormer support).
 
+## Animal identity (Phase 3)
+
+`animals.breed` is **free text** with UI suggestions (`SUGGESTED_BREEDS` in `lib/types.ts`). Identity fields:
+
+- `registered_name`, `barn_name`, `previous_name`
+- `adga_registration_number`
+- `tattoo_right`, `tattoo_left`, `tattoo_tail_web` (LaMancha)
+- `eid_microchip`, `scrapie_tag`, `farm_tag`
+
+## BreedingEvent (Phase 2 — exposure windows)
+
+```typescript
+exposure_start_date: string | null;
+exposure_end_date: string | null;
+expected_due_date: string | null;   // mid-point of gestation
+due_date_early: string | null;      // gestation − early offset (default 5d)
+due_date_late: string | null;       // gestation + late offset (default 5d)
+```
+
+Gestation defaults live in `farm_settings` (`gestation_days` default 150).
+
+## MilkRecord & Lactation (Phase 2)
+
+`milk_records`: per-session yields (`AM` / `PM` / …), `amount_lb_normalized` for totals, `source` for DHIA/lab later.
+
+`lactations`: `freshening_date`, `lactation_number`, `dry_off_date`. Derived stats in `lib/livestock/milk.ts`.
+
+## VetContact (Phase 2)
+
+Farm-level `vet_contacts` with `role` (primary, backup, emergency clinic, …). Vet-ready per-animal export: `/animals/[id]/vet-summary` via `lib/livestock/vet-summary.ts`.
+
 ---
 
 ## Legacy entity diagram (original farm app — deprecated here)

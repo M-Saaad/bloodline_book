@@ -12,6 +12,16 @@ export type UpdateAnimalInput = {
   name?: string | null;
   breed?: AnimalBreed | null;
   sex?: AnimalSex | null;
+  registered_name?: string | null;
+  barn_name?: string | null;
+  previous_name?: string | null;
+  adga_registration_number?: string | null;
+  tattoo_right?: string | null;
+  tattoo_left?: string | null;
+  tattoo_tail_web?: string | null;
+  eid_microchip?: string | null;
+  scrapie_tag?: string | null;
+  farm_tag?: string | null;
   description?: string | null;
   comment?: string | null;
   ownerName: string;
@@ -204,6 +214,16 @@ export function applyUpdateAnimalDetails(
     name: input.name?.trim() || null,
     breed: input.breed ?? null,
     sex: input.sex ?? null,
+    registered_name: input.registered_name?.trim() || null,
+    barn_name: input.barn_name?.trim() || null,
+    previous_name: input.previous_name?.trim() || null,
+    adga_registration_number: input.adga_registration_number?.trim() || null,
+    tattoo_right: input.tattoo_right?.trim() || null,
+    tattoo_left: input.tattoo_left?.trim() || null,
+    tattoo_tail_web: input.tattoo_tail_web?.trim() || null,
+    eid_microchip: input.eid_microchip?.trim() || null,
+    scrapie_tag: input.scrapie_tag?.trim() || null,
+    farm_tag: input.farm_tag?.trim() || null,
     description: input.description?.trim() || null,
     comment: input.comment?.trim() || null,
     owner_id: owner.id,

@@ -5,11 +5,16 @@ import type {
   BreedingEvent,
   Contact,
   FarmDatabase,
+  FarmSettings,
+  Lactation,
   LivestockSale,
   MedicalEvent,
+  MilkRecord,
   Transaction,
+  VetContact,
   WeightLog,
 } from "../types";
+import { DEFAULT_FARM_SETTINGS } from "../livestock/breeding";
 import { emptyDb } from "../db-empty";
 import { mapAnimalsWithParents, animalsWithEncodedParentComments } from "../livestock/animal-parents-store";
 import { hasAnimalParentColumns } from "./parent-columns";
@@ -32,8 +37,18 @@ export function mapAnimal(r: Record<string, unknown>): Animal {
   return {
     id: num(r.id),
     name: (r.name as string) ?? null,
-    breed: (r.breed as Animal["breed"]) ?? null,
+    breed: r.breed == null ? null : String(r.breed),
     sex: (r.sex as Animal["sex"]) ?? null,
+    registered_name: optionalStr(r.registered_name),
+    barn_name: optionalStr(r.barn_name),
+    previous_name: optionalStr(r.previous_name),
+    adga_registration_number: optionalStr(r.adga_registration_number),
+    tattoo_right: optionalStr(r.tattoo_right),
+    tattoo_left: optionalStr(r.tattoo_left),
+    tattoo_tail_web: optionalStr(r.tattoo_tail_web),
+    eid_microchip: optionalStr(r.eid_microchip),
+    scrapie_tag: optionalStr(r.scrapie_tag),
+    farm_tag: optionalStr(r.farm_tag),
     date_of_purchase: r.date_of_purchase ? String(r.date_of_purchase) : null,
     age_at_purchase: (r.age_at_purchase as string) ?? null,
     description: (r.description as string) ?? null,
@@ -142,7 +157,11 @@ export function mapBreeding(r: Record<string, unknown>): BreedingEvent {
     male_animal_id: r.male_animal_id == null ? null : num(r.male_animal_id),
     buck_name: (r.buck_name as string) ?? null,
     date_crossed: r.date_crossed ? String(r.date_crossed) : null,
+    exposure_start_date: r.exposure_start_date ? String(r.exposure_start_date) : null,
+    exposure_end_date: r.exposure_end_date ? String(r.exposure_end_date) : null,
     expected_due_date: r.expected_due_date ? String(r.expected_due_date) : null,
+    due_date_early: r.due_date_early ? String(r.due_date_early) : null,
+    due_date_late: r.due_date_late ? String(r.due_date_late) : null,
     delivered_date: r.delivered_date ? String(r.delivered_date) : null,
     ultrasound_date: r.ultrasound_date ? String(r.ultrasound_date) : null,
     fetus_count: r.fetus_count != null ? Number(r.fetus_count) : null,
@@ -170,6 +189,57 @@ export function mapMedia(r: Record<string, unknown>): AnimalMedia {
     media_type: r.media_type as AnimalMedia["media_type"],
     caption: (r.caption as string) ?? null,
     created_at: String(r.created_at),
+  };
+}
+
+export function mapMilk(r: Record<string, unknown>): MilkRecord {
+  return {
+    id: String(r.id),
+    animal_id: num(r.animal_id),
+    date: String(r.date),
+    session: r.session as MilkRecord["session"],
+    amount_raw: num(r.amount_raw),
+    unit_entered: r.unit_entered as MilkRecord["unit_entered"],
+    amount_lb_normalized: num(r.amount_lb_normalized),
+    measurement_method: r.measurement_method as MilkRecord["measurement_method"],
+    source: r.source as MilkRecord["source"],
+    operator: optionalStr(r.operator),
+    notes: optionalStr(r.notes),
+  };
+}
+
+export function mapLactation(r: Record<string, unknown>): Lactation {
+  return {
+    id: String(r.id),
+    animal_id: num(r.animal_id),
+    freshening_date: String(r.freshening_date),
+    lactation_number: num(r.lactation_number ?? 1),
+    dry_off_date: r.dry_off_date ? String(r.dry_off_date) : null,
+    notes: optionalStr(r.notes),
+  };
+}
+
+export function mapVetContact(r: Record<string, unknown>): VetContact {
+  return {
+    id: String(r.id),
+    role: r.role as VetContact["role"],
+    name: String(r.name),
+    phone: optionalStr(r.phone),
+    emergency_phone: optionalStr(r.emergency_phone),
+    address: optionalStr(r.address),
+    services_offered: optionalStr(r.services_offered),
+    accepts_new_clients: optionalStr(r.accepts_new_clients),
+    vcpr_established: optionalStr(r.vcpr_established),
+    notes: optionalStr(r.notes),
+  };
+}
+
+export function mapFarmSettings(r: Record<string, unknown> | undefined): FarmSettings {
+  if (!r) return { ...DEFAULT_FARM_SETTINGS };
+  return {
+    gestation_days: num(r.gestation_days ?? DEFAULT_FARM_SETTINGS.gestation_days),
+    gestation_early_days: num(r.gestation_early_days ?? DEFAULT_FARM_SETTINGS.gestation_early_days),
+    gestation_late_days: num(r.gestation_late_days ?? DEFAULT_FARM_SETTINGS.gestation_late_days),
   };
 }
 
@@ -264,6 +334,10 @@ export async function loadFromSupabase(client: SupabaseClient): Promise<FarmData
     breeding,
     weights,
     media,
+    milk,
+    lactations,
+    vetContacts,
+    farmSettingsRows,
     metaRows,
   ] = await Promise.all([
     selectAll(client, "contacts"),
@@ -275,6 +349,10 @@ export async function loadFromSupabase(client: SupabaseClient): Promise<FarmData
     selectAll(client, "breeding_events"),
     selectAll(client, "weight_logs"),
     selectAll(client, "animal_media"),
+    selectAllOptional(client, "milk_records"),
+    selectAllOptional(client, "lactations"),
+    selectAllOptional(client, "vet_contacts"),
+    selectAllOptional(client, "farm_settings"),
     selectAll(client, "app_meta"),
   ]);
 
@@ -291,6 +369,10 @@ export async function loadFromSupabase(client: SupabaseClient): Promise<FarmData
   db.breeding_events = breeding.map(mapBreeding);
   db.weight_logs = weights.map(mapWeight);
   db.animal_media = media.map(mapMedia);
+  db.milk_records = milk.map(mapMilk);
+  db.lactations = lactations.map(mapLactation);
+  db.vet_contacts = vetContacts.map(mapVetContact);
+  db.farm_settings = mapFarmSettings(farmSettingsRows[0]);
   db.meta = mapMeta(meta);
   return db;
 }

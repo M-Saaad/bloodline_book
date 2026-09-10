@@ -106,7 +106,15 @@ export default async function AnimalProfilePage({
             {ageEstimate ? ` · ${ageEstimate.label} (est. ${ageEstimate.teethLabel})` : ""}
           </p>
         </div>
-        <DeleteAnimalButton animalId={animal.id} label={animalLabel(animal)} canWrite={canWrite} />
+        <div className="flex flex-col items-end gap-2">
+          <Link
+            href={`/animals/${animalId}/vet-summary`}
+            className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-emerald-800 shadow-sm ring-1 ring-stone-200"
+          >
+            Vet summary
+          </Link>
+          <DeleteAnimalButton animalId={animal.id} label={animalLabel(animal)} canWrite={canWrite} />
+        </div>
       </header>
 
       {!canWrite && <ViewOnlyBanner />}

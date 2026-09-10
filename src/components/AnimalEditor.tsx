@@ -4,7 +4,8 @@ import { useState } from "react";
 import { actionUpdateAnimal } from "@/lib/server-actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { BuckSelect, ContactSelect, type ContactOption } from "@/components/ContactSelect";
-import type { AnimalBreed, AnimalSex, AnimalStatus } from "@/lib/types";
+import type { AnimalSex, AnimalStatus } from "@/lib/types";
+import { SUGGESTED_BREEDS } from "@/lib/types";
 import { NON_NEGATIVE_NUMBER_INPUT_PROPS } from "@/lib/form-numbers";
 
 const field =
@@ -17,8 +18,18 @@ const STATUSES: AnimalStatus[] = ["Active", "Sold", "Died", "Slaughtered", "Gone
 export type AnimalEditorData = {
   id: number;
   name: string | null;
-  breed: AnimalBreed | null;
+  breed: string | null;
   sex: AnimalSex | null;
+  registered_name?: string | null;
+  barn_name?: string | null;
+  previous_name?: string | null;
+  adga_registration_number?: string | null;
+  tattoo_right?: string | null;
+  tattoo_left?: string | null;
+  tattoo_tail_web?: string | null;
+  eid_microchip?: string | null;
+  scrapie_tag?: string | null;
+  farm_tag?: string | null;
   description: string | null;
   comment: string | null;
   ownerName: string;
@@ -109,14 +120,33 @@ export function AnimalEditor({
               </div>
               <div>
                 <label className={labelCls}>Breed</label>
-                <select name="breed" className={field} defaultValue={animal.breed ?? ""}>
-                  <option value="">—</option>
-                  {["Teddy", "Gulabi", "Bissar", "Tapra"].map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
+                <input
+                  className={field}
+                  name="breed"
+                  list="breed-suggestions"
+                  defaultValue={animal.breed ?? ""}
+                  placeholder="Nigerian Dwarf"
+                />
+                <datalist id="breed-suggestions">
+                  {SUGGESTED_BREEDS.map((b) => (
+                    <option key={b} value={b} />
                   ))}
-                </select>
+                </datalist>
+              </div>
+              <div className={sectionCls}>
+                <p className="text-xs font-bold uppercase tracking-wide text-stone-500">Registration &amp; ID</p>
+                <Field label="Registered name" name="registeredName" defaultValue={animal.registered_name ?? ""} />
+                <Field label="Barn name" name="barnName" defaultValue={animal.barn_name ?? ""} />
+                <Field label="Previous name" name="previousName" defaultValue={animal.previous_name ?? ""} />
+                <Field label="ADGA registration #" name="adgaNumber" defaultValue={animal.adga_registration_number ?? ""} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Tattoo right" name="tattooRight" defaultValue={animal.tattoo_right ?? ""} />
+                  <Field label="Tattoo left" name="tattooLeft" defaultValue={animal.tattoo_left ?? ""} />
+                </div>
+                <Field label="Tail web tattoo (LaMancha)" name="tattooTailWeb" defaultValue={animal.tattoo_tail_web ?? ""} />
+                <Field label="EID / microchip" name="eidMicrochip" defaultValue={animal.eid_microchip ?? ""} />
+                <Field label="Scrapie tag" name="scrapieTag" defaultValue={animal.scrapie_tag ?? ""} />
+                <Field label="Farm tag" name="farmTag" defaultValue={animal.farm_tag ?? ""} />
               </div>
               <div>
                 <label className={labelCls}>Sex</label>
@@ -218,7 +248,7 @@ export function AnimalEditor({
                 />
               </div>
               <div>
-                <label className={labelCls}>Purchase price (PKR)</label>
+                <label className={labelCls}>Purchase price (USD)</label>
                 <input
                   className={field}
                   name="purchasePrice"
@@ -229,7 +259,7 @@ export function AnimalEditor({
                 />
               </div>
               <div>
-                <label className={labelCls}>Amount paid so far (PKR)</label>
+                <label className={labelCls}>Amount paid so far (USD)</label>
                 <input
                   className={field}
                   name="purchasePaid"
@@ -311,7 +341,7 @@ export function AnimalEditor({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Gross sale price (PKR)</label>
+                  <label className={labelCls}>Gross sale price (USD)</label>
                   <input
                     className={field}
                     name="soldPrice"
@@ -326,7 +356,7 @@ export function AnimalEditor({
                 {animal.sale && (
                   <>
                     <div>
-                      <label className={labelCls}>Delivery deducted (PKR)</label>
+                      <label className={labelCls}>Delivery deducted (USD)</label>
                       <input
                         className={field}
                         name="deliveryCost"
@@ -337,7 +367,7 @@ export function AnimalEditor({
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Amount received so far (PKR)</label>
+                      <label className={labelCls}>Amount received so far (USD)</label>
                       <input
                         className={field}
                         name="amountReceived"
@@ -360,6 +390,30 @@ export function AnimalEditor({
           </ActionForm>
         </section>
       )}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  name,
+  defaultValue,
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      <input
+        className={field}
+        name={name}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+      />
     </div>
   );
 }

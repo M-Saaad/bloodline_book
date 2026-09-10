@@ -1,7 +1,18 @@
-import type { Animal, BreedingEvent, BreedingOutcome, BreedingStatus } from "../types";
+import type { Animal, BreedingEvent, BreedingOutcome, BreedingStatus, FarmSettings } from "../types";
 import { todayIso } from "../format";
 
-export const GESTATION_DAYS = 150;
+export const DEFAULT_GESTATION_DAYS = 150;
+export const DEFAULT_GESTATION_EARLY_DAYS = 5;
+export const DEFAULT_GESTATION_LATE_DAYS = 5;
+
+/** @deprecated Use farm_settings.gestation_days */
+export const GESTATION_DAYS = DEFAULT_GESTATION_DAYS;
+
+export const DEFAULT_FARM_SETTINGS: FarmSettings = {
+  gestation_days: DEFAULT_GESTATION_DAYS,
+  gestation_early_days: DEFAULT_GESTATION_EARLY_DAYS,
+  gestation_late_days: DEFAULT_GESTATION_LATE_DAYS,
+};
 /** Show Delivered status for this many days after kidding, then Ready. */
 export const POST_DELIVERY_READY_DAYS = 60;
 /** Ultrasound window starts day 40 after crossing (inclusive). */
@@ -258,10 +269,60 @@ export function breedingTimeline(
   return null;
 }
 
-export function expectedDueDate(dateCrossed: string): string {
-  const d = new Date(dateCrossed.slice(0, 10));
-  d.setUTCDate(d.getUTCDate() + GESTATION_DAYS);
-  return d.toISOString().slice(0, 10);
+export function exposureWindow(event: BreedingEvent): { start: string; end: string } | null {
+  const start = event.exposure_start_date ?? event.date_crossed;
+  const end = event.exposure_end_date ?? event.date_crossed ?? start;
+  if (!start) return null;
+  return { start, end: end ?? start };
+}
+
+export function expectedDueDate(
+  exposureEnd: string,
+  settings: FarmSettings = DEFAULT_FARM_SETTINGS
+): string {
+  return addDays(exposureEnd, settings.gestation_days);
+}
+
+export function dueDateRange(
+  exposureEnd: string,
+  settings: FarmSettings = DEFAULT_FARM_SETTINGS
+): { early: string; mid: string; late: string } {
+  const mid = expectedDueDate(exposureEnd, settings);
+  return {
+    early: addDays(exposureEnd, settings.gestation_days - settings.gestation_early_days),
+    mid,
+    late: addDays(exposureEnd, settings.gestation_days + settings.gestation_late_days),
+  };
+}
+
+export function computeBreedingDueDates(
+  exposureStart: string,
+  exposureEnd: string,
+  settings: FarmSettings = DEFAULT_FARM_SETTINGS
+): {
+  date_crossed: string;
+  exposure_start_date: string;
+  exposure_end_date: string;
+  expected_due_date: string;
+  due_date_early: string;
+  due_date_late: string;
+} {
+  const range = dueDateRange(exposureEnd, settings);
+  return {
+    date_crossed: exposureStart,
+    exposure_start_date: exposureStart,
+    exposure_end_date: exposureEnd,
+    expected_due_date: range.mid,
+    due_date_early: range.early,
+    due_date_late: range.late,
+  };
+}
+
+export function formatDueDateRange(event: BreedingEvent): string {
+  if (event.due_date_early && event.due_date_late && event.due_date_early !== event.due_date_late) {
+    return `${event.due_date_early} – ${event.due_date_late}`;
+  }
+  return event.expected_due_date ?? "—";
 }
 
 export function assertFemaleAvailableForBreeding(

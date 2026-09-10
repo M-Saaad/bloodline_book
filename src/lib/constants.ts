@@ -7,9 +7,6 @@ export const LEDGER_CATEGORIES = [
   "Infrastructure",
   "Livestock Purchase",
   "Livestock Sale",
-  "Palai Income",
-  "Palai Expense",
-  "Partner Transfer",
   "Other",
 ] as const;
 
@@ -22,7 +19,6 @@ export const EXPENSE_CATEGORIES = [
   "Vet/Medicine",
   "Labor",
   "Infrastructure",
-  "Palai Expense",
   "Other",
 ] as const satisfies readonly LedgerCategory[];
 
@@ -34,9 +30,6 @@ export const CATEGORY_DISPLAY_ORDER: LedgerCategory[] = [
   "Infrastructure",
   "Livestock Purchase",
   "Livestock Sale",
-  "Palai Income",
-  "Palai Expense",
-  "Partner Transfer",
   "Other",
 ];
 

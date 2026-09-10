@@ -20,11 +20,13 @@ import {
 } from "./livestock/purchase-agreement";
 import {
   assertFemaleAvailableForBreeding,
-  expectedDueDate,
+  computeBreedingDueDates,
   findActiveBreedingForDam,
   resolveBreedingAfterBirth,
   resolveBreedingAfterUltrasound,
 } from "./livestock/breeding";
+import { computeWithdrawalClearDate } from "./livestock/medical-notes";
+import { normalizeMilkToLb } from "./livestock/milk";
 import { applyDeleteAnimal } from "./animals/delete";
 import { applyUpdateAnimalDetails, type UpdateAnimalInput } from "./animals/update";
 import {
@@ -45,6 +47,14 @@ import type {
   BreedingOutcome,
   BreedingStatus,
   BreedingEvent,
+  Lactation,
+  MilkRecord,
+  MilkSession,
+  MilkUnit,
+  MilkMeasurementMethod,
+  MilkSource,
+  VetContact,
+  VetContactRole,
 } from "./types";
 import { animalLabel } from "./labels";
 import { uploadAnimalMedia } from "./media/upload";
@@ -483,6 +493,13 @@ export type LogMedicalInput = {
 };
 
 function buildMedicalEvent(animalId: number, input: LogMedicalInput): MedicalEvent {
+  const withdrawalClear =
+    input.withdrawal_clear_date ??
+    computeWithdrawalClearDate(
+      input.date,
+      input.withdrawal_meat_days,
+      input.withdrawal_milk_days
+    );
   return {
     id: crypto.randomUUID(),
     animal_id: animalId,
@@ -499,7 +516,7 @@ function buildMedicalEvent(animalId: number, input: LogMedicalInput): MedicalEve
     dose_unit: input.dose_unit ?? null,
     withdrawal_meat_days: input.withdrawal_meat_days ?? null,
     withdrawal_milk_days: input.withdrawal_milk_days ?? null,
-    withdrawal_clear_date: input.withdrawal_clear_date ?? null,
+    withdrawal_clear_date: withdrawalClear,
     lot_number: input.lot_number ?? null,
     expiration_date: input.expiration_date ?? null,
     famacha_score: input.famacha_score ?? null,
@@ -618,10 +635,13 @@ export async function recordBreeding(input: {
   femaleId: number;
   buckName: string;
   maleAnimalId?: number | null;
-  dateCrossed: string;
+  dateCrossed?: string;
+  exposureStart?: string;
+  exposureEnd?: string;
   notes?: string;
 }) {
   const before = await fetchDb();
+  assertFemaleAvailableForBreeding(before.breeding_events, input.femaleId);
   let maleAnimalId: number | null = input.maleAnimalId ?? null;
   let buckName = input.buckName.trim();
   if (maleAnimalId != null) {
@@ -631,13 +651,20 @@ export async function recordBreeding(input: {
   } else {
     maleAnimalId = null;
   }
+  const exposureStart = (input.exposureStart ?? input.dateCrossed ?? "").trim();
+  const exposureEnd = (input.exposureEnd ?? exposureStart).trim();
+  if (!exposureStart || !exposureEnd) throw new Error("Exposure dates are required");
+  const dueDates = computeBreedingDueDates(
+    exposureStart,
+    exposureEnd,
+    before.farm_settings
+  );
   const event = {
     id: crypto.randomUUID(),
     female_animal_id: input.femaleId,
     male_animal_id: maleAnimalId,
     buck_name: buckName || null,
-    date_crossed: input.dateCrossed,
-    expected_due_date: expectedDueDate(input.dateCrossed),
+    ...dueDates,
     delivered_date: null,
     ultrasound_date: null,
     fetus_count: null,
@@ -660,7 +687,9 @@ export async function updateBreeding(input: {
   id: string;
   buckName: string;
   maleAnimalId?: number | null;
-  dateCrossed: string;
+  dateCrossed?: string;
+  exposureStart?: string;
+  exposureEnd?: string;
   outcome: BreedingOutcome;
   status: BreedingStatus | "";
   deliveredDate?: string | null;
@@ -711,12 +740,17 @@ export async function updateBreeding(input: {
     resolvedOutcome = "Pending";
   }
 
+  const exposureStart = (input.exposureStart ?? input.dateCrossed ?? existing.exposure_start_date ?? existing.date_crossed ?? "").trim();
+  const exposureEnd = (input.exposureEnd ?? exposureStart).trim();
+  const dueDates = exposureStart && exposureEnd
+    ? computeBreedingDueDates(exposureStart, exposureEnd, before.farm_settings)
+    : null;
+
   const updated = {
     ...existing,
     male_animal_id: maleAnimalId,
     buck_name: buckName || null,
-    date_crossed: input.dateCrossed,
-    expected_due_date: expectedDueDate(input.dateCrossed),
+    ...(dueDates ?? {}),
     delivered_date: nextOutcome === "Delivered" ? deliveredDate : null,
     ultrasound_date: ultrasoundDate,
     fetus_count: fetusCount,
@@ -977,5 +1011,122 @@ export async function deleteTransaction(id: string) {
 export async function deleteAnimal(animalId: number) {
   const before = await fetchDb();
   const after = applyDeleteAnimal(before, animalId);
+  return persistMutation(before, after);
+}
+
+export async function logMilkRecord(input: {
+  animalId: number;
+  date: string;
+  session: MilkSession;
+  amount: number;
+  unit: MilkUnit;
+  measurementMethod?: MilkMeasurementMethod;
+  source?: MilkSource;
+  operator?: string;
+  notes?: string;
+}) {
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("Milk amount must be greater than zero");
+  }
+  const record: MilkRecord = {
+    id: crypto.randomUUID(),
+    animal_id: input.animalId,
+    date: input.date,
+    session: input.session,
+    amount_raw: input.amount,
+    unit_entered: input.unit,
+    amount_lb_normalized: normalizeMilkToLb(input.amount, input.unit),
+    measurement_method: input.measurementMethod ?? "scale",
+    source: input.source ?? "farm-entered",
+    operator: input.operator?.trim() || null,
+    notes: input.notes?.trim() || null,
+  };
+  if (isSupabaseDb()) {
+    await applyWritePlan({ upsertMilk: [record] });
+    return;
+  }
+  const before = await fetchDb();
+  const after = {
+    ...before,
+    milk_records: [...before.milk_records, record],
+  };
+  return persistMutation(before, after);
+}
+
+export async function recordLactation(input: {
+  animalId: number;
+  fresheningDate: string;
+  lactationNumber?: number;
+  dryOffDate?: string | null;
+  notes?: string;
+}) {
+  const lactation: Lactation = {
+    id: crypto.randomUUID(),
+    animal_id: input.animalId,
+    freshening_date: input.fresheningDate,
+    lactation_number: input.lactationNumber ?? 1,
+    dry_off_date: input.dryOffDate?.trim() || null,
+    notes: input.notes?.trim() || null,
+  };
+  if (isSupabaseDb()) {
+    await applyWritePlan({ upsertLactations: [lactation] });
+    return;
+  }
+  const before = await fetchDb();
+  const after = {
+    ...before,
+    lactations: [...before.lactations, lactation],
+  };
+  return persistMutation(before, after);
+}
+
+export async function upsertVetContact(input: {
+  id?: string;
+  role: VetContactRole;
+  name: string;
+  phone?: string;
+  emergencyPhone?: string;
+  address?: string;
+  servicesOffered?: string;
+  acceptsNewClients?: string;
+  vcprEstablished?: string;
+  notes?: string;
+}) {
+  const contact: VetContact = {
+    id: input.id ?? crypto.randomUUID(),
+    role: input.role,
+    name: input.name.trim(),
+    phone: input.phone?.trim() || null,
+    emergency_phone: input.emergencyPhone?.trim() || null,
+    address: input.address?.trim() || null,
+    services_offered: input.servicesOffered?.trim() || null,
+    accepts_new_clients: input.acceptsNewClients?.trim() || "unknown",
+    vcpr_established: input.vcprEstablished?.trim() || "unknown",
+    notes: input.notes?.trim() || null,
+  };
+  if (!contact.name) throw new Error("Vet name is required");
+  if (isSupabaseDb()) {
+    await applyWritePlan({ upsertVetContacts: [contact] });
+    return contact;
+  }
+  const before = await fetchDb();
+  const existing = before.vet_contacts.find((v) => v.id === contact.id);
+  const vet_contacts = existing
+    ? before.vet_contacts.map((v) => (v.id === contact.id ? contact : v))
+    : [...before.vet_contacts, contact];
+  await persistMutation(before, { ...before, vet_contacts });
+  return contact;
+}
+
+export async function deleteVetContact(id: string) {
+  if (isSupabaseDb()) {
+    await applyWritePlan({ deleteVetContactIds: [id] });
+    return;
+  }
+  const before = await fetchDb();
+  const after = {
+    ...before,
+    vet_contacts: before.vet_contacts.filter((v) => v.id !== id),
+  };
   return persistMutation(before, after);
 }

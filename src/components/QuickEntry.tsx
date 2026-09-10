@@ -7,6 +7,7 @@ import {
   actionChangeStatus,
   actionLogExpense,
   actionLogMedical,
+  actionLogMilk,
   actionLogWeight,
   actionRecordBreeding,
   actionRecordLivestockSale,
@@ -15,6 +16,9 @@ import {
 import { NEW_EXPENSE_CATEGORY_VALUE } from "@/lib/transactions/expense-categories";
 import {
   DEWORM_TYPES,
+  DOSE_UNITS,
+  MEDICAL_ROUTES,
+  PRODUCTION_STAGES,
   type DewormType,
 } from "@/lib/livestock/medical-notes";
 import {
@@ -36,6 +40,7 @@ type Mode =
   | "acquire"
   | "born"
   | "medical"
+  | "milk"
   | "weight"
   | "breeding"
   | "sell"
@@ -119,7 +124,8 @@ export function QuickEntry({
                     ["buy", "Buy Goat"],
                     ["acquire", "Buy from Customer"],
                     ["born", "Record Birth"],
-                    ["medical", "Log Medical"],
+                    ["medical", "Log Health"],
+                    ["milk", "Log Milk"],
                     ["weight", "Log Weight"],
                     ["breeding", "Record Breeding"],
                     ["sell", "Sell Goat"],
@@ -176,6 +182,10 @@ export function QuickEntry({
               />
             )}
 
+            {mode === "milk" && (
+              <MilkForm animals={females} onSuccess={close} />
+            )}
+
             {mode === "weight" && (
               <ActionForm action={actionLogWeight} onSuccess={close}>
                 <AnimalSelect animals={animals} />
@@ -202,9 +212,12 @@ export function QuickEntry({
                     </select>
                   </div>
                   <BuckSelect maleAnimals={maleAnimals} pastNames={pastBuckNames} />
-                  <Field label="Date crossed" name="dateCrossed" type="date" defaultValue={todayIso()} required />
+                  <Field label="Exposure start" name="exposureStart" type="date" defaultValue={todayIso()} required />
+                  <Field label="Exposure end" name="exposureEnd" type="date" defaultValue={todayIso()} required />
                   <Field label="Notes" name="notes" />
-                  <p className="text-xs text-stone-500">Due date auto-calculated as +150 days.</p>
+                  <p className="text-xs text-stone-500">
+                    For a single known breeding date, use the same start and end. Due window uses farm gestation settings (default 150 ± 5 days).
+                  </p>
                   <SubmitButton />
                 </ActionForm>
               )
@@ -260,7 +273,7 @@ function ExpenseForm({
   return (
     <ActionForm action={actionLogExpense} onSuccess={onSuccess}>
       <Field label="Date" name="date" type="date" defaultValue={todayIso()} required />
-      <Field label="Amount (PKR)" name="amount" type="number" required />
+      <Field label="Amount (USD)" name="amount" type="number" required />
       <div>
         <label className={label}>Category</label>
         <select
@@ -331,8 +344,19 @@ function MedicalForm({
           value={eventType}
           onChange={(e) => setEventType(e.target.value)}
         >
-          {["Vaccine", "Deworming", "Ultrasound", "Surgery", "General"].map((e) => (
-            <option key={e}>{e}</option>
+          {[
+            "Vaccine",
+            "Deworming",
+            "FAMACHA",
+            "FecalEggCount",
+            "BodyConditionScore",
+            "Ultrasound",
+            "Surgery",
+            "General",
+          ].map((e) => (
+            <option key={e} value={e}>
+              {e === "FecalEggCount" ? "Fecal egg count" : e === "BodyConditionScore" ? "Body condition" : e}
+            </option>
           ))}
         </select>
       </div>
@@ -380,7 +404,9 @@ function MedicalForm({
           {vaccineName !== NEW_VACCINE_VALUE && extraVaccineIntervalDays != null && (
             <input type="hidden" name="vaccineIntervalDays" value={String(extraVaccineIntervalDays)} />
           )}
-          <Field label="Dosage" name="dosage" defaultValue="1ml" required />
+          <Field label="Product / brand" name="productBrand" placeholder="Bar-Vac CD/T" />
+          <Field label="Dosage" name="dosage" defaultValue="1 ml" required />
+          <StructuredDrugFields />
           <Field label="Note (optional)" name="comment" />
         </>
       )}
@@ -423,15 +449,132 @@ function MedicalForm({
           {dewormerName === "Other" && (
             <Field label="Dewormer name" name="dewormerNameOther" required />
           )}
-          <Field label="Dosage" name="dosage" defaultValue="1ml" required />
+          <Field label="Product / brand" name="productBrand" />
+          <Field label="Dosage" name="dosage" defaultValue="1 ml" required />
+          <StructuredDrugFields />
           <Field label="Note (optional)" name="comment" />
         </>
       )}
 
-      {eventType !== "Vaccine" && eventType !== "Deworming" && (
+      {eventType === "FAMACHA" && (
+        <>
+          <Field label="FAMACHA score (1–5)" name="famachaScore" type="number" min={1} max={5} required />
+          <Field label="Body condition (optional)" name="bodyConditionScore" type="number" min={1} max={5} step={0.5} />
+          <ProductionStageSelect />
+          <Field label="Note (optional)" name="comment" />
+        </>
+      )}
+
+      {eventType === "FecalEggCount" && (
+        <>
+          <Field label="Fecal egg count (EPG)" name="fecalEggCount" type="number" min={0} required />
+          <Field label="FEC reduction % (follow-up)" name="fecReductionPct" type="number" min={0} max={100} />
+          <Field label="Note (optional)" name="comment" />
+        </>
+      )}
+
+      {eventType === "BodyConditionScore" && (
+        <>
+          <Field label="Body condition (1–5, 0.5 steps)" name="bodyConditionScore" type="number" min={1} max={5} step={0.5} required />
+          <ProductionStageSelect />
+          <Field label="Note (optional)" name="comment" />
+        </>
+      )}
+
+      {eventType !== "Vaccine" &&
+        eventType !== "Deworming" &&
+        eventType !== "FAMACHA" &&
+        eventType !== "FecalEggCount" &&
+        eventType !== "BodyConditionScore" && (
         <Field label="Notes" name="notes" />
       )}
 
+      <SubmitButton />
+    </ActionForm>
+  );
+}
+
+function StructuredDrugFields() {
+  return (
+    <>
+      <Field label="Active ingredient (optional)" name="activeIngredient" />
+      <div>
+        <label className={label}>Route</label>
+        <select name="route" className={field} defaultValue="">
+          <option value="">—</option>
+          {MEDICAL_ROUTES.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Dose amount" name="doseAmount" type="number" min={0} step="any" />
+        <div>
+          <label className={label}>Dose unit</label>
+          <select name="doseUnit" className={field} defaultValue="">
+            <option value="">—</option>
+            {DOSE_UNITS.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Meat withdrawal (days)" name="withdrawalMeatDays" type="number" min={0} />
+        <Field label="Milk withdrawal (days)" name="withdrawalMilkDays" type="number" min={0} />
+      </div>
+      <Field label="Lot number" name="lotNumber" />
+      <Field label="Expiration date" name="expirationDate" type="date" />
+    </>
+  );
+}
+
+function ProductionStageSelect() {
+  return (
+    <div>
+      <label className={label}>Production stage</label>
+      <select name="productionStage" className={field} defaultValue="">
+        <option value="">—</option>
+        {PRODUCTION_STAGES.map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function MilkForm({
+  animals,
+  onSuccess,
+}: {
+  animals: AnimalOption[];
+  onSuccess: () => void;
+}) {
+  return (
+    <ActionForm action={actionLogMilk} onSuccess={onSuccess}>
+      <AnimalSelect animals={animals} fieldLabel="Doe" />
+      <Field label="Date" name="date" type="date" defaultValue={todayIso()} required />
+      <div>
+        <label className={label}>Session</label>
+        <select name="session" className={field} defaultValue="AM">
+          {["AM", "PM", "midday", "once-daily", "other"].map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Amount" name="amount" type="number" min={0} step="any" required />
+        <div>
+          <label className={label}>Unit</label>
+          <select name="unit" className={field} defaultValue="lb">
+            {["lb", "oz", "fl-oz"].map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <Field label="Operator (optional)" name="operator" />
+      <Field label="Notes" name="notes" />
       <SubmitButton />
     </ActionForm>
   );
@@ -460,9 +603,9 @@ function SellGoatForm({
         fieldLabel="Second goat (optional)"
       />
       <Field label="Sale date" name="date" type="date" defaultValue={todayIso()} required />
-      <Field label="Gross sale price (PKR)" name="grossSalePrice" type="number" required />
+      <Field label="Gross sale price (USD)" name="grossSalePrice" type="number" required />
       <Field
-        label="Received now (PKR, optional)"
+        label="Received now (USD, optional)"
         name="amountReceivedNow"
         type="number"
         min={0}
@@ -540,7 +683,7 @@ function AcquireFromCustomerForm({
         </p>
       )}
       <Field label="Purchase date" name="date" type="date" defaultValue={todayIso()} required />
-      <Field label="Purchase price (PKR)" name="price" type="number" required />
+      <Field label="Purchase price (USD)" name="price" type="number" required />
       <Field
         label="Paid now (optional)"
         name="paidNow"
@@ -574,7 +717,7 @@ function BuyGoatForm({
       <div>
         <label className={label}>Breed</label>
         <select name="breed" className={field} required>
-          {["Teddy", "Gulabi", "Bissar", "Tapra"].map((b) => (
+          {["Nigerian Dwarf", "Nubian", "LaMancha", "Alpine", "Saanen", "Boer"].map((b) => (
             <option key={b}>{b}</option>
           ))}
         </select>
@@ -658,7 +801,7 @@ function BornGoatForm({
       <div>
         <label className={label}>Breed</label>
         <select name="breed" className={field} required>
-          {["Teddy", "Gulabi", "Bissar", "Tapra"].map((b) => (
+          {["Nigerian Dwarf", "Nubian", "LaMancha", "Alpine", "Saanen", "Boer"].map((b) => (
             <option key={b}>{b}</option>
           ))}
         </select>
@@ -699,7 +842,9 @@ function modeLabel(m: Mode) {
     case "born":
       return "Record Birth";
     case "medical":
-      return "Log Medical";
+      return "Log Health";
+    case "milk":
+      return "Log Milk";
     case "weight":
       return "Log Weight";
     case "breeding":
@@ -718,8 +863,10 @@ function Field(props: {
   name: string;
   type?: string;
   defaultValue?: string;
+  placeholder?: string;
   required?: boolean;
   min?: number;
+  max?: number;
   step?: number | string;
 }) {
   const isNumber = props.type === "number";
@@ -731,8 +878,10 @@ function Field(props: {
         name={props.name}
         type={props.type || "text"}
         defaultValue={props.defaultValue}
+        placeholder={props.placeholder}
         required={props.required}
         min={isNumber ? (props.min ?? NON_NEGATIVE_NUMBER_INPUT_PROPS.min) : undefined}
+        max={isNumber ? props.max : undefined}
         step={
           isNumber ? (props.step ?? NON_NEGATIVE_NUMBER_INPUT_PROPS.step) : undefined
         }

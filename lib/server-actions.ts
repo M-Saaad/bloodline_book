@@ -13,8 +13,12 @@ import {
   deleteSaleReceipt,
   logExpense,
   logMedical,
+  logMilkRecord,
   logWeight,
   recordBreeding,
+  recordLactation,
+  upsertVetContact,
+  deleteVetContact,
   recordBreedingUltrasound,
   updateBreeding,
   deleteBreeding,
@@ -27,7 +31,19 @@ import {
   undoLivestockSale,
 } from "@/lib/actions";
 import { revalidatePath } from "next/cache";
-import type { AnimalBreed, AnimalSex, AnimalStatus, LedgerCategory, MedicalEventType } from "@/lib/types";
+import type {
+  AnimalBreed,
+  AnimalSex,
+  AnimalStatus,
+  LedgerCategory,
+  MedicalEventType,
+  MilkMeasurementMethod,
+  MilkSession,
+  MilkSource,
+  MilkUnit,
+  VetContactRole,
+} from "@/lib/types";
+import { drugClassForProduct } from "@/lib/livestock/medical-notes";
 import { formatDewormNotes, formatVaccineNotes, type DewormType } from "@/lib/livestock/medical-notes";
 import { NEW_VACCINE_VALUE, builtinVaccineByName, parseVaccineIntervalDays } from "@/lib/livestock/vaccine-schedule";
 import {
@@ -248,6 +264,14 @@ export async function actionLogMedical(formData: FormData) {
     const famachaRaw = String(formData.get("famachaScore") || "").trim();
     const bcsRaw = String(formData.get("bodyConditionScore") || "").trim();
     const fecRaw = String(formData.get("fecalEggCount") || "").trim();
+    const fecReductionRaw = String(formData.get("fecReductionPct") || "").trim();
+    const doseRaw = String(formData.get("doseAmount") || "").trim();
+    const dewormerResolved =
+      eventType === "Deworming"
+        ? String(formData.get("dewormerName") || "").trim() === "Other"
+          ? String(formData.get("dewormerNameOther") || "").trim()
+          : String(formData.get("dewormerName") || "").trim()
+        : "";
 
     await logMedical({
       animalIds,
@@ -255,12 +279,27 @@ export async function actionLogMedical(formData: FormData) {
       date: String(formData.get("date")),
       notes,
       comment,
-      famacha_score: famachaRaw ? parsePositiveInteger(famachaRaw, "FAMACHA score") : null,
+      famacha_score:
+        eventType === "FAMACHA" && famachaRaw
+          ? parsePositiveInteger(famachaRaw, "FAMACHA score")
+          : famachaRaw
+            ? parsePositiveInteger(famachaRaw, "FAMACHA score")
+            : null,
       body_condition_score: bcsRaw ? parsePositiveAmount(bcsRaw, "Body condition score") : null,
       fecal_egg_count: fecRaw ? parsePositiveInteger(fecRaw, "Fecal egg count") : null,
+      fec_reduction_pct: fecReductionRaw
+        ? parsePositiveAmount(fecReductionRaw, "FEC reduction %")
+        : null,
       product_brand: String(formData.get("productBrand") || "").trim() || null,
       active_ingredient: String(formData.get("activeIngredient") || "").trim() || null,
+      drug_class:
+        dewormerResolved ? drugClassForProduct(dewormerResolved) : String(formData.get("drugClass") || "").trim() || null,
       route: String(formData.get("route") || "").trim() || null,
+      dose_amount: doseRaw ? parsePositiveAmount(doseRaw, "Dose amount") : null,
+      dose_unit: String(formData.get("doseUnit") || "").trim() || null,
+      lot_number: String(formData.get("lotNumber") || "").trim() || null,
+      expiration_date: String(formData.get("expirationDate") || "").trim() || null,
+      production_stage: String(formData.get("productionStage") || "").trim() || null,
       withdrawal_meat_days: parseOptionalNonNegativeInteger(
         String(formData.get("withdrawalMeatDays") || "").trim(),
         "Meat withdrawal days"
@@ -342,14 +381,71 @@ export async function actionLogWeight(formData: FormData) {
 export async function actionRecordBreeding(formData: FormData) {
   await guardWrite();
   const maleRaw = String(formData.get("maleAnimalId") || "").trim();
+  const exposureStart = String(formData.get("exposureStart") || formData.get("dateCrossed") || "");
+  const exposureEnd = String(formData.get("exposureEnd") || exposureStart);
   await recordBreeding({
     femaleId: Number(formData.get("femaleId")),
     buckName: String(formData.get("buckName")),
     maleAnimalId: maleRaw ? Number(maleRaw) : null,
-    dateCrossed: String(formData.get("dateCrossed")),
+    exposureStart,
+    exposureEnd,
     notes: String(formData.get("notes") || ""),
   });
   revalidateTxnPaths();
+}
+
+export async function actionLogMilk(formData: FormData) {
+  await guardWrite();
+  await logMilkRecord({
+    animalId: Number(formData.get("animalId")),
+    date: String(formData.get("date")),
+    session: String(formData.get("session") || "AM") as MilkSession,
+    amount: parsePositiveAmount(String(formData.get("amount") || ""), "Milk amount"),
+    unit: String(formData.get("unit") || "lb") as MilkUnit,
+    measurementMethod: String(formData.get("measurementMethod") || "scale") as MilkMeasurementMethod,
+    source: String(formData.get("source") || "farm-entered") as MilkSource,
+    operator: String(formData.get("operator") || ""),
+    notes: String(formData.get("notes") || ""),
+  });
+  revalidateTxnPaths();
+}
+
+export async function actionRecordLactation(formData: FormData) {
+  await guardWrite();
+  await recordLactation({
+    animalId: Number(formData.get("animalId")),
+    fresheningDate: String(formData.get("fresheningDate")),
+    lactationNumber: Number(formData.get("lactationNumber") || 1),
+    dryOffDate: String(formData.get("dryOffDate") || "") || null,
+    notes: String(formData.get("notes") || ""),
+  });
+  revalidateTxnPaths();
+}
+
+export async function actionUpsertVetContact(formData: FormData) {
+  await guardWrite();
+  const idRaw = String(formData.get("id") || "").trim();
+  await upsertVetContact({
+    id: idRaw || undefined,
+    role: String(formData.get("role") || "primary") as VetContactRole,
+    name: String(formData.get("name") || ""),
+    phone: String(formData.get("phone") || ""),
+    emergencyPhone: String(formData.get("emergencyPhone") || ""),
+    address: String(formData.get("address") || ""),
+    servicesOffered: String(formData.get("servicesOffered") || ""),
+    acceptsNewClients: String(formData.get("acceptsNewClients") || "unknown"),
+    vcprEstablished: String(formData.get("vcprEstablished") || "unknown"),
+    notes: String(formData.get("notes") || ""),
+  });
+  revalidatePath("/vet");
+  return { ok: true as const };
+}
+
+export async function actionDeleteVetContact(formData: FormData) {
+  await guardWrite();
+  await deleteVetContact(String(formData.get("id") || ""));
+  revalidatePath("/vet");
+  return { ok: true as const };
 }
 
 export async function actionUpdateBreeding(formData: FormData) {
@@ -621,6 +717,16 @@ export async function actionUpdateAnimal(formData: FormData) {
     name: String(formData.get("name") || "") || null,
     breed: breedRaw ? (breedRaw as AnimalBreed) : null,
     sex: sexRaw ? (sexRaw as AnimalSex) : null,
+    registered_name: String(formData.get("registeredName") || "") || null,
+    barn_name: String(formData.get("barnName") || "") || null,
+    previous_name: String(formData.get("previousName") || "") || null,
+    adga_registration_number: String(formData.get("adgaNumber") || "") || null,
+    tattoo_right: String(formData.get("tattooRight") || "") || null,
+    tattoo_left: String(formData.get("tattooLeft") || "") || null,
+    tattoo_tail_web: String(formData.get("tattooTailWeb") || "") || null,
+    eid_microchip: String(formData.get("eidMicrochip") || "") || null,
+    scrapie_tag: String(formData.get("scrapieTag") || "") || null,
+    farm_tag: String(formData.get("farmTag") || "") || null,
     description: String(formData.get("description") || "") || null,
     comment: String(formData.get("comment") || "") || null,
     ownerName: String(formData.get("ownerName")),

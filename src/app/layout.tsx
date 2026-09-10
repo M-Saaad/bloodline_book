@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Al-Yumn Goat Farm",
-  description: "Farm management for Monis & Saad",
-  applicationName: "Al-Yumn Goat Farm",
+  title: "Bloodline Book",
+  description: "Herd management for ADGA dairy goat breeders",
+  applicationName: "Bloodline Book",
   appleWebApp: {
     capable: true,
-    title: "Al-Yumn",
+    title: "Bloodline Book",
     statusBarStyle: "default",
   },
   icons: {

@@ -9,10 +9,13 @@ import type {
   BreedingEvent,
   Contact,
   FarmDatabase,
+  Lactation,
   LivestockSale,
   MedicalEvent,
+  MilkRecord,
   PurchaseAgreement,
   Transaction,
+  VetContact,
   WeightLog,
 } from "../types";
 import { createServiceClient } from "../supabase/admin";
@@ -36,6 +39,12 @@ export type WritePlan = {
   deleteBreedingIds?: string[];
   upsertMedia?: AnimalMedia[];
   upsertWeights?: WeightLog[];
+  upsertMilk?: MilkRecord[];
+  deleteMilkIds?: string[];
+  upsertLactations?: Lactation[];
+  deleteLactationIds?: string[];
+  upsertVetContacts?: VetContact[];
+  deleteVetContactIds?: string[];
 };
 
 function txRow(t: Transaction): Record<string, unknown> {
@@ -71,6 +80,16 @@ function animalRow(a: Animal, includeParents = true): Record<string, unknown> {
     name: a.name,
     breed: a.breed,
     sex: a.sex,
+    registered_name: a.registered_name ?? null,
+    barn_name: a.barn_name ?? null,
+    previous_name: a.previous_name ?? null,
+    adga_registration_number: a.adga_registration_number ?? null,
+    tattoo_right: a.tattoo_right ?? null,
+    tattoo_left: a.tattoo_left ?? null,
+    tattoo_tail_web: a.tattoo_tail_web ?? null,
+    eid_microchip: a.eid_microchip ?? null,
+    scrapie_tag: a.scrapie_tag ?? null,
+    farm_tag: a.farm_tag ?? null,
     date_of_purchase: a.date_of_purchase,
     age_at_purchase: a.age_at_purchase,
     description: a.description,
@@ -154,7 +173,11 @@ function breedingRow(b: BreedingEvent): Record<string, unknown> {
     male_animal_id: b.male_animal_id,
     buck_name: b.buck_name,
     date_crossed: b.date_crossed,
+    exposure_start_date: b.exposure_start_date ?? b.date_crossed,
+    exposure_end_date: b.exposure_end_date ?? b.date_crossed,
     expected_due_date: b.expected_due_date,
+    due_date_early: b.due_date_early ?? null,
+    due_date_late: b.due_date_late ?? null,
     delivered_date: b.delivered_date,
     ultrasound_date: b.ultrasound_date,
     fetus_count: b.fetus_count,
@@ -172,6 +195,48 @@ function mediaRow(m: AnimalMedia): Record<string, unknown> {
     media_type: m.media_type,
     caption: m.caption,
     created_at: m.created_at,
+  };
+}
+
+function milkRow(m: MilkRecord): Record<string, unknown> {
+  return {
+    id: m.id,
+    animal_id: m.animal_id,
+    date: m.date,
+    session: m.session,
+    amount_raw: m.amount_raw,
+    unit_entered: m.unit_entered,
+    amount_lb_normalized: m.amount_lb_normalized,
+    measurement_method: m.measurement_method,
+    source: m.source,
+    operator: m.operator,
+    notes: m.notes,
+  };
+}
+
+function lactationRow(l: Lactation): Record<string, unknown> {
+  return {
+    id: l.id,
+    animal_id: l.animal_id,
+    freshening_date: l.freshening_date,
+    lactation_number: l.lactation_number,
+    dry_off_date: l.dry_off_date,
+    notes: l.notes,
+  };
+}
+
+function vetContactRow(v: VetContact): Record<string, unknown> {
+  return {
+    id: v.id,
+    role: v.role,
+    name: v.name,
+    phone: v.phone,
+    emergency_phone: v.emergency_phone,
+    address: v.address,
+    services_offered: v.services_offered,
+    accepts_new_clients: v.accepts_new_clients,
+    vcpr_established: v.vcpr_established,
+    notes: v.notes,
   };
 }
 
@@ -214,6 +279,15 @@ export async function applyWritePlan(plan: WritePlan): Promise<void> {
   }
   if (plan.deleteMedicalIds?.length) {
     await deleteByIds(client, "medical_events", plan.deleteMedicalIds);
+  }
+  if (plan.deleteMilkIds?.length) {
+    await deleteByIds(client, "milk_records", plan.deleteMilkIds);
+  }
+  if (plan.deleteLactationIds?.length) {
+    await deleteByIds(client, "lactations", plan.deleteLactationIds);
+  }
+  if (plan.deleteVetContactIds?.length) {
+    await deleteByIds(client, "vet_contacts", plan.deleteVetContactIds);
   }
 
   if (plan.deleteTransactionIds?.length) {
@@ -276,6 +350,15 @@ export async function applyWritePlan(plan: WritePlan): Promise<void> {
         notes: w.notes,
       }))
     );
+  }
+  if (plan.upsertMilk?.length) {
+    await upsertRows(client, "milk_records", plan.upsertMilk.map(milkRow));
+  }
+  if (plan.upsertLactations?.length) {
+    await upsertRows(client, "lactations", plan.upsertLactations.map(lactationRow));
+  }
+  if (plan.upsertVetContacts?.length) {
+    await upsertRows(client, "vet_contacts", plan.upsertVetContacts.map(vetContactRow));
   }
 }
 

@@ -9,7 +9,6 @@ const filters = [
   { id: "purchased", label: "Purchased" },
   { id: "born", label: "Born" },
   { id: "breeding", label: "Breeding" },
-  { id: "palai", label: "Palai" },
 ];
 
 export function AnimalsFilters() {

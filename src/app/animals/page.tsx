@@ -30,10 +30,6 @@ export default async function AnimalsPage({
   if (filter === "active") animals = animals.filter((a) => a.status === "Active");
   if (filter === "purchased") animals = animals.filter((a) => !a.home_bred);
   if (filter === "born") animals = animals.filter((a) => a.home_bred);
-  if (filter === "palai") {
-    const farmId = data.contacts.find((c) => c.name === "Farm")?.id;
-    animals = animals.filter((a) => a.owner_id && a.owner_id !== farmId && a.status === "Active");
-  }
   if (filter === "breeding") {
     const femaleIds = new Set(
       data.breeding_events

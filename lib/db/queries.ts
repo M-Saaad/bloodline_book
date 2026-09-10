@@ -29,6 +29,7 @@ import {
   mapAnimal,
   mapTx,
   mapWeight,
+  mapVetContact,
   selectAll,
   selectAllOptional,
 } from "./supabase";
@@ -94,6 +95,7 @@ export type HomeData = {
   contacts: Contact[];
   transactions: Transaction[];
   animals: Animal[];
+  vet_contacts: FarmDatabase["vet_contacts"];
   meta: FarmDatabase["meta"];
   quickEntry: QuickEntryProps;
 };
@@ -105,18 +107,20 @@ export const loadHomeData = cache(async (): Promise<HomeData> => {
       contacts: db.contacts,
       transactions: db.transactions,
       animals: db.animals,
+      vet_contacts: db.vet_contacts,
       meta: db.meta,
       quickEntry: quickEntryPropsFromDb(db),
     };
   }
 
   const client = createServiceClient();
-  const [contacts, transactions, metaRows, animalRows, quickEntry] =
+  const [contacts, transactions, metaRows, animalRows, vetContacts, quickEntry] =
     await Promise.all([
       selectAll(client, "contacts"),
       selectAll(client, "transactions"),
       selectAll(client, "app_meta"),
       selectAll(client, "animals"),
+      selectAllOptional(client, "vet_contacts"),
       getQuickEntryData(),
     ]);
 
@@ -124,6 +128,7 @@ export const loadHomeData = cache(async (): Promise<HomeData> => {
     contacts: contacts.map(mapContact),
     transactions: filterLedgerTxs(transactions),
     animals: animalRows.map(mapAnimal),
+    vet_contacts: vetContacts.map(mapVetContact),
     meta: mapMeta(metaRows[0]),
     quickEntry,
   };

@@ -18,7 +18,7 @@ export function DeleteAnimalButton({
 
   function onDelete() {
     const ok = window.confirm(
-      `Delete ${label}? This removes the goat and all linked expenses, medical, breeding, and sale records. Partner equity will be recalculated. This cannot be undone.`
+      `Delete ${label}? This removes the goat and all linked expenses, medical, breeding, and sale records. This cannot be undone.`
     );
     if (!ok) return;
     const fd = new FormData();
