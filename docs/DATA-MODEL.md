@@ -1,28 +1,68 @@
-# Data Model
+# Data Model — Bloodline Book
 
-All types are defined in `lib/types.ts`. Postgres schema mirrors these in `supabase/migrations/`.
+All types are defined in `lib/types.ts`. Postgres schema mirrors these in `supabase/migrations/` (fresh `001`+ history for `bloodline-book-dev`).
 
-## Entity relationship summary
+> **Note:** Sections below that reference partner equity, Palai, or PKR belong to the original Al-Yumn farm app and are **not** part of Bloodline Book. See `docs/BLOODLINE-BOOK.md` for the current product scope.
+
+## Entity relationship summary (Bloodline Book)
 
 ```
 contacts ──┬── animals (purchased_from, owner_id)
-           ├── transactions (vendor_id, customer_id, paid_by, received_by)
-           └── partner_ledger_entries (partner_id)
+           └── transactions (vendor_id, customer_id)
 
 animals ───┬── transactions (animal_id)
-           ├── medical_events
-           ├── breeding_events (female_animal_id, male_animal_id)
+           ├── medical_events (structured health — see below)
+           ├── breeding_events
            ├── weight_logs
            ├── animal_media
            ├── purchase_agreements
            └── livestock_sales (animal_ids[])
 
-transactions ──┬── partner_ledger_entries (1:1 or 1:2)
-               ├── palai_payments (via transaction_id)
-               ├── medical_events (via transaction_id)
-               ├── purchase_agreements (via payments)
-               └── livestock_sales (via livestock_sale_id)
+transactions ──┬── medical_events (optional transaction_id)
+               ├── purchase_agreements
+               └── livestock_sales
 ```
+
+## MedicalEvent (Phase 1 — structured health)
+
+```typescript
+interface MedicalEvent {
+  id: string;
+  animal_id: number;
+  event_type:
+    | "Vaccine" | "Deworming" | "Ultrasound" | "Surgery" | "General"
+    | "FAMACHA" | "FecalEggCount" | "BodyConditionScore";
+  date: string | null;
+  notes: string | null;       // legacy shorthand + vaccine/deworm display string
+  comment: string | null;     // free-text user note
+  transaction_id: string | null;
+  // Structured treatment fields (Vaccine / Deworming / Surgery)
+  product_brand?: string | null;
+  active_ingredient?: string | null;
+  drug_class?: string | null;
+  route?: string | null;      // oral drench, injectable, topical, feed, intranasal
+  dose_amount?: number | null;
+  dose_unit?: string | null;  // mL, cc, mg, per-kg, per-lb
+  withdrawal_meat_days?: number | null;
+  withdrawal_milk_days?: number | null;
+  withdrawal_clear_date?: string | null;  // computed on save
+  lot_number?: string | null;
+  expiration_date?: string | null;
+  // Clinical scoring
+  famacha_score?: number | null;          // 1–5
+  body_condition_score?: number | null;   // 1–5 in 0.5 steps
+  fecal_egg_count?: number | null;        // EPG
+  fec_reduction_pct?: number | null;
+  prior_treatment_event_id?: string | null;
+  production_stage?: string | null;       // dry, peak lactation, etc.
+}
+```
+
+Vaccine schedules are **disease-target-first** (`lib/livestock/vaccine-schedule.ts`). Dewormer catalogs are **drug-class-first** (`lib/livestock/medical-notes.ts`). Custom products remain extensible via event history (same pattern as the original custom vaccine/dewormer support).
+
+---
+
+## Legacy entity diagram (original farm app — deprecated here)
 
 ## Core entities
 

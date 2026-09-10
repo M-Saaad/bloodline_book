@@ -1,236 +1,76 @@
-# Business Rules
+# Business Rules — Bloodline Book
 
-Financial logic is the most sensitive part of this codebase. Rules below mirror Google Sheets conventions verified by `npm run verify`.
+## Vet content guardrail (non-negotiable)
 
-## Partner settlement (HOT ZONE)
+Bloodline Book **records** what was done. It does **not**:
 
-**File:** `lib/partner-equity/settlement.ts`
+- Recommend doses or auto-calculate suggested doses
+- Diagnose illness or triage symptoms
+- Establish or claim a VCPR through the app
+- Provide teleconsult or treatment suggestions
 
-### Formula
+If future AI features are added, they may only help compose a vet-ready summary or say **"call your vet."**
 
-```
-cost_base     = SUM(amount) WHERE kind = 'cost'
-fair_share    = cost_base / 2
-monis_funded  = SUM(cost paid_by Monis) + SUM(signed adjustment amounts)
-saad_funded   = SUM(cost paid_by Saad)  - SUM(signed adjustment amounts)
-monis_diff    = monis_funded - fair_share
-saad_diff     = saad_funded  - fair_share
-```
+## Health reminders
 
-### Interpretation
+**File:** `lib/livestock/herd-health.ts`
 
-| Condition | Meaning |
-|-----------|---------|
-| `monis_diff > 0` | Monis over-funded → **Saad owes Monis** `amountOwed = round(abs(monis_diff))` |
-| `saad_diff > 0` | Saad over-funded → **Monis owes Saad** |
-| Both ≈ 0 | Partners are even |
+### Vaccines
 
-### Canonical anchor
+- Built-in disease targets: CD&T, CL, Rabies, Pneumonia/respiratory, Soremouth, Other
+- Each target has a farm-editable product/brand underneath
+- Due dates computed from last vaccine of that target + interval (default yearly)
+- Custom vaccines discovered from history keep their logged interval
 
-After importing all historical data:
+### Deworming — FAMACHA-first (not blind calendar)
 
-```
-monis_diff = +192,247 PKR
-saad_diff  = −192,247 PKR
-→ Saad owes Monis 192,247 PKR
-```
+- **Do not** use a fixed 182-day internal deworm interval
+- Reminder text: **"Check FAMACHA"** when `FAMACHA_CHECK_INTERVAL_DAYS` (28) has elapsed since last FAMACHA score
+- Internal deworming is a clinical decision after FAMACHA/FEC — not auto-scheduled
+- External deworm follow-up: 2 days after latest internal deworm if no external deworm since
 
-`assertCanonicalSettlement()` throws if rounded diffs differ from these values.
+### Withdrawal periods
 
-### Balance identity
+- `withdrawal_clear_date` = event date + max(meat_days, milk_days)
+- Animals with `withdrawal_clear_date >= today` appear in home/health "needs attention"
 
-Always true: `monis_funded + saad_funded = cost_base`
+### Dosing
 
-### Category display totals
+Store **actual dose administered** (amount + unit) as entered. Never infer dose from weight or product label.
 
-For `partner_adjustment` rows with category `Livestock Sale`, category breakdown uses `abs(amount) * 2` to show full receipt value (each ledger row stores one partner's half).
+## Transactions (single-owner)
 
-## Transaction kinds
+**File:** `lib/transactions/ledger.ts`
 
-### Cost (`kind: "cost"`)
+| Kind | Meaning |
+|------|---------|
+| `cost` | Money spent (positive amount) |
+| `income` | Money received (positive amount) |
 
-- Represents money **spent** on the farm
-- `amount` is always **positive**
-- Exactly one partner in `paid_by_partner_id`
-- Increases `cost_base` and that partner's `funded`
+Categories: Feed, Delivery, Vet/Medicine, Labor, Infrastructure, Livestock Purchase, Livestock Sale, Other (+ custom strings on `transactions.category`).
 
-Common categories: Feed, Delivery, Vet/Medicine, Labor, Infrastructure, Livestock Purchase, Palai Expense, Other.
+No partner ledger, no 50/50 splits.
 
-### Partner adjustment (`kind: "partner_adjustment"`)
+## Livestock sales
 
-- Represents **income attribution** or **partner share rebalancing**
-- `amount` is **signed** on Monis's side of the book
-- `adjustment_partner_id` always points to Monis
-- Does **not** increase `cost_base`
-
-Categories: Palai Income, Livestock Sale, Partner Transfer.
-
-Effect on funded amounts:
+**File:** `lib/livestock/record-sale.ts`
 
 ```
-monis_funded += adjustment.amount
-saad_funded  -= adjustment.amount
+net_received = gross_sale_price - delivery_cost
 ```
 
-## Palai payments (HOT ZONE)
+- `amount_received` tracks partial payments; `status` open until fully paid
+- Income transactions link via `livestock_sale_id`
+- Animals marked `Sold` with `out_date` (no "sold on palai" path)
 
-**Files:** `lib/palai/recognize-payment.ts`, `lib/palai/service-month.ts`
+## Breeding
 
-### Rules
+- Gestation default 150 days (`lib/livestock/breeding.ts`)
+- Ultrasound window: days 40–75 after breeding
+- Expected due date from `date_crossed` (exposure windows in Phase 2)
 
-1. Record on **receipt date**, not accrual
-2. Split **50/50** between partners as farm income
-3. Creates one `partner_adjustment` with category `Palai Income`
-4. Also creates a `palai_payments` row with `service_month` (YYYY-MM)
+---
 
-### Typical case: Saad received customer transfer
+## Legacy rules (original Al-Yumn farm app)
 
-```
-total_amount = 30,000 PKR
-adjustment_amount = +15,000  (Monis's half)
-```
-
-Settlement effect: Monis funded +15,000, Saad funded −15,000. This reflects that Saad physically received the cash but half belongs to Monis.
-
-### If Monis received instead
-
-```
-adjustment_amount = -15,000
-```
-
-### Service month
-
-- User selects which month the fee covers
-- `palaiMergeTarget()` may merge into an existing payment for same customer + month
-- `normalizeServiceMonth()` accepts `YYYY-MM` or full dates
-
-## Livestock sales (HOT ZONE)
-
-**Files:** `lib/livestock/record-sale.ts`, `lib/livestock/cancel-sale.ts`
-
-### Sale economics
-
-```
-net_received  = gross_sale_price - delivery_cost
-partner_share = net_received / 2
-```
-
-### Receipt convention
-
-Each cash receipt posts **one partner's half**, not the full amount:
-
-| Receiver | adjustment amount |
-|----------|-------------------|
-| Monis received | `-(receipt / 2)` — credits Saad's share |
-| Saad received | `+(receipt / 2)` — credits Monis's share |
-
-### Partial receipts
-
-- `amount_received` tracks running total on `livestock_sales`
-- `status: "open"` until `amount_received >= net_received`
-- Additional receipts via `addSaleReceipt()`
-
-### Sold on Palai
-
-When buyer keeps goats at farm:
-
-- Animals stay `Active`
-- `owner_id` → customer, `palai_rate` set
-- Used when sale is to an existing/new Palai customer
-
-### Undo
-
-- `undoLivestockSale()` reverses sale + linked transactions
-- `deleteSaleReceipt()` removes one receipt and adjusts balances
-
-## Purchase agreements
-
-**File:** `lib/livestock/purchase-agreement.ts`
-
-- Created when buying a goat with `total_amount > paid_now`
-- Each payment creates a `cost` transaction with category `Livestock Purchase`
-- `status: "settled"` when `amount_paid >= total_amount`
-
-## Partner transfers
-
-Direct cash moves between partners. Creates `partner_adjustment` with category `Partner Transfer`. Used when one partner reimburses the other outside normal expense flow.
-
-## Breeding rules
-
-**File:** `lib/livestock/breeding.ts`
-
-| Rule | Detail |
-|------|--------|
-| Dam availability | Female must not have active pending breeding |
-| Expected due | `date_crossed + 150 days` (approximate gestation) |
-| Ultrasound | Updates `fetus_count`, `ultrasound_date`, may set outcome |
-| Delivery | Creates kid via `registerBornGoat()`, resolves breeding outcome |
-| Buck | In-herd sire (`male_animal_id`) or external (`buck_name`) |
-
-## Herd health
-
-**Files:** `lib/livestock/vaccine-schedule.ts`, `lib/livestock/herd-health.ts`, `lib/livestock/medical-notes.ts`
-
-- Built-in vaccines: PPR, Enterotoxaemia, etc. with interval presets
-- Custom vaccine names allowed (stored in event `notes`)
-- Deworm types: Oral, Injection, Pour-on — custom names merged from history
-- Overdue = last event date + interval < today
-
-## Animal status transitions
-
-**File:** `lib/actions.ts` → `changeStatus()`
-
-| Status | Effect |
-|--------|--------|
-| Sold | Usually via sale flow; sets `sold_price`, `out_date` |
-| Died / Slaughtered / Gone | Sets `out_date`, removes from active lists |
-| Active | Default; Palai goats owned by customers remain Active |
-
-## Age calculation
-
-**File:** `lib/livestock/age.ts`
-
-Computes display age from `date_of_purchase` + `age_at_purchase` text, or from birth (home bred).
-
-## Period headcount
-
-**File:** `lib/livestock/period-headcount.ts`
-
-Counts goats in herd between dates: purchased/home-bred before end AND (still active OR out_date after start).
-
-## Finance reports
-
-**File:** `lib/transactions/monthly-report.ts`
-
-Splits period transactions into:
-
-- **Invested** — cost rows (expenses)
-- **Received** — Palai Income + Livestock Sale adjustments (full amounts)
-- **Transfers** — Partner Transfer adjustments
-
-## What NOT to change casually
-
-1. Settlement formula or canonical ±192,247 expectation
-2. Palai 50/50 split direction (sign of adjustment)
-3. Sale half-receipt convention
-4. Import scripts without re-running full verify pipeline
-5. Partner name strings `"Monis"` / `"Saad"` — code looks up by exact name
-
-## Verification
-
-```bash
-npm run verify
-```
-
-Runs, in order:
-
-1. `verify-palai-merge.mts` — Palai merge behavior
-2. `verify-v1.mjs` — Core settlement + linkage assertions
-3. `verify-live.mts` — Livestock sale integrity
-4. `verify-herd-health.mts` — Health schedule consistency
-5. `verify-monthly-report.mts` — Report math
-6. `verify-period-headcount.mts` — Headcount logic
-7. `verify-animal-age.mts` — Age parsing
-8. `verify-custom-vaccine.mts` — Custom vaccine flows
-
-All must pass after any financial logic change.
+The sections below in git history described partner equity, Palai boarding, and PKR settlement. They are **not implemented** in Bloodline Book. See `alyumn_goat_farm` if needed for reference.
