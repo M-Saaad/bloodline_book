@@ -1,11 +1,10 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { requireSupabaseEnv, sanitizeSupabaseEnv } from "./env";
+import { requireSupabaseEnv, supabaseServiceRoleKey } from "./env";
 
 /** Service-role client for seed scripts and privileged server writes. Never expose to browser. */
 export function createServiceClient() {
-  sanitizeSupabaseEnv();
   const { url } = requireSupabaseEnv();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = supabaseServiceRoleKey();
   if (!key) {
     throw new Error("SUPABASE_SERVICE_ROLE_KEY is required for server/seed writes");
   }

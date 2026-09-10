@@ -1,19 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { sanitizeSupabaseEnv } from "./env";
+import { isSupabaseConfigured, supabaseAnonKey, supabaseUrl } from "./env";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
-  sanitizeSupabaseEnv();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
   // Local JSON mode — no auth gate
-  if (!url || !anon) {
+  if (!isSupabaseConfigured()) {
     return supabaseResponse;
   }
 
+  const url = supabaseUrl();
+  const anon = supabaseAnonKey();
   const supabase = createServerClient(url, anon, {
     cookies: {
       getAll() {

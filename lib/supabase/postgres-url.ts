@@ -1,7 +1,9 @@
 import { readFileSync } from "fs";
 import path from "path";
 import pg from "pg";
-import { sanitizeSupabaseEnv } from "./env";
+import { supabaseProjectRef } from "./env";
+
+export { supabaseProjectRef };
 
 const POSTGRES_ENV_KEYS = [
   "POSTGRES_URL_NON_POOLING",
@@ -11,19 +13,6 @@ const POSTGRES_ENV_KEYS = [
   "DATABASE_URL",
   "BLOODLINEBOOK_DATABASE_URL",
 ] as const;
-
-export function supabaseProjectRef(): string | null {
-  sanitizeSupabaseEnv();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) return null;
-  try {
-    const host = new URL(url).hostname;
-    const ref = host.split(".")[0];
-    return ref || null;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Rebuild a Postgres URI when the password contains unencoded `@` (or other

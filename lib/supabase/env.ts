@@ -19,23 +19,24 @@ export function normalizeSupabaseKey(token: string): string {
   return token;
 }
 
-export function sanitizeSupabaseEnv(): void {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (url) process.env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(url);
-  for (const key of ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"] as const) {
-    const value = process.env[key];
-    if (value) process.env[key] = normalizeSupabaseKey(value);
-  }
+export function supabaseUrl(): string {
+  return normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
 }
 
-sanitizeSupabaseEnv();
+export function supabaseAnonKey(): string {
+  return normalizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "");
+}
+
+export function supabaseServiceRoleKey(): string {
+  return normalizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "");
+}
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 export function supabaseProjectRef(): string | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = supabaseUrl();
   if (!url) return null;
   const match = url.match(/https:\/\/([^.]+)\.supabase\.co/);
   return match?.[1] ?? null;
@@ -48,9 +49,9 @@ export function isBloodlineBookDevEnv(): boolean {
 }
 
 export function requireSupabaseEnv() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anon) {
+  const url = supabaseUrl();
+  const anon = supabaseAnonKey();
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required");
   }
   if (process.env.NODE_ENV !== "production" && !isBloodlineBookDevEnv()) {
