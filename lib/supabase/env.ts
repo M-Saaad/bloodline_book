@@ -1,4 +1,4 @@
-const EXPECTED_SUPABASE_PROJECT = "bloodline-book-dev";
+const EXPECTED_SUPABASE_PROJECT = "skwswkbuteaiysryelqy";
 
 /** Strip accidental /rest/v1 paths copied from the API docs. */
 export function normalizeSupabaseUrl(url: string): string {

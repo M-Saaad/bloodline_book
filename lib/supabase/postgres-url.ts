@@ -9,6 +9,7 @@ const POSTGRES_ENV_KEYS = [
   "POSTGRES_PRISMA_URL",
   "SUPABASE_DB_URL",
   "DATABASE_URL",
+  "BLOODLINEBOOK_DATABASE_URL",
 ] as const;
 
 export function supabaseProjectRef(): string | null {
@@ -24,11 +25,39 @@ export function supabaseProjectRef(): string | null {
   }
 }
 
+/**
+ * Rebuild a Postgres URI when the password contains unencoded `@` (or other
+ * reserved characters). `new URL()` / node-pg otherwise treat the first `@` as
+ * the host separator and drop the real hostname.
+ */
+export function encodePostgresUrl(raw: string): string {
+  const trimmed = raw.trim();
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.hostname) return trimmed;
+  } catch {
+    // Fall through to last-@ reconstruction.
+  }
+
+  const schemeIdx = trimmed.indexOf("://");
+  if (schemeIdx < 0) return trimmed;
+  const scheme = trimmed.slice(0, schemeIdx);
+  const rest = trimmed.slice(schemeIdx + 3);
+  const lastAt = rest.lastIndexOf("@");
+  if (lastAt < 0) return trimmed;
+  const creds = rest.slice(0, lastAt);
+  const hostpart = rest.slice(lastAt + 1);
+  const colon = creds.indexOf(":");
+  const user = colon >= 0 ? creds.slice(0, colon) : creds;
+  const password = colon >= 0 ? creds.slice(colon + 1) : "";
+  return `${scheme}://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${hostpart}`;
+}
+
 /** Resolve a direct Postgres connection string from common Vercel/Supabase env names. */
 export function resolvePostgresUrl(): { url: string; source: string } | null {
   for (const key of POSTGRES_ENV_KEYS) {
     const value = process.env[key];
-    if (value?.trim()) return { url: value.trim(), source: key };
+    if (value?.trim()) return { url: encodePostgresUrl(value.trim()), source: key };
   }
 
   const host = process.env.POSTGRES_HOST?.trim();

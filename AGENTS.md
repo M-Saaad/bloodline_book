@@ -116,6 +116,24 @@ npm run build
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Code layers, auth, DB access patterns |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Import pipeline, scripts, verification |
 
+## Cloud Agent environment
+
+Injected secret names:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_ACCESS_TOKEN`
+- `BLOODLINEBOOK_DATABASE_URL` (same URI as `DATABASE_URL`)
+
+Sanitize before Next.js or `npm run db:migrate`:
+
+```bash
+eval "$(bash scripts/cloud-agent-env.sh)"
+```
+
+That strips `/rest/v1` from the Project URL, repairs duplicated JWT headers, and percent-encodes `@` in the database password. Schema apply (`001` then `002`, or `npm run db:migrate`) is a manual step — do not run it from environment `install`.
+
 ## Conventions for agents
 
 - **Minimize scope** — match existing patterns in surrounding files

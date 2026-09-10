@@ -21,6 +21,7 @@ Commands, data pipeline, and maintenance procedures.
 | `npm run backfill:home-bred` | Supabase backfill script | Mark home-bred animals |
 | `npm run backfill:breeding-births` | Supabase backfill script | Link births to breeding |
 | `npm run apply:animal-parents` | Supabase script | Apply parent columns |
+| `npm run db:migrate` | `scripts/apply-bloodline-migrations.mts` | Apply `001` then `002` to the configured project |
 
 ## Local development (JSON mode)
 
