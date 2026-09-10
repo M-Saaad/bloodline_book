@@ -1,0 +1,600 @@
+import { animalLabel } from "@/lib/labels";
+import {
+  dewormKindFromNotes,
+  EXTERNAL_DEWORM_DELAY_DAYS,
+  FAMACHA_CHECK_INTERVAL_DAYS,
+  type DewormType,
+} from "./medical-notes";
+import {
+  BUILTIN_DISEASE_TARGETS,
+  mergeVaccineSchedules,
+  vaccineDisplayName,
+  vaccineKeyFromNotes,
+  type VaccineKind,
+  type VaccineScheduleEntry,
+} from "./vaccine-schedule";
+
+export { vaccineKindFromNotes, type VaccineKind } from "./vaccine-schedule";
+import { isKidAnimal } from "./age";
+import {
+  breedingRecordStatusLabel,
+  computeUltrasoundStatus,
+  daysSinceCrossed,
+  isBreedingInPipeline,
+  isDoeBreedingReady,
+  ultrasoundWindowEnd,
+  ultrasoundWindowStart,
+  type UltrasoundStatus,
+} from "./breeding";
+import type { Animal, BreedingEvent, MedicalEvent, WeightLog } from "@/lib/types";
+import { todayIso } from "@/lib/format";
+
+export { HEALTH_TABS, parseHealthTab } from "./health-tabs";
+export type { HealthTab } from "./health-tabs";
+
+export const CDT_INTERVAL_DAYS =
+  BUILTIN_DISEASE_TARGETS.find((v) => v.key === "cdt")?.intervalDays ?? 365;
+export const CL_INTERVAL_DAYS =
+  BUILTIN_DISEASE_TARGETS.find((v) => v.key === "cl")?.intervalDays ?? 365;
+
+/** @deprecated Use disease-target-specific intervals */
+export const VACCINE_INTERVAL_DAYS = CDT_INTERVAL_DAYS;
+/** FAMACHA checks replace blind calendar deworm intervals. */
+export const DEWORM_INTERVAL_DAYS = FAMACHA_CHECK_INTERVAL_DAYS;
+export { GESTATION_DAYS } from "./breeding";
+export const DUE_SOON_DAYS = 14;
+
+export type DueStatus = "overdue" | "due_soon" | "ok" | "never";
+
+export type AnimalDueItem = {
+  animalId: number;
+  label: string;
+  lastDate: string | null;
+  dueDate: string | null;
+  daysUntilDue: number | null;
+  status: DueStatus;
+  vaccineKind?: string;
+  dewormKind?: DewormType;
+  checkType?: "famacha" | "external_deworm";
+};
+
+export type BreedingRow = {
+  femaleId: number;
+  femaleLabel: string;
+  event: BreedingEvent | null;
+  statusLabel: string;
+  daysUntilDue: number | null;
+  status: "overdue" | "due_soon" | "pending" | "completed" | "ready";
+  daysSinceCrossed: number | null;
+  ultrasoundStatus: UltrasoundStatus;
+  ultrasoundWindowStart: string | null;
+  ultrasoundWindowEnd: string | null;
+};
+
+export type WeightRow = {
+  animalId: number;
+  label: string;
+  latest: WeightLog | null;
+  previous: WeightLog | null;
+  changeKg: number | null;
+};
+
+export type HerdHealthSummary = {
+  activeCount: number;
+  pendingPregnancies: number;
+  overdueVaccines: number;
+  dueSoonVaccines: number;
+  overdueFamacha: number;
+  dueSoonFamacha: number;
+  overdueDeworm: number;
+  dueSoonDeworm: number;
+  neverVaccinated: number;
+  neverFamacha: number;
+  neverDewormed: number;
+  neverWeighed: number;
+  activeWithdrawals: number;
+  breedingDelivered: number;
+  breedingFailed: number;
+  avgWeightKg: number | null;
+};
+
+export type HerdHealthData = {
+  summary: HerdHealthSummary;
+  actions: Array<{
+    kind: "vaccine" | "deworm" | "famacha" | "breeding" | "withdrawal";
+    animalId: number;
+    label: string;
+    detail: string;
+    urgency: "overdue" | "due_soon";
+  }>;
+  vaccines: AnimalDueItem[];
+  famacha: AnimalDueItem[];
+  deworming: AnimalDueItem[];
+  breeding: BreedingRow[];
+  weights: WeightRow[];
+  recentMedical: Array<MedicalEvent & { animalLabel: string }>;
+  recentWeights: Array<WeightLog & { animalLabel: string }>;
+};
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso.slice(0, 10));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const from = new Date(fromIso.slice(0, 10));
+  const to = new Date(toIso.slice(0, 10));
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+}
+
+function dueStatus(lastDate: string | null, intervalDays: number, today: string): {
+  dueDate: string | null;
+  daysUntilDue: number | null;
+  status: DueStatus;
+} {
+  if (!lastDate) {
+    return { dueDate: null, daysUntilDue: null, status: "never" };
+  }
+  const dueDate = addDays(lastDate, intervalDays);
+  const daysUntilDue = daysBetween(today, dueDate);
+  if (daysUntilDue < 0) {
+    return { dueDate, daysUntilDue, status: "overdue" };
+  }
+  if (daysUntilDue <= DUE_SOON_DAYS) {
+    return { dueDate, daysUntilDue, status: "due_soon" };
+  }
+  return { dueDate, daysUntilDue, status: "ok" };
+}
+
+function lastDewormByKind(
+  events: MedicalEvent[],
+  kind: DewormType
+): Map<number, MedicalEvent> {
+  const map = new Map<number, MedicalEvent>();
+  for (const e of events) {
+    if (e.event_type !== "Deworming" || !e.date) continue;
+    if (dewormKindFromNotes(e.notes) !== kind) continue;
+    const prev = map.get(e.animal_id);
+    if (!prev || e.date > (prev.date || "")) {
+      map.set(e.animal_id, e);
+    }
+  }
+  return map;
+}
+
+function lastFamachaByAnimal(events: MedicalEvent[]): Map<number, MedicalEvent> {
+  const map = new Map<number, MedicalEvent>();
+  for (const e of events) {
+    if (e.event_type !== "FAMACHA" || !e.date) continue;
+    const prev = map.get(e.animal_id);
+    if (!prev || e.date > (prev.date || "")) {
+      map.set(e.animal_id, e);
+    }
+  }
+  return map;
+}
+
+function lastVaccineByKey(
+  events: MedicalEvent[],
+  key: string,
+  schedules: VaccineScheduleEntry[]
+): Map<number, MedicalEvent> {
+  const map = new Map<number, MedicalEvent>();
+  for (const e of events) {
+    if (e.event_type !== "Vaccine" || !e.date) continue;
+    if (vaccineKeyFromNotes(e.notes, schedules) !== key) continue;
+    const prev = map.get(e.animal_id);
+    if (!prev || e.date > (prev.date || "")) {
+      map.set(e.animal_id, e);
+    }
+  }
+  return map;
+}
+
+function buildDueList(
+  activeAnimals: Animal[],
+  lastByAnimal: Map<number, MedicalEvent>,
+  intervalDays: number,
+  today: string,
+  kind?: string | DewormType,
+  mode: "vaccine" | "deworm" | "famacha" = "vaccine"
+): AnimalDueItem[] {
+  return activeAnimals
+    .map((a) => {
+      const last = lastByAnimal.get(a.id);
+      const { dueDate, daysUntilDue, status } = dueStatus(last?.date ?? null, intervalDays, today);
+      return {
+        animalId: a.id,
+        label: animalLabel(a),
+        lastDate: last?.date ?? null,
+        dueDate,
+        daysUntilDue,
+        status,
+        ...(mode === "vaccine" && kind ? { vaccineKind: kind } : {}),
+        ...(mode === "deworm" && (kind === "internal" || kind === "external")
+          ? { dewormKind: kind as DewormType }
+          : {}),
+        ...(mode === "famacha" ? { checkType: "famacha" as const } : {}),
+      };
+    })
+    .sort((a, b) => {
+      const order: Record<DueStatus, number> = { overdue: 0, due_soon: 1, never: 2, ok: 3 };
+      const diff = order[a.status] - order[b.status];
+      if (diff !== 0) return diff;
+      return (a.daysUntilDue ?? 999) - (b.daysUntilDue ?? 999);
+    });
+}
+
+function externalDewormDue(
+  lastInternal: MedicalEvent | null,
+  lastExternal: MedicalEvent | null,
+  today: string
+): { dueDate: string | null; daysUntilDue: number | null; status: DueStatus } {
+  if (!lastInternal?.date) {
+    return { dueDate: null, daysUntilDue: null, status: "never" };
+  }
+  if (lastExternal?.date && lastExternal.date >= lastInternal.date) {
+    return { dueDate: null, daysUntilDue: null, status: "ok" };
+  }
+  const dueDate = addDays(lastInternal.date, EXTERNAL_DEWORM_DELAY_DAYS);
+  const daysUntilDue = daysBetween(today, dueDate);
+  if (daysUntilDue > DUE_SOON_DAYS) {
+    return { dueDate, daysUntilDue, status: "ok" };
+  }
+  if (daysUntilDue < 0) {
+    return { dueDate, daysUntilDue, status: "overdue" };
+  }
+  return { dueDate, daysUntilDue, status: "due_soon" };
+}
+
+function buildExternalDewormList(
+  activeAnimals: Animal[],
+  lastInternalByAnimal: Map<number, MedicalEvent>,
+  lastExternalByAnimal: Map<number, MedicalEvent>,
+  today: string
+): AnimalDueItem[] {
+  return activeAnimals
+    .map((a) => {
+      const lastInternal = lastInternalByAnimal.get(a.id);
+      const lastExternal = lastExternalByAnimal.get(a.id);
+      const { dueDate, daysUntilDue, status } = externalDewormDue(
+        lastInternal ?? null,
+        lastExternal ?? null,
+        today
+      );
+      return {
+        animalId: a.id,
+        label: animalLabel(a),
+        lastDate: lastExternal?.date ?? null,
+        dueDate,
+        daysUntilDue,
+        status,
+        dewormKind: "external" as const,
+        checkType: "external_deworm" as const,
+      };
+    })
+    .sort((a, b) => {
+      const order: Record<DueStatus, number> = { overdue: 0, due_soon: 1, never: 2, ok: 3 };
+      const diff = order[a.status] - order[b.status];
+      if (diff !== 0) return diff;
+      return (a.daysUntilDue ?? 999) - (b.daysUntilDue ?? 999);
+    });
+}
+
+function activeWithdrawalAnimals(
+  animals: Animal[],
+  medicalEvents: MedicalEvent[],
+  today: string
+): Array<{ animalId: number; label: string; clearDate: string }> {
+  const activeIds = new Set(animals.filter((a) => a.status === "Active").map((a) => a.id));
+  const results: Array<{ animalId: number; label: string; clearDate: string }> = [];
+  for (const e of medicalEvents) {
+    if (!activeIds.has(e.animal_id) || !e.withdrawal_clear_date) continue;
+    if (e.withdrawal_clear_date >= today) {
+      const animal = animals.find((a) => a.id === e.animal_id);
+      results.push({
+        animalId: e.animal_id,
+        label: animal ? animalLabel(animal) : `Goat #${e.animal_id}`,
+        clearDate: e.withdrawal_clear_date,
+      });
+    }
+  }
+  return results.sort((a, b) => a.clearDate.localeCompare(b.clearDate));
+}
+
+function isAdultBreedingFemale(animal: Animal, today: string): boolean {
+  return animal.status === "Active" && animal.sex === "Female" && !isKidAnimal(animal, today);
+}
+
+function relevantBreedingEvent(
+  events: BreedingEvent[],
+  femaleId: number
+): BreedingEvent | null {
+  const mine = events.filter((e) => e.female_animal_id === femaleId);
+  if (mine.length === 0) return null;
+  const sortByCrossed = (list: BreedingEvent[]) =>
+    [...list].sort((a, b) => (b.date_crossed ?? "").localeCompare(a.date_crossed ?? ""));
+  const active = mine.filter(isBreedingInPipeline);
+  return sortByCrossed(active)[0] ?? sortByCrossed(mine)[0] ?? null;
+}
+
+function buildBreedingRow(
+  female: Animal,
+  event: BreedingEvent | null,
+  today: string
+): BreedingRow {
+  const femaleLabel = animalLabel(female);
+  if (!event || isDoeBreedingReady(event, today)) {
+    return {
+      femaleId: female.id,
+      femaleLabel,
+      event,
+      statusLabel: "Ready",
+      daysUntilDue: null,
+      status: "ready",
+      daysSinceCrossed: null,
+      ultrasoundStatus: event ? computeUltrasoundStatus(event, today) : "not_due",
+      ultrasoundWindowStart: null,
+      ultrasoundWindowEnd: null,
+    };
+  }
+
+  const isPending = isBreedingInPipeline(event);
+  let daysUntilDue: number | null = null;
+  let status: BreedingRow["status"] = "completed";
+  if (isPending && event.expected_due_date) {
+    daysUntilDue = daysBetween(today, event.expected_due_date);
+    if (daysUntilDue < 0) status = "overdue";
+    else if (daysUntilDue <= DUE_SOON_DAYS) status = "due_soon";
+    else status = "pending";
+  }
+  const crossedDays =
+    event.date_crossed && isPending ? daysSinceCrossed(event.date_crossed, today) : null;
+  const ultrasoundStatus = computeUltrasoundStatus(event, today);
+  const windowStart =
+    event.date_crossed && isPending ? ultrasoundWindowStart(event.date_crossed) : null;
+  const windowEnd =
+    event.date_crossed && isPending ? ultrasoundWindowEnd(event.date_crossed) : null;
+
+  return {
+    femaleId: female.id,
+    femaleLabel,
+    event,
+    statusLabel: breedingRecordStatusLabel(event, today),
+    daysUntilDue,
+    status,
+    daysSinceCrossed: crossedDays,
+    ultrasoundStatus,
+    ultrasoundWindowStart: windowStart,
+    ultrasoundWindowEnd: windowEnd,
+  };
+}
+
+export function computeHerdHealth(input: {
+  animals: Animal[];
+  medical_events: MedicalEvent[];
+  breeding_events: BreedingEvent[];
+  weight_logs: WeightLog[];
+  today?: string;
+}): HerdHealthData {
+  const today = input.today ?? todayIso();
+  const weightLogs = input.weight_logs ?? [];
+  const medicalEvents = input.medical_events ?? [];
+  const vaccineSchedules = mergeVaccineSchedules(medicalEvents);
+  const breedingEvents = input.breeding_events ?? [];
+  const activeAnimals = input.animals.filter((a) => a.status === "Active");
+  const adultFemales = activeAnimals.filter((a) => isAdultBreedingFemale(a, today));
+  const activeAnimalIds = new Set(activeAnimals.map((a) => a.id));
+  const activeBreedingEvents = breedingEvents.filter((e) =>
+    activeAnimalIds.has(e.female_animal_id)
+  );
+
+  const lastInternalDeworm = lastDewormByKind(medicalEvents, "internal");
+  const lastExternalDeworm = lastDewormByKind(medicalEvents, "external");
+  const lastFamacha = lastFamachaByAnimal(medicalEvents);
+
+  const vaccines = vaccineSchedules
+    .flatMap(({ key, intervalDays }) =>
+      buildDueList(
+        activeAnimals,
+        lastVaccineByKey(medicalEvents, key, vaccineSchedules),
+        intervalDays,
+        today,
+        key
+      )
+    )
+    .sort((a, b) => {
+      const order: Record<DueStatus, number> = { overdue: 0, due_soon: 1, never: 2, ok: 3 };
+      const diff = order[a.status] - order[b.status];
+      if (diff !== 0) return diff;
+      return (a.daysUntilDue ?? 999) - (b.daysUntilDue ?? 999);
+    });
+
+  const famacha = buildDueList(
+    activeAnimals,
+    lastFamacha,
+    FAMACHA_CHECK_INTERVAL_DAYS,
+    today,
+    undefined,
+    "famacha"
+  );
+
+  const externalDeworming = buildExternalDewormList(
+    activeAnimals,
+    lastInternalDeworm,
+    lastExternalDeworm,
+    today
+  );
+  const deworming = externalDeworming.sort((a, b) => {
+    const order: Record<DueStatus, number> = { overdue: 0, due_soon: 1, never: 2, ok: 3 };
+    const diff = order[a.status] - order[b.status];
+    if (diff !== 0) return diff;
+    return (a.daysUntilDue ?? 999) - (b.daysUntilDue ?? 999);
+  });
+
+  const breeding: BreedingRow[] = adultFemales
+    .map((female) => buildBreedingRow(female, relevantBreedingEvent(breedingEvents, female.id), today))
+    .sort((a, b) => {
+      const pendingOrder = { overdue: 0, due_soon: 1, pending: 2, completed: 3, ready: 4 };
+      const diff = pendingOrder[a.status] - pendingOrder[b.status];
+      if (diff !== 0) return diff;
+      if (a.daysUntilDue != null && b.daysUntilDue != null && a.daysUntilDue !== b.daysUntilDue) {
+        return a.daysUntilDue - b.daysUntilDue;
+      }
+      return a.femaleLabel.localeCompare(b.femaleLabel);
+    });
+
+  const withdrawals = activeWithdrawalAnimals(input.animals, medicalEvents, today);
+
+  const weightsByAnimal = new Map<number, WeightLog[]>();
+  for (const w of weightLogs) {
+    const list = weightsByAnimal.get(w.animal_id) ?? [];
+    list.push(w);
+    weightsByAnimal.set(w.animal_id, list);
+  }
+  for (const list of weightsByAnimal.values()) {
+    list.sort((a, b) => b.weighed_on.localeCompare(a.weighed_on));
+  }
+
+  const weights: WeightRow[] = activeAnimals
+    .map((a) => {
+      const logs = weightsByAnimal.get(a.id) ?? [];
+      const latest = logs[0] ?? null;
+      const previous = logs[1] ?? null;
+      const changeKg =
+        latest && previous ? Math.round((latest.weight_kg - previous.weight_kg) * 10) / 10 : null;
+      return { animalId: a.id, label: animalLabel(a), latest, previous, changeKg };
+    })
+    .sort((a, b) => {
+      if (!a.latest && !b.latest) return a.label.localeCompare(b.label);
+      if (!a.latest) return -1;
+      if (!b.latest) return 1;
+      return b.latest.weighed_on.localeCompare(a.latest.weighed_on);
+    });
+
+  const actions: HerdHealthData["actions"] = [];
+  for (const v of vaccines) {
+    if (v.status === "overdue" || v.status === "due_soon" || v.status === "never") {
+      const vaccineLabel = vaccineDisplayName(v.vaccineKind, vaccineSchedules);
+      actions.push({
+        kind: "vaccine",
+        animalId: v.animalId,
+        label: v.label,
+        detail:
+          v.status === "never"
+            ? `Never had ${vaccineLabel}`
+            : `${vaccineLabel} due ${v.dueDate}`,
+        urgency: v.status === "overdue" ? "overdue" : "due_soon",
+      });
+    }
+  }
+  for (const f of famacha) {
+    if (f.status === "overdue" || f.status === "due_soon" || f.status === "never") {
+      actions.push({
+        kind: "famacha",
+        animalId: f.animalId,
+        label: f.label,
+        detail:
+          f.status === "never"
+            ? "No FAMACHA score on record — check FAMACHA"
+            : `Check FAMACHA (last scored ${f.lastDate})`,
+        urgency: f.status === "overdue" ? "overdue" : "due_soon",
+      });
+    }
+  }
+  for (const d of deworming) {
+    if (d.status === "overdue" || d.status === "due_soon") {
+      actions.push({
+        kind: "deworm",
+        animalId: d.animalId,
+        label: d.label,
+        detail: `External deworm follow-up due ${d.dueDate}`,
+        urgency: d.status === "overdue" ? "overdue" : "due_soon",
+      });
+    }
+  }
+  for (const w of withdrawals) {
+    actions.push({
+      kind: "withdrawal",
+      animalId: w.animalId,
+      label: w.label,
+      detail: `Withdrawal period until ${w.clearDate}`,
+      urgency: "due_soon",
+    });
+  }
+  for (const b of breeding) {
+    if (b.status === "overdue" || b.status === "due_soon") {
+      actions.push({
+        kind: "breeding",
+        animalId: b.femaleId,
+        label: b.femaleLabel,
+        detail: `Expected kidding ${b.event?.expected_due_date}`,
+        urgency: b.status === "overdue" ? "overdue" : "due_soon",
+      });
+    }
+  }
+  actions.sort((a, b) => (a.urgency === "overdue" ? -1 : 1) - (b.urgency === "overdue" ? -1 : 1));
+
+  const pendingPregnancies = breeding.filter(
+    (b) => b.status === "overdue" || b.status === "due_soon" || b.status === "pending"
+  ).length;
+
+  const completedBreeding = activeBreedingEvents.filter((b) => b.outcome !== "Pending");
+  const breedingDelivered = completedBreeding.filter((b) => b.outcome === "Delivered").length;
+  const breedingFailed = completedBreeding.filter(
+    (b) => b.outcome === "Miscarriage" || b.outcome === "Stillbirth"
+  ).length;
+
+  const latestWeights = weights.filter((w) => w.latest).map((w) => w.latest!.weight_kg);
+  const avgWeightKg =
+    latestWeights.length > 0
+      ? Math.round((latestWeights.reduce((s, w) => s + w, 0) / latestWeights.length) * 10) / 10
+      : null;
+
+  const animalLabelMap = new Map(input.animals.map((a) => [a.id, animalLabel(a)]));
+
+  const recentMedical = [...medicalEvents]
+    .filter((m) => m.date)
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+    .slice(0, 15)
+    .map((m) => ({ ...m, animalLabel: animalLabelMap.get(m.animal_id) ?? `Goat #${m.animal_id}` }));
+
+  const recentWeights = [...weightLogs]
+    .sort((a, b) => b.weighed_on.localeCompare(a.weighed_on))
+    .slice(0, 15)
+    .map((w) => ({ ...w, animalLabel: animalLabelMap.get(w.animal_id) ?? `Goat #${w.animal_id}` }));
+
+  const summary: HerdHealthSummary = {
+    activeCount: activeAnimals.length,
+    pendingPregnancies,
+    overdueVaccines: vaccines.filter((v) => v.status === "overdue").length,
+    dueSoonVaccines: vaccines.filter((v) => v.status === "due_soon").length,
+    overdueFamacha: famacha.filter((f) => f.status === "overdue").length,
+    dueSoonFamacha: famacha.filter((f) => f.status === "due_soon").length,
+    overdueDeworm: deworming.filter((d) => d.status === "overdue").length,
+    dueSoonDeworm: deworming.filter((d) => d.status === "due_soon").length,
+    neverVaccinated: new Set(
+      vaccines.filter((v) => v.status === "never").map((v) => v.animalId)
+    ).size,
+    neverFamacha: famacha.filter((f) => f.status === "never").length,
+    neverDewormed: externalDeworming.filter((d) => d.status === "never").length,
+    neverWeighed: weights.filter((w) => !w.latest).length,
+    activeWithdrawals: withdrawals.length,
+    breedingDelivered,
+    breedingFailed,
+    avgWeightKg,
+  };
+
+  return {
+    summary,
+    actions,
+    vaccines,
+    famacha,
+    deworming,
+    breeding,
+    weights,
+    recentMedical,
+    recentWeights,
+  };
+}
