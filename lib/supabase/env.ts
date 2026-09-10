@@ -1,5 +1,35 @@
 const EXPECTED_SUPABASE_PROJECT = "bloodline-book-dev";
 
+/** Strip accidental /rest/v1 paths copied from the API docs. */
+export function normalizeSupabaseUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return url.replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
+  }
+}
+
+/** Repair JWTs whose header segment was pasted twice (header.header.payload.sig). */
+export function normalizeSupabaseKey(token: string): string {
+  const parts = token.split(".");
+  if (parts.length === 4 && parts[0] === parts[1]) {
+    return `${parts[0]}.${parts[2]}.${parts[3]}`;
+  }
+  return token;
+}
+
+export function sanitizeSupabaseEnv(): void {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (url) process.env.NEXT_PUBLIC_SUPABASE_URL = normalizeSupabaseUrl(url);
+  for (const key of ["NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"] as const) {
+    const value = process.env[key];
+    if (value) process.env[key] = normalizeSupabaseKey(value);
+  }
+}
+
+sanitizeSupabaseEnv();
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }

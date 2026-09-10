@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import path from "path";
 import pg from "pg";
+import { sanitizeSupabaseEnv } from "./env";
 
 const POSTGRES_ENV_KEYS = [
   "POSTGRES_URL_NON_POOLING",
@@ -11,6 +12,7 @@ const POSTGRES_ENV_KEYS = [
 ] as const;
 
 export function supabaseProjectRef(): string | null {
+  sanitizeSupabaseEnv();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!url) return null;
   try {
