@@ -1,86 +1,71 @@
-# Development vs Production
+# Branch → Database mapping
 
-Bloodline Book uses **two fully separate stacks** — never point dev and prod at the same Supabase project or PowerSync instance.
+Bloodline Book is **one app**. Git branches choose which backend database to use.
 
-## What gets duplicated
+| Git branch | Database | Supabase project | PowerSync instance |
+|------------|----------|------------------|-------------------|
+| `main`, `master`, `production`, `release/*` | **production** | Prod project | Production instance |
+| Everything else (`cursor/*`, `develop`, feature branches) | **development** | Dev project | Development instance |
 
-| Layer | Development | Production |
-|-------|-------------|------------|
-| **Expo app** | `Bloodline Book (Dev)` · bundle `com.bloodlinebook.dev` | `Bloodline Book` · bundle `com.bloodlinebook.app` |
-| **Supabase** | Dev project (run all migrations) | Prod project (run all migrations) |
-| **PowerSync** | Development instance | Production instance |
-| **Local SQLite** | Separate per install (different bundle ID) | Separate per install |
+The app name, bundle ID, and UI are identical on every branch. Only the connected Supabase + PowerSync backend changes.
 
-## 1. Create backend environments
+## Setup (one-time)
 
-### Supabase
+Create **two Supabase projects** and **two PowerSync instances** (dev + prod). Run the same migrations in both. See `supabase/README.md`.
 
-1. Create two projects: e.g. `bloodline-book-dev` and `bloodline-book-prod`.
-2. Run the same migrations in **both** (`supabase/migrations/` in order).
-3. Set up PowerSync replication role + `powersync` publication in **both**.
-4. Keep email confirmation off in dev; configure prod auth as you prefer.
+## Local development
 
-### PowerSync
-
-PowerSync Cloud creates **Development** and **Production** instances by default.
-
-1. Connect **both** instances to their matching Supabase project.
-2. Enable **Supabase Auth** on both.
-3. Deploy `powersync/sync-rules.yaml` to **both** instances.
-
-## 2. Configure the app
+`scripts/setup-env.sh` detects your current branch and writes `.env`:
 
 ```bash
-# Development (default)
-cp .env.development.example .env
-npm run web:dev
+git checkout cursor/my-feature
+bash scripts/setup-env.sh   # → development database
+npm run web
 
-# Production (local smoke test only — use EAS for real prod builds)
-cp .env.production.example .env
-npm run web:prod
+git checkout main
+bash scripts/setup-env.sh   # → production database
+npm run web
 ```
 
-### Cloud Agent secrets
-
-**Dev environment** (current):
-
-- `EXPO_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `EXPO_PUBLIC_POWERSYNC_URL`
-
-**Prod environment** (separate Cursor environment recommended):
-
-- `EXPO_PUBLIC_SUPABASE_URL_PROD`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD`
-- `EXPO_PUBLIC_POWERSYNC_URL_PROD`
-
-Set `APP_ENV=production` on the prod Cloud Agent environment.
-
-## 3. Build for stores (EAS)
+Override manually when needed:
 
 ```bash
-# Install EAS CLI and log in
-npx eas-cli login
-
-# Dev client (internal testing)
-eas build --profile development --platform ios
-
-# Production App Store / Play Store
-eas build --profile production --platform all
+DATABASE_TARGET=production bash scripts/setup-env.sh
 ```
 
-EAS profiles in `eas.json` set `APP_ENV` and `EXPO_PUBLIC_APP_ENV` automatically.
-
-Configure EAS secrets for production builds:
+## Environment files
 
 ```bash
-eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value "https://..."
-eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "..."
-eas secret:create --scope project --name EXPO_PUBLIC_POWERSYNC_URL --value "https://..."
+cp .env.development.example .env   # dev database credentials
+cp .env.production.example .env    # prod database credentials
 ```
 
-## 4. How to tell which app you're in
+Or let `setup-env.sh` pick credentials from Cloud Agent secrets based on branch.
 
-- Dev builds show a **DEV** badge on the dashboard.
-- App name on the home screen: **Bloodline Book (Dev)** vs **Bloodline Book**.
-- Dev and prod apps can be installed side-by-side on the same phone (different bundle IDs).
+## Cloud Agent secrets
+
+Store **both** database credential sets in the same environment:
+
+| Secret | Used on |
+|--------|---------|
+| `EXPO_PUBLIC_SUPABASE_URL` | Feature branches → dev Supabase |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Feature branches → dev Supabase |
+| `EXPO_PUBLIC_POWERSYNC_URL` | Feature branches → dev PowerSync |
+| `EXPO_PUBLIC_SUPABASE_URL_PROD` | `main` / `release/*` → prod Supabase |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD` | `main` / `release/*` → prod Supabase |
+| `EXPO_PUBLIC_POWERSYNC_URL_PROD` | `main` / `release/*` → prod PowerSync |
+
+`install` and `start` in `.cursor/environment.json` run `setup-env.sh`, which re-evaluates the branch on every agent boot.
+
+## How to tell which database you're on
+
+Non-production databases show a **Development DB** badge on the dashboard. Production (`main`) shows no badge.
+
+## EAS builds
+
+`eas.json` maps build profiles to database targets:
+
+- `development` / `preview` → development database secrets
+- `production` → production database secrets
+
+Store prod credentials as EAS secrets for the `production` profile.

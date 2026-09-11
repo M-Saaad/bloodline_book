@@ -37,18 +37,11 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "APP_ENV=development expo start",
-    "start:dev": "APP_ENV=development expo start",
-    "start:prod": "APP_ENV=production expo start",
-    "android": "APP_ENV=development expo start --android",
-    "android:dev": "APP_ENV=development expo start --android",
-    "android:prod": "APP_ENV=production expo start --android",
-    "ios": "APP_ENV=development expo start --ios",
-    "ios:dev": "APP_ENV=development expo start --ios",
-    "ios:prod": "APP_ENV=production expo start --ios",
-    "web": "APP_ENV=development expo start --web",
-    "web:dev": "APP_ENV=development expo start --web",
-    "web:prod": "APP_ENV=production expo start --web",
+    "setup": "bash scripts/setup-env.sh",
+    "start": "bash scripts/setup-env.sh && expo start",
+    "android": "bash scripts/setup-env.sh && expo start --android",
+    "ios": "bash scripts/setup-env.sh && expo start --ios",
+    "web": "bash scripts/setup-env.sh && expo start --web",
     "typecheck": "tsc --noEmit"
   },
   "private": true

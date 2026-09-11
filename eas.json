@@ -8,22 +8,22 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development",
-        "EXPO_PUBLIC_APP_ENV": "development"
+        "DATABASE_TARGET": "development",
+        "EXPO_PUBLIC_DATABASE_TARGET": "development"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "APP_ENV": "development",
-        "EXPO_PUBLIC_APP_ENV": "development"
+        "DATABASE_TARGET": "development",
+        "EXPO_PUBLIC_DATABASE_TARGET": "development"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "production",
-        "EXPO_PUBLIC_APP_ENV": "production"
+        "DATABASE_TARGET": "production",
+        "EXPO_PUBLIC_DATABASE_TARGET": "production"
       }
     }
   },

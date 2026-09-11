@@ -35,7 +35,7 @@ npm install
 npm run web:dev   # or npm run ios:dev / npm run android:dev
 ```
 
-See [docs/environments.md](docs/environments.md) for the full dev vs production setup (separate Supabase projects, PowerSync instances, and EAS build profiles).
+See [docs/environments.md](docs/environments.md) for branch → database mapping (same app, different Supabase/PowerSync per branch).
 
 ## Offline verification (Phase 0 acceptance)
 
