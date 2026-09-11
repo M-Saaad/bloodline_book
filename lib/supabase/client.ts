@@ -2,6 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupportedStorage } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
+import {
+  isValidSupabaseProjectUrl,
+  normalizeSupabaseUrl,
+} from '@/lib/supabase/config';
+
 const authStorage: SupportedStorage =
   typeof window === 'undefined'
     ? {
@@ -11,15 +16,17 @@ const authStorage: SupportedStorage =
       }
     : AsyncStorage;
 
-const supabaseUrl =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co';
+const supabaseUrl = normalizeSupabaseUrl(
+  process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+);
 const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key';
 
 export const isSupabaseConfigured = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL &&
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.EXPO_PUBLIC_SUPABASE_URL.includes('your-project'),
+    !process.env.EXPO_PUBLIC_SUPABASE_URL.includes('your-project') &&
+    isValidSupabaseProjectUrl(supabaseUrl),
 );
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

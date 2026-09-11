@@ -5,6 +5,49 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.env"
 
+normalize_supabase_url() {
+  local url="${1%/}"
+  url="${url%/rest/v1}"
+  echo "${url%/}"
+}
+
+extract_project_ref() {
+  local url="$1"
+  if [[ "$url" =~ https://([a-z0-9]+)\.supabase\.co ]]; then
+    echo "${BASH_REMATCH[1]}"
+  fi
+}
+
+fetch_anon_key() {
+  local project_ref="$1"
+  if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" || -z "$project_ref" ]]; then
+    return 1
+  fi
+  node -e "
+    const https = require('https');
+    const options = {
+      hostname: 'api.supabase.com',
+      path: '/v1/projects/${project_ref}/api-keys',
+      headers: { Authorization: 'Bearer ' + process.env.SUPABASE_ACCESS_TOKEN },
+    };
+    https.get(options, (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try {
+          const keys = JSON.parse(data);
+          const anon = keys.find((k) => k.name === 'anon');
+          const publishable = keys.find((k) =>
+            (k.api_key || '').startsWith('sb_publishable_'),
+          );
+          const key = anon?.api_key || publishable?.api_key;
+          if (key) process.stdout.write(key);
+        } catch {}
+      });
+    }).on('error', () => process.exit(1));
+  " 2>/dev/null
+}
+
 resolve_database_target() {
   if [[ -n "${DATABASE_TARGET:-}" ]]; then
     echo "$DATABASE_TARGET"
@@ -39,6 +82,21 @@ else
   SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
   SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
   POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-}"
+fi
+
+SUPABASE_URL="$(normalize_supabase_url "$SUPABASE_URL")"
+
+if [[ "$SUPABASE_URL" == *"/rest/v1"* ]]; then
+  echo "WARNING: Supabase URL should be https://<ref>.supabase.co (not /rest/v1)."
+fi
+
+PROJECT_REF="$(extract_project_ref "$SUPABASE_URL")"
+if [[ -n "$PROJECT_REF" ]]; then
+  FRESH_KEY="$(fetch_anon_key "$PROJECT_REF" || true)"
+  if [[ -n "$FRESH_KEY" ]]; then
+    SUPABASE_ANON_KEY="$FRESH_KEY"
+    echo "Refreshed anon key from Supabase API for project ${PROJECT_REF}."
+  fi
 fi
 
 cat > "$ENV_FILE" <<EOF
