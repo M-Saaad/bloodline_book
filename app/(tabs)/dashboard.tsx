@@ -2,6 +2,7 @@ import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
+import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -43,6 +44,7 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
+      <EnvironmentBadge />
       <Card>
         <Text className="text-xl font-bold text-gray-900 mb-1">
           {activeFarm.name}

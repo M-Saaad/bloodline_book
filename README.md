@@ -30,11 +30,12 @@ Multi-tenant SaaS for US goat operations — herd records, health, breeding, wei
 ### 3. App environment
 
 ```bash
-cp .env.example .env
-# Set EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_POWERSYNC_URL
+cp .env.development.example .env   # or .env.production.example for prod
 npm install
-npm run web   # or npm run ios / npm run android
+npm run web:dev   # or npm run ios:dev / npm run android:dev
 ```
+
+See [docs/environments.md](docs/environments.md) for the full dev vs production setup (separate Supabase projects, PowerSync instances, and EAS build profiles).
 
 ## Offline verification (Phase 0 acceptance)
 
