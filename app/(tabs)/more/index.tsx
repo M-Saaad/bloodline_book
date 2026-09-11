@@ -1,0 +1,34 @@
+import { ScrollView, Text, View } from 'react-native';
+
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { useAuth } from '@/providers/AuthProvider';
+import { useFarm } from '@/providers/FarmProvider';
+
+export default function MoreScreen() {
+  const { signOut } = useAuth();
+  const { activeFarm } = useFarm();
+
+  return (
+    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
+      {activeFarm && (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-1">
+            {activeFarm.name}
+          </Text>
+          <Text className="text-gray-600 capitalize">
+            {activeFarm.segment} · {activeFarm.currency} ·{' '}
+            {activeFarm.weightUnit}
+          </Text>
+        </Card>
+      )}
+
+      <Card>
+        <Text className="text-gray-600 mb-4">
+          Settings, documents, tasks, and team management arrive in Phase 1.
+        </Text>
+        <Button title="Sign Out" variant="outline" onPress={() => signOut()} />
+      </Card>
+    </ScrollView>
+  );
+}
