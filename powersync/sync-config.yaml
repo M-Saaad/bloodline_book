@@ -1,0 +1,26 @@
+# PowerSync CLI / Dashboard sync config (same as sync-rules.yaml)
+config:
+  edition: 3
+
+streams:
+  farm_data:
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM farms WHERE id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM farm_members WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM breeds WHERE farm_id IS NULL OR farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM animals WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM weigh_sessions WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM weight_logs WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )

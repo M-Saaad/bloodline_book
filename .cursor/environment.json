@@ -1,0 +1,11 @@
+{
+  "name": "Bloodline Book",
+  "install": "npm install && bash scripts/setup-env.sh",
+  "start": "bash scripts/setup-env.sh",
+  "terminals": [
+    {
+      "name": "expo-web",
+      "command": "npm run web -- --port 8081"
+    }
+  ]
+}
