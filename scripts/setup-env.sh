@@ -48,6 +48,18 @@ fetch_anon_key() {
   " 2>/dev/null
 }
 
+read_env_value() {
+  local key="$1"
+  if [[ ! -f "$ENV_FILE" ]]; then
+    return 0
+  fi
+  local line
+  line="$(grep -m1 "^${key}=" "$ENV_FILE" 2>/dev/null || true)"
+  if [[ -n "$line" ]]; then
+    echo "${line#*=}"
+  fi
+}
+
 resolve_database_target() {
   if [[ -n "${DATABASE_TARGET:-}" ]]; then
     echo "$DATABASE_TARGET"
@@ -84,6 +96,17 @@ else
   POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-}"
 fi
 
+# tmux / child shells may not inherit Cloud Agent secrets — keep existing .env values.
+if [[ -z "$SUPABASE_URL" ]]; then
+  SUPABASE_URL="$(read_env_value EXPO_PUBLIC_SUPABASE_URL)"
+fi
+if [[ -z "$SUPABASE_ANON_KEY" ]]; then
+  SUPABASE_ANON_KEY="$(read_env_value EXPO_PUBLIC_SUPABASE_ANON_KEY)"
+fi
+if [[ -z "$POWERSYNC_URL" ]]; then
+  POWERSYNC_URL="$(read_env_value EXPO_PUBLIC_POWERSYNC_URL)"
+fi
+
 SUPABASE_URL="$(normalize_supabase_url "$SUPABASE_URL")"
 
 if [[ "$SUPABASE_URL" == *"/rest/v1"* ]]; then
@@ -111,10 +134,12 @@ echo "Wrote $ENV_FILE (database=${DATABASE_TARGET}, branch=$(git -C "$ROOT" rev-
 npx --yes @powersync/web copy-assets --output public 2>/dev/null || true
 
 if [[ -z "$POWERSYNC_URL" ]]; then
-  echo "WARNING: PowerSync URL is not set for ${DATABASE_TARGET} database."
+  echo "ERROR: PowerSync URL is not set for ${DATABASE_TARGET} database."
   if [[ "$DATABASE_TARGET" == "production" ]]; then
-    echo "  Set EXPO_PUBLIC_POWERSYNC_URL_PROD (or _PROD suffix secrets)."
+    echo "  Set EXPO_PUBLIC_POWERSYNC_URL_PROD in Cloud Agent secrets."
   else
-    echo "  Set EXPO_PUBLIC_POWERSYNC_URL."
+    echo "  Set EXPO_PUBLIC_POWERSYNC_URL in Cloud Agent secrets."
   fi
+  echo "  Get it from PowerSync Dashboard → Connect on your instance."
+  exit 1
 fi

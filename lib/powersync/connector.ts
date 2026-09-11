@@ -5,9 +5,8 @@ import {
   UpdateType,
 } from '@powersync/common';
 
+import { getPowerSyncUrl, isPowerSyncConfigured } from '@/lib/powersync/config';
 import { supabase } from '@/lib/supabase/client';
-
-const POWERSYNC_URL = process.env.EXPO_PUBLIC_POWERSYNC_URL ?? '';
 
 export class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
@@ -24,8 +23,15 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       throw new Error('Not signed in');
     }
 
+    const endpoint = getPowerSyncUrl();
+    if (!isPowerSyncConfigured()) {
+      throw new Error(
+        'PowerSync endpoint not configured. Set EXPO_PUBLIC_POWERSYNC_URL in .env and restart the dev server.',
+      );
+    }
+
     return {
-      endpoint: POWERSYNC_URL,
+      endpoint,
       token: session.access_token,
     };
   }

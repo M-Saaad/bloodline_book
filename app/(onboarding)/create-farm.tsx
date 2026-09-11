@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { createFarm } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
@@ -19,10 +20,13 @@ export default function CreateFarmScreen() {
   const [name, setName] = useState('');
   const [segment, setSegment] = useState<Farm['segment']>('meat');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   async function handleCreate() {
+    setErrorMessage('');
+
     if (!name.trim()) {
-      Alert.alert('Farm name required', 'Enter a name for your operation.');
+      setErrorMessage('Enter a name for your operation.');
       return;
     }
 
@@ -35,9 +39,8 @@ export default function CreateFarmScreen() {
       setActiveFarmId(farmId);
       router.replace('/(tabs)/dashboard');
     } catch (error) {
-      Alert.alert(
-        'Could not create farm',
-        error instanceof Error ? error.message : 'Unknown error',
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not create farm.',
       );
     } finally {
       setLoading(false);
@@ -55,6 +58,8 @@ export default function CreateFarmScreen() {
         This creates your farm and makes you the owner via the on_farm_created
         trigger.
       </Text>
+
+      <FormMessage message={errorMessage} tone="error" />
 
       <Input
         label="Farm name"
