@@ -69,3 +69,7 @@ Non-production databases show a **Development DB** badge on the dashboard. Produ
 - `production` → production database secrets
 
 Store prod credentials as EAS secrets for the `production` profile.
+
+## Vercel (web hosting)
+
+See [vercel-supabase-setup.md](vercel-supabase-setup.md) for the full Vercel + Supabase dev/prod guide. Preview deploys use dev credentials; production (`main`) uses prod credentials.
