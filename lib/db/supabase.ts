@@ -237,6 +237,7 @@ export function mapVetContact(r: Record<string, unknown>): VetContact {
 export function mapFarmSettings(r: Record<string, unknown> | undefined): FarmSettings {
   if (!r) return { ...DEFAULT_FARM_SETTINGS };
   return {
+    farm_name: optionalStr(r.farm_name) ?? DEFAULT_FARM_SETTINGS.farm_name,
     gestation_days: num(r.gestation_days ?? DEFAULT_FARM_SETTINGS.gestation_days),
     gestation_early_days: num(r.gestation_early_days ?? DEFAULT_FARM_SETTINGS.gestation_early_days),
     gestation_late_days: num(r.gestation_late_days ?? DEFAULT_FARM_SETTINGS.gestation_late_days),

@@ -1,16 +1,23 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { animalLabel } from "@/lib/labels";
-import { loadAnimalsListData, contactNameFrom } from "@/lib/db/queries";
+import { SlidersHorizontal, Plus } from "lucide-react";
+import { loadAnimalsListData } from "@/lib/db/queries";
+import { displayBarnName, displayRegisteredName, animalInitials } from "@/lib/labels";
+import {
+  searchAnimals,
+  filterAnimalsBySex,
+  isAnimalInMilk,
+} from "@/lib/livestock/herd-metrics";
 import { isBreedingInPipeline } from "@/lib/livestock/breeding";
-import { estimateAnimalAge } from "@/lib/livestock/age";
+import { animalListBadge } from "@/lib/livestock/animal-status";
 import { todayIso } from "@/lib/format";
-import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
-import { QuickEntryLoader } from "@/components/QuickEntryLoader";
-import { ViewOnlyBanner } from "@/components/ViewOnlyBanner";
 import { AnimalsFilters } from "@/components/AnimalsFilters";
+import { Avatar } from "@/components/ui/Avatar";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { ViewOnlyBanner } from "@/components/ViewOnlyBanner";
 import { getWriteAccess } from "@/lib/auth/roles";
+import type { Animal, BreedingEvent, Lactation, MedicalEvent } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,85 +30,120 @@ export default async function AnimalsPage({
   const canWrite = await getWriteAccess();
   const data = await loadAnimalsListData();
   const today = todayIso();
-  const q = (sp.q || "").toLowerCase();
+  const q = sp.q || "";
   const filter = sp.filter || "all";
 
-  let animals = [...data.animals];
-  if (filter === "active") animals = animals.filter((a) => a.status === "Active");
-  if (filter === "purchased") animals = animals.filter((a) => !a.home_bred);
-  if (filter === "born") animals = animals.filter((a) => a.home_bred);
-  if (filter === "breeding") {
-    const femaleIds = new Set(
+  let animals = [...data.animals].filter((a) => a.status === "Active" || filter === "all");
+
+  if (filter === "in-milk") {
+    animals = animals.filter((a) => isAnimalInMilk(a.id, data.lactations, today));
+  } else if (filter === "due-soon") {
+    const dueIds = new Set(
       data.breeding_events
-        .filter((b) => isBreedingInPipeline(b))
+        .filter((b) => {
+          if (!isBreedingInPipeline(b)) return false;
+          const due = b.due_date_early ?? b.expected_due_date;
+          if (!due) return false;
+          const days = Math.round(
+            (new Date(due.slice(0, 10)).getTime() - new Date(today.slice(0, 10)).getTime()) /
+              86_400_000
+          );
+          return days <= 14;
+        })
         .map((b) => b.female_animal_id)
     );
-    animals = animals.filter((a) => a.status === "Active" && femaleIds.has(a.id));
-  }
-  if (q) {
-    animals = animals.filter(
-      (a) =>
-        (a.name || "").toLowerCase().includes(q) ||
-        (a.description || "").toLowerCase().includes(q) ||
-        String(a.id).includes(q)
-    );
+    animals = animals.filter((a) => dueIds.has(a.id));
+  } else if (["does", "bucks", "kids"].includes(filter)) {
+    animals = filterAnimalsBySex(animals, filter, today);
   }
 
-  animals.sort((a, b) => {
-    if (a.status === "Active" && b.status !== "Active") return -1;
-    if (b.status === "Active" && a.status !== "Active") return 1;
-    return animalLabel(a).localeCompare(animalLabel(b));
-  });
+  if (q) animals = searchAnimals(animals, q);
 
-  const statusColor: Record<string, string> = {
-    Active: "bg-emerald-100 text-emerald-800",
-    Died: "bg-stone-200 text-stone-600",
-    Sold: "bg-sky-100 text-sky-800",
-    Slaughtered: "bg-orange-100 text-orange-800",
-    Gone: "bg-stone-200 text-stone-500",
-  };
+  animals.sort((a, b) => displayBarnName(a).localeCompare(displayBarnName(b)));
 
   return (
-    <main className="px-4 pt-6">
-      <AppHeader eyebrow="Livestock" title={`Goats (${animals.length})`} />
+    <main className="relative flex min-h-screen flex-col pb-24">
+      <div className="flex items-center justify-between px-4 pb-2.5 pt-4">
+        <p className="text-lg font-semibold text-[var(--text-primary)]">Animals</p>
+        <button type="button" className="p-1 text-[var(--text-secondary)]" aria-label="Filter">
+          <SlidersHorizontal className="h-5 w-5" strokeWidth={1.8} />
+        </button>
+      </div>
 
-      {!canWrite && <ViewOnlyBanner />}
+      {!canWrite && (
+        <div className="px-4">
+          <ViewOnlyBanner />
+        </div>
+      )}
 
-      <Suspense fallback={<div className="mb-4 h-16 animate-pulse rounded-xl bg-stone-200" />}>
-        <AnimalsFilters />
-      </Suspense>
+      <div className="px-4 pb-3">
+        <Suspense fallback={<div className="h-20 animate-pulse rounded-[var(--radius)] bg-[var(--field-bg)]" />}>
+          <AnimalsFilters />
+        </Suspense>
+      </div>
 
-      <ul className="space-y-2">
-        {animals.map((a) => {
-          const age = estimateAnimalAge(a, today);
-          return (
-          <li key={a.id}>
-            <Link
-              href={`/animals/${a.id}`}
-              className="block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-stone-900">{animalLabel(a)}</p>
-                  <p className="text-sm text-stone-500">
-                    {[a.breed, a.sex, a.home_bred ? "Born" : null, contactNameFrom(data.contacts, a.owner_id)]
-                      .filter(Boolean)
-                      .join(" · ")}
-                    {age ? ` · ${age.label} (est. ${age.teethLabel})` : ""}
-                  </p>
-                </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${statusColor[a.status]}`}>
-                  {a.status}
-                </span>
-              </div>
-            </Link>
-          </li>
-          );
-        })}
-      </ul>
+      <div className="flex-1 border-t border-[var(--border)]">
+        {animals.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
+            No animals match your search
+          </p>
+        ) : (
+          animals.map((a) => (
+            <AnimalRow
+              key={a.id}
+              animal={a}
+              lactations={data.lactations}
+              breeding={data.breeding_events}
+              medical={data.medical_events}
+              today={today}
+            />
+          ))
+        )}
+      </div>
 
-      <QuickEntryLoader {...data.quickEntry} canWrite={canWrite} />
-      <BottomNav active="goats" />
+      {canWrite && (
+        <Link
+          href="/animals/new"
+          className="absolute bottom-[90px] right-6 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--text-primary)] text-white shadow-lg"
+          aria-label="Add animal"
+        >
+          <Plus className="h-6 w-6" strokeWidth={1.8} />
+        </Link>
+      )}
+
+      <BottomNav active="animals" />
     </main>
+  );
+}
+
+function AnimalRow({
+  animal,
+  lactations,
+  breeding,
+  medical,
+  today,
+}: {
+  animal: Animal;
+  lactations: Lactation[];
+  breeding: BreedingEvent[];
+  medical: MedicalEvent[];
+  today: string;
+}) {
+  const badge = animalListBadge(animal, lactations, breeding, medical, today);
+  const reg = displayRegisteredName(animal);
+  const breedLine = [reg, animal.breed].filter(Boolean).join(" · ");
+
+  return (
+    <Link
+      href={`/animals/${animal.id}`}
+      className="flex items-center gap-2.5 border-b border-[var(--border)] px-4 py-2.5 active:bg-[var(--field-bg)]"
+    >
+      <Avatar initials={animalInitials(animal)} size="md" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-[var(--text-primary)]">{displayBarnName(animal)}</p>
+        <p className="text-xs text-[var(--text-secondary)]">{breedLine}</p>
+      </div>
+      {badge && <StatusBadge label={badge.label} variant={badge.variant} />}
+    </Link>
   );
 }

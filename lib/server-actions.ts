@@ -410,6 +410,27 @@ export async function actionLogMilk(formData: FormData) {
   revalidateTxnPaths();
 }
 
+export async function actionLogMilkBatch(formData: FormData) {
+  await guardWrite();
+  const date = String(formData.get("date"));
+  const session = String(formData.get("session") || "AM") as MilkSession;
+  const unit = String(formData.get("unit") || "lb") as MilkUnit;
+  const raw = String(formData.get("entries") || "[]");
+  const entries = JSON.parse(raw) as Array<{ animalId: number; amount: string }>;
+
+  for (const entry of entries) {
+    const amount = parsePositiveAmount(entry.amount, "Milk amount");
+    await logMilkRecord({
+      animalId: entry.animalId,
+      date,
+      session,
+      amount,
+      unit,
+    });
+  }
+  revalidateTxnPaths();
+}
+
 export async function actionRecordLactation(formData: FormData) {
   await guardWrite();
   await recordLactation({

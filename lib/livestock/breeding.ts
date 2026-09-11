@@ -9,6 +9,7 @@ export const DEFAULT_GESTATION_LATE_DAYS = 5;
 export const GESTATION_DAYS = DEFAULT_GESTATION_DAYS;
 
 export const DEFAULT_FARM_SETTINGS: FarmSettings = {
+  farm_name: "Sunridge Dairy Goats",
   gestation_days: DEFAULT_GESTATION_DAYS,
   gestation_early_days: DEFAULT_GESTATION_EARLY_DAYS,
   gestation_late_days: DEFAULT_GESTATION_LATE_DAYS,
