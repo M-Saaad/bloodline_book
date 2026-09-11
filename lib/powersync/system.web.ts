@@ -3,12 +3,19 @@ import { PowerSyncDatabase } from '@powersync/web';
 import { SupabaseConnector } from '@/lib/powersync/connector';
 import { AppSchema } from '@/lib/powersync/schema';
 
+const WORKER_PATH = '/@powersync/worker.js';
+
 export const connector = new SupabaseConnector();
 
 export const powersync = new PowerSyncDatabase({
   schema: AppSchema,
   database: {
     dbFilename: 'bloodline.db',
+    worker: WORKER_PATH,
+    disableSSRWarning: true,
+  },
+  sync: {
+    worker: WORKER_PATH,
   },
 });
 

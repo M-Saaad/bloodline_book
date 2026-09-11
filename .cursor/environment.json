@@ -5,7 +5,14 @@
   "terminals": [
     {
       "name": "expo-web",
-      "command": "npm run web -- --port 8081"
+      "command": "npx expo start --web --port 8081",
+      "description": "Bloodline Book Expo web app on port 8081"
+    }
+  ],
+  "ports": [
+    {
+      "name": "Bloodline Book",
+      "port": 8081
     }
   ]
 }

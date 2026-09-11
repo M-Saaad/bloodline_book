@@ -12,6 +12,10 @@ EXPO_PUBLIC_POWERSYNC_URL=${EXPO_PUBLIC_POWERSYNC_URL:-}
 EOF
 
 echo "Wrote $ENV_FILE"
+
+# PowerSync web workers must live in public/ for Expo Metro on web.
+npx --yes @powersync/web copy-assets --output public 2>/dev/null || true
+
 if [[ -z "${EXPO_PUBLIC_POWERSYNC_URL:-}" ]]; then
   echo "WARNING: EXPO_PUBLIC_POWERSYNC_URL is not set. Add it in Cloud Agent environment secrets."
 fi
