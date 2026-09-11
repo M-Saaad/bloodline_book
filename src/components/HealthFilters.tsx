@@ -5,7 +5,6 @@ import { HEALTH_TABS } from "@/lib/livestock/health-tabs";
 
 const tabLabels: Record<(typeof HEALTH_TABS)[number], string> = {
   overview: "Overview",
-  breeding: "Breeding",
   vaccine: "Vaccine",
   deworm: "Deworm",
   famacha: "FAMACHA",

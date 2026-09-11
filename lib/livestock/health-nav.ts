@@ -2,9 +2,7 @@ import type { HealthTab } from "./health-tabs";
 
 export function animalLinkFromHealth(animalId: number, tab: HealthTab): string {
   if (tab === "overview") return `/animals/${animalId}?from=health`;
-  const base = `/animals/${animalId}?from=health&tab=${tab}`;
-  if (tab === "breeding") return `${base}#breeding`;
-  return base;
+  return `/animals/${animalId}?from=health&tab=${tab}`;
 }
 
 export function backFromAnimalProfile(searchParams: {
@@ -16,7 +14,6 @@ export function backFromAnimalProfile(searchParams: {
     const href = tab && tab !== "overview" ? `/health?tab=${tab}` : "/health";
     const labels: Record<string, string> = {
       overview: "Health",
-      breeding: "Breeding",
       vaccine: "Vaccination",
       deworm: "Deworming",
       famacha: "FAMACHA",
@@ -30,6 +27,6 @@ export function backFromAnimalProfile(searchParams: {
 export function healthTabForActionKind(
   kind: "vaccine" | "deworm" | "famacha" | "breeding" | "withdrawal"
 ): HealthTab {
-  if (kind === "withdrawal") return "overview";
+  if (kind === "withdrawal" || kind === "breeding") return "overview";
   return kind;
 }

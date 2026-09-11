@@ -1,13 +1,12 @@
 import Link from "next/link";
-import { Home, Bell, Heart, Plus, Stethoscope } from "lucide-react";
+import { Home, Bell, Plus, Stethoscope } from "lucide-react";
 
-export type NavKey = "home" | "animals" | "health" | "breeding" | "more";
+export type NavKey = "home" | "animals" | "health" | "more";
 
 const tabs: { href: string; label: string; active: NavKey; icon: typeof Home }[] = [
   { href: "/", label: "Home", active: "home", icon: Home },
   { href: "/animals", label: "Animals", active: "animals", icon: Bell },
   { href: "/health", label: "Health", active: "health", icon: Stethoscope },
-  { href: "/breeding", label: "Breeding", active: "breeding", icon: Heart },
   { href: "/vet", label: "More", active: "more", icon: Plus },
 ];
 

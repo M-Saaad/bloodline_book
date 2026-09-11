@@ -4,7 +4,6 @@ import { LEDGER_CATEGORIES, slugToCategory, categoryToSlug } from "@/lib/constan
 import { extraCategoryNames } from "@/lib/transactions/expense-categories";
 import { loadTransactionsData, contactNameFrom } from "@/lib/db/queries";
 import { AppHeader } from "@/components/AppHeader";
-import { QuickEntryLoader } from "@/components/QuickEntryLoader";
 import { ViewOnlyBanner } from "@/components/ViewOnlyBanner";
 import { TransactionsFilters } from "@/components/TransactionsFilters";
 import { getWriteAccess } from "@/lib/auth/roles";
@@ -151,7 +150,6 @@ export default async function TransactionsPage({
         )}
       </section>
 
-      <QuickEntryLoader {...data.quickEntry} canWrite={canWrite} />
     </main>
   );
 }

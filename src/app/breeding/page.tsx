@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { loadHerdHealthData } from "@/lib/db/queries";
 import { isSupabaseDb } from "@/lib/db";
 import { BottomNav } from "@/components/BottomNav";
@@ -14,7 +13,7 @@ export default async function BreedingPage() {
   const data = await loadHerdHealthData();
 
   return (
-    <main className="relative flex min-h-screen flex-col pb-24">
+    <main className="flex min-h-screen flex-col pb-24">
       <div className="flex items-center justify-between px-4 pb-2 pt-4">
         <p className="text-lg font-semibold text-[var(--text-primary)]">Breeding</p>
         {canWrite && (
@@ -40,17 +39,7 @@ export default async function BreedingPage() {
         )}
       </div>
 
-      {canWrite && (
-        <Link
-          href="/breeding/record"
-          className="absolute bottom-[90px] right-6 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--text-primary)] text-white shadow-lg"
-          aria-label="Record breeding"
-        >
-          <Plus className="h-6 w-6" strokeWidth={1.8} />
-        </Link>
-      )}
-
-      <BottomNav active="breeding" />
+      <BottomNav active="health" />
     </main>
   );
 }

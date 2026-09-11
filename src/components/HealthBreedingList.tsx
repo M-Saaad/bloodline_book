@@ -72,7 +72,7 @@ export function HealthBreedingList({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <Link
-                  href={animalLinkFromHealth(b.femaleId, "breeding")}
+                  href={animalLinkFromHealth(b.femaleId, "overview")}
                   className="font-semibold text-stone-900 hover:text-emerald-800"
                 >
                   {b.femaleLabel}

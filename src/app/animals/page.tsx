@@ -62,12 +62,23 @@ export default async function AnimalsPage({
   animals.sort((a, b) => displayBarnName(a).localeCompare(displayBarnName(b)));
 
   return (
-    <main className="relative flex min-h-screen flex-col pb-24">
+    <main className="flex min-h-screen flex-col pb-24">
       <div className="flex items-center justify-between px-4 pb-2.5 pt-4">
         <p className="text-lg font-semibold text-[var(--text-primary)]">Animals</p>
-        <button type="button" className="p-1 text-[var(--text-secondary)]" aria-label="Filter">
-          <SlidersHorizontal className="h-5 w-5" strokeWidth={1.8} />
-        </button>
+        <div className="flex items-center gap-2">
+          {canWrite && (
+            <Link
+              href="/animals/new"
+              className="flex items-center gap-1 rounded-[var(--radius)] bg-[var(--text-primary)] px-3 py-1.5 text-sm font-semibold text-white"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Add
+            </Link>
+          )}
+          <button type="button" className="p-1 text-[var(--text-secondary)]" aria-label="Filter">
+            <SlidersHorizontal className="h-5 w-5" strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
       {!canWrite && (
@@ -100,16 +111,6 @@ export default async function AnimalsPage({
           ))
         )}
       </div>
-
-      {canWrite && (
-        <Link
-          href="/animals/new"
-          className="absolute bottom-[90px] right-6 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[var(--text-primary)] text-white shadow-lg"
-          aria-label="Add animal"
-        >
-          <Plus className="h-6 w-6" strokeWidth={1.8} />
-        </Link>
-      )}
 
       <BottomNav active="animals" />
     </main>

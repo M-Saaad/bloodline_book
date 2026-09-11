@@ -91,10 +91,6 @@ export default async function VetPage() {
           </ActionForm>
         )}
 
-        <Link href="/transactions" className="mt-6 block text-center text-xs text-[var(--accent-text)]">
-          Transactions
-        </Link>
-
         <p className="mt-6 border-t border-[var(--border)] pt-2.5 text-[11px] text-[var(--text-muted)]">
           This helps you reach care faster. It doesn&apos;t replace calling your vet.
         </p>

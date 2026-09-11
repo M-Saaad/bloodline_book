@@ -8,13 +8,9 @@ import { animalLinkFromHealth, healthTabForActionKind } from "@/lib/livestock/he
 import type { HealthTab } from "@/lib/livestock/health-tabs";
 import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
-import { QuickEntryLoader } from "@/components/QuickEntryLoader";
 import { ViewOnlyBanner } from "@/components/ViewOnlyBanner";
 import { HealthFilters } from "@/components/HealthFilters";
 import { getWriteAccess } from "@/lib/auth/roles";
-import { HealthBreedingList } from "@/components/HealthBreedingList";
-import { isSupabaseDb } from "@/lib/db";
-import type { QuickEntryProps } from "@/components/QuickEntry";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +98,6 @@ async function HealthPageContent({
       tab={tab}
       herd={herd}
       summary={summary}
-      quickEntry={data.quickEntry}
       vaccineSchedules={data.vaccineSchedules}
       canWrite={canWrite}
     />
@@ -113,19 +108,15 @@ function HealthPageView({
   tab,
   herd,
   summary,
-  quickEntry,
   vaccineSchedules,
   canWrite,
 }: {
   tab: ReturnType<typeof parseHealthTab>;
   herd: HerdHealthData;
   summary: HerdHealthSummary;
-  quickEntry: QuickEntryProps;
   vaccineSchedules: VaccineScheduleEntry[];
   canWrite: boolean;
 }) {
-  const supabaseEnabled = isSupabaseDb();
-
   return (
     <main className="px-4 pt-6">
       <AppHeader
@@ -227,13 +218,6 @@ function HealthPageView({
         </>
       )}
 
-      {tab === "breeding" && (
-        <section className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <h2 className="mb-2 text-sm font-bold">Females (excluding kids)</h2>
-          <HealthBreedingList rows={herd.breeding} supabaseEnabled={supabaseEnabled} canWrite={canWrite} />
-        </section>
-      )}
-
       {tab === "vaccine" && (
         <>
           {vaccineSchedules.map((schedule) => (
@@ -315,7 +299,6 @@ function HealthPageView({
         </section>
       )}
 
-      <QuickEntryLoader {...quickEntry} canWrite={canWrite} />
       <BottomNav active="health" />
     </main>
   );
