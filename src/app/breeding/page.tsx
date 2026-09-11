@@ -10,8 +10,7 @@ import { HealthBreedingList } from "@/components/HealthBreedingList";
 export const dynamic = "force-dynamic";
 
 export default async function BreedingPage() {
-  const canWrite = await getWriteAccess();
-  const data = await loadHerdHealthData();
+  const [canWrite, data] = await Promise.all([getWriteAccess(), loadHerdHealthData()]);
 
   return (
     <main className="relative flex min-h-screen flex-col pb-24">

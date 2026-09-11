@@ -31,8 +31,7 @@ function HomePageFallback() {
 }
 
 async function HomePageContent() {
-  const canWrite = await getWriteAccess();
-  const data = await loadHomePageData();
+  const [canWrite, data] = await Promise.all([getWriteAccess(), loadHomePageData()]);
   const { herd } = data;
   const farmName = data.farm_settings?.farm_name ?? DEFAULT_FARM_SETTINGS.farm_name ?? "My farm";
   const metrics = computeHerdMetrics(

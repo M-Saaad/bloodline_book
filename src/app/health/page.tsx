@@ -92,8 +92,7 @@ async function HealthPageContent({
 }) {
   const sp = await searchParams;
   const tab = parseHealthTab(sp.tab);
-  const canWrite = await getWriteAccess();
-  const data = await loadHerdHealthData();
+  const [canWrite, data] = await Promise.all([getWriteAccess(), loadHerdHealthData()]);
   const { herd } = data;
   const { summary } = herd;
 

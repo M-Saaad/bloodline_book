@@ -35,8 +35,10 @@ export default async function AnimalProfilePage({
   const sp = await searchParams;
   const back = backFromAnimalProfile(sp);
   const animalId = Number(id);
-  const canWrite = await getWriteAccess();
-  const data = await loadAnimalProfileData(animalId);
+  const [canWrite, data] = await Promise.all([
+    getWriteAccess(),
+    loadAnimalProfileData(animalId),
+  ]);
   if (!data) notFound();
 
   const { animal } = data;
@@ -160,6 +162,7 @@ export default async function AnimalProfilePage({
         animalId={animalId}
         supabaseEnabled={supabaseEnabled}
         canWrite={canWrite}
+        initialUrls={data.media_urls}
       />
 
       {data.purchase_agreement && !animal.home_bred ? (

@@ -30,7 +30,7 @@ import {
   updateTransaction,
   undoLivestockSale,
 } from "@/lib/actions";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import type {
   AnimalBreed,
   AnimalSex,
@@ -51,7 +51,8 @@ import {
   assertNewCategoryName,
   isValidExpenseCategory,
 } from "@/lib/transactions/expense-categories";
-import { uploadAnimalMedia } from "@/lib/media/upload";
+import { uploadAnimalMedia, signMediaUrls } from "@/lib/media/upload";
+import { FARM_CACHE_TAG } from "@/lib/db/cache-tags";
 import type { TransactionEditVariant } from "@/lib/transactions/mutate";
 import {
   parsePositiveAmount,
@@ -63,7 +64,12 @@ import {
   parseOptionalPositiveAmount,
 } from "@/lib/form-numbers";
 
+function revalidateFarmCache() {
+  revalidateTag(FARM_CACHE_TAG);
+}
+
 function revalidateTxnPaths() {
+  revalidateFarmCache();
   revalidatePath("/");
   revalidatePath("/transactions");
   revalidatePath("/animals");
@@ -458,6 +464,7 @@ export async function actionUpsertVetContact(formData: FormData) {
     vcprEstablished: String(formData.get("vcprEstablished") || "unknown"),
     notes: String(formData.get("notes") || ""),
   });
+  revalidateFarmCache();
   revalidatePath("/vet");
   return { ok: true as const };
 }
@@ -465,6 +472,7 @@ export async function actionUpsertVetContact(formData: FormData) {
 export async function actionDeleteVetContact(formData: FormData) {
   await guardWrite();
   await deleteVetContact(String(formData.get("id") || ""));
+  revalidateFarmCache();
   revalidatePath("/vet");
   return { ok: true as const };
 }
@@ -792,6 +800,7 @@ export async function actionUploadAnimalMedia(formData: FormData) {
     throw new Error("File is required");
   }
   await uploadAnimalMedia({ animalId, file, caption });
+  revalidateFarmCache();
   revalidatePath(`/animals/${animalId}`);
   revalidatePath("/animals");
 }
@@ -800,11 +809,7 @@ export async function actionUploadAnimalMedia(formData: FormData) {
 export async function actionSignMediaUrls(
   paths: string[]
 ): Promise<Record<string, string | null>> {
-  const { signedMediaUrl } = await import("@/lib/media/upload");
-  const entries = await Promise.all(
-    paths.map(async (p) => [p, await signedMediaUrl(p)] as const)
-  );
-  return Object.fromEntries(entries);
+  return signMediaUrls(paths);
 }
 
 export async function actionSignOut() {

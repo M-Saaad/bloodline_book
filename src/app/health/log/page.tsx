@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getQuickEntryData } from "@/lib/db/queries";
+import { loadHealthLogData } from "@/lib/db/queries";
 import { getWriteAccess } from "@/lib/auth/roles";
 import { LogHealthForm } from "@/components/forms/LogHealthForm";
 
@@ -9,7 +9,7 @@ export default async function LogHealthPage() {
   const canWrite = await getWriteAccess();
   if (!canWrite) redirect("/");
 
-  const data = await getQuickEntryData();
+  const data = await loadHealthLogData();
   return (
     <main className="min-h-screen bg-[var(--card-bg)]">
       <LogHealthForm

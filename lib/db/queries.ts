@@ -3,6 +3,7 @@
  * Falls back to full fetchDb() when Supabase is not configured (JSON mode).
  */
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type {
   Animal,
   AnimalMedia,
@@ -40,7 +41,15 @@ import { mapAnimalsWithParents } from "../livestock/animal-parents-store";
 import { computeHerdHealth, type HerdHealthData } from "../livestock/herd-health";
 import { mergeVaccineSchedules, type VaccineScheduleEntry } from "../livestock/vaccine-schedule";
 import type { QuickEntryProps } from "@/components/QuickEntry";
+import { FARM_CACHE_TAG } from "./cache-tags";
+import { signMediaUrls } from "../media/upload";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+const CACHE_REVALIDATE_SECONDS = 120;
+
+function supabaseCached<T>(key: string[], fn: () => Promise<T>): Promise<T> {
+  return unstable_cache(fn, key, { tags: [FARM_CACHE_TAG], revalidate: CACHE_REVALIDATE_SECONDS })();
+}
 
 async function selectWhere(
   client: SupabaseClient,
@@ -124,25 +133,7 @@ export type HomePageData = {
 };
 
 /** Single loader for `/` — avoids duplicate table fetches and full herd-health recompute. */
-export const loadHomePageData = cache(async (): Promise<HomePageData> => {
-  if (!isSupabaseDb()) {
-    const db = await getCachedDb();
-    const medicalEvents = db.medical_events ?? [];
-    return {
-      animals: db.animals,
-      lactations: db.lactations ?? [],
-      breeding_events: db.breeding_events ?? [],
-      medical_events: medicalEvents,
-      farm_settings: db.farm_settings,
-      herd: computeHerdHealth({
-        animals: db.animals,
-        medical_events: medicalEvents,
-        breeding_events: db.breeding_events ?? [],
-        weight_logs: db.weight_logs ?? [],
-      }),
-    };
-  }
-
+async function fetchHomePageDataSupabase(): Promise<HomePageData> {
   const client = createServiceClient();
   const [animalRows, lactations, breeding, medical, weights, farmSettingsRows] =
     await Promise.all([
@@ -171,6 +162,28 @@ export const loadHomePageData = cache(async (): Promise<HomePageData> => {
       weight_logs: weights.map(mapWeight),
     }),
   };
+}
+
+export const loadHomePageData = cache(async (): Promise<HomePageData> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    const medicalEvents = db.medical_events ?? [];
+    return {
+      animals: db.animals,
+      lactations: db.lactations ?? [],
+      breeding_events: db.breeding_events ?? [],
+      medical_events: medicalEvents,
+      farm_settings: db.farm_settings,
+      herd: computeHerdHealth({
+        animals: db.animals,
+        medical_events: medicalEvents,
+        breeding_events: db.breeding_events ?? [],
+        weight_logs: db.weight_logs ?? [],
+      }),
+    };
+  }
+
+  return supabaseCached(["home-page-data"], fetchHomePageDataSupabase);
 });
 
 export type VetContactsData = {
@@ -182,9 +195,11 @@ export const loadVetContactsData = cache(async (): Promise<VetContactsData> => {
     const db = await getCachedDb();
     return { vet_contacts: db.vet_contacts ?? [] };
   }
-  const client = createServiceClient();
-  const vetContacts = await selectAllOptional(client, "vet_contacts");
-  return { vet_contacts: vetContacts.map(mapVetContact) };
+  return supabaseCached(["vet-contacts-data"], async () => {
+    const client = createServiceClient();
+    const vetContacts = await selectAllOptional(client, "vet_contacts");
+    return { vet_contacts: vetContacts.map(mapVetContact) };
+  });
 });
 
 export type MilkLogData = {
@@ -197,15 +212,17 @@ export const loadMilkLogData = cache(async (): Promise<MilkLogData> => {
     const db = await getCachedDb();
     return { animals: db.animals, lactations: db.lactations ?? [] };
   }
-  const client = createServiceClient();
-  const [animals, lactations] = await Promise.all([
-    selectAll(client, "animals"),
-    selectAllOptional(client, "lactations"),
-  ]);
-  return {
-    animals: animals.map(mapAnimal),
-    lactations: lactations.map(mapLactation),
-  };
+  return supabaseCached(["milk-log-data"], async () => {
+    const client = createServiceClient();
+    const [animals, lactations] = await Promise.all([
+      selectAll(client, "animals"),
+      selectAllOptional(client, "lactations"),
+    ]);
+    return {
+      animals: animals.map(mapAnimal),
+      lactations: lactations.map(mapLactation),
+    };
+  });
 });
 
 /** @deprecated Prefer loadHomePageData for the dashboard; kept for diagnostics. */
@@ -277,22 +294,24 @@ export const loadAnimalsListData = cache(async (): Promise<AnimalsListData> => {
     };
   }
 
-  const client = createServiceClient();
-  const [animals, contacts, breeding, lactations, medical] = await Promise.all([
-    selectAll(client, "animals"),
-    selectAll(client, "contacts"),
-    selectAll(client, "breeding_events"),
-    selectAllOptional(client, "lactations"),
-    selectAllOptional(client, "medical_events"),
-  ]);
+  return supabaseCached(["animals-list-data"], async () => {
+    const client = createServiceClient();
+    const [animals, contacts, breeding, lactations, medical] = await Promise.all([
+      selectAll(client, "animals"),
+      selectAll(client, "contacts"),
+      selectAll(client, "breeding_events"),
+      selectAllOptional(client, "lactations"),
+      selectAllOptional(client, "medical_events"),
+    ]);
 
-  return {
-    animals: await mapAnimalsWithParents(client, animals),
-    contacts: contacts.map(mapContact),
-    breeding_events: breeding.map(mapBreeding),
-    lactations: lactations.map(mapLactation),
-    medical_events: medical.map(mapMedical),
-  };
+    return {
+      animals: await mapAnimalsWithParents(client, animals),
+      contacts: contacts.map(mapContact),
+      breeding_events: breeding.map(mapBreeding),
+      lactations: lactations.map(mapLactation),
+      medical_events: medical.map(mapMedical),
+    };
+  });
 });
 
 export type AnimalProfileData = {
@@ -309,6 +328,7 @@ export type AnimalProfileData = {
   sale_balance: number | null;
   weight_logs: WeightLog[];
   animal_media: AnimalMedia[];
+  media_urls: Record<string, string | null>;
   quickEntry: ReturnType<typeof quickEntryPropsForProfile>;
 };
 
@@ -384,6 +404,7 @@ export const loadAnimalProfileData = cache(
         sale_balance: sale ? Math.max(0, sale.net_received - sale.amount_received) : null,
         weight_logs: db.weight_logs.filter((w) => w.animal_id === animalId),
         animal_media: (db.animal_media ?? []).filter((m) => m.animal_id === animalId),
+        media_urls: {},
         quickEntry: quickEntryPropsForProfile(
           db.contacts,
           db.animals,
@@ -393,8 +414,17 @@ export const loadAnimalProfileData = cache(
       };
     }
 
-    const client = createServiceClient();
-    const [animalRow, contacts, allAnimals, medical, herdVaccines, breeding, sales, purchaseRows, weights, media, pastBuckNames] =
+    return unstable_cache(
+      () => fetchAnimalProfileDataSupabase(animalId),
+      ["animal-profile", String(animalId)],
+      { tags: [FARM_CACHE_TAG, `animal-${animalId}`], revalidate: CACHE_REVALIDATE_SECONDS }
+    )();
+  }
+);
+
+async function fetchAnimalProfileDataSupabase(animalId: number): Promise<AnimalProfileData | null> {
+  const client = createServiceClient();
+  const [animalRow, contacts, allAnimals, medical, herdVaccines, breeding, sales, purchaseRows, weights, media, pastBuckNames] =
       await Promise.all([
         selectOne(client, "animals", "id", animalId),
         selectAll(client, "contacts"),
@@ -470,6 +500,9 @@ export const loadAnimalProfileData = cache(
     const purchase = resolvePurchaseAgreement(miniDb, animal);
     const sale = mappedSales[0];
 
+    const mappedMedia = media.map(mapMedia);
+    const media_urls = await signMediaUrls(mappedMedia.map((m) => m.storage_path));
+
     return {
       animal,
       animals: mappedAllAnimals,
@@ -483,7 +516,8 @@ export const loadAnimalProfileData = cache(
       purchase_balance: purchase.balance,
       sale_balance: sale ? Math.max(0, sale.net_received - sale.amount_received) : null,
       weight_logs: weights.map(mapWeight),
-      animal_media: media.map(mapMedia),
+      animal_media: mappedMedia,
+      media_urls,
       quickEntry: quickEntryPropsForProfile(
         mappedContacts,
         mappedAllAnimals,
@@ -491,8 +525,7 @@ export const loadAnimalProfileData = cache(
         mergeVaccineSchedules(mappedHerdVaccines)
       ),
     };
-  }
-);
+}
 
 export type TransactionsData = {
   transactions: Transaction[];
@@ -514,33 +547,35 @@ export const loadTransactionsData = cache(async (): Promise<TransactionsData> =>
     };
   }
 
-  const client = createServiceClient();
-  const [transactions, contacts, animals, sales, breeding, medical] =
-    await Promise.all([
-      selectAll(client, "transactions"),
-      selectAll(client, "contacts"),
-      selectAll(client, "animals"),
-      selectAll(client, "livestock_sales"),
-      selectAll(client, "breeding_events"),
-      selectAllOptional(client, "medical_events"),
-    ]);
+  return supabaseCached(["transactions-data"], async () => {
+    const client = createServiceClient();
+    const [transactions, contacts, animals, sales, breeding, medical] =
+      await Promise.all([
+        selectAll(client, "transactions"),
+        selectAll(client, "contacts"),
+        selectAll(client, "animals"),
+        selectAll(client, "livestock_sales"),
+        selectAll(client, "breeding_events"),
+        selectAllOptional(client, "medical_events"),
+      ]);
 
-  const mappedAnimals = await mapAnimalsWithParents(client, animals);
-  const mappedContacts = contacts.map(mapContact);
-  const db = emptyDb();
-  db.animals = mappedAnimals;
-  db.contacts = mappedContacts;
-  db.breeding_events = breeding.map(mapBreeding);
-  db.medical_events = medical.map(mapMedical);
-  db.transactions = filterLedgerTxs(transactions);
+    const mappedAnimals = await mapAnimalsWithParents(client, animals);
+    const mappedContacts = contacts.map(mapContact);
+    const db = emptyDb();
+    db.animals = mappedAnimals;
+    db.contacts = mappedContacts;
+    db.breeding_events = breeding.map(mapBreeding);
+    db.medical_events = medical.map(mapMedical);
+    db.transactions = filterLedgerTxs(transactions);
 
-  return {
-    transactions: db.transactions,
-    contacts: mappedContacts,
-    animals: mappedAnimals,
-    livestock_sales: sales.map(mapSale),
-    quickEntry: quickEntryPropsFromDb(db),
-  };
+    return {
+      transactions: db.transactions,
+      contacts: mappedContacts,
+      animals: mappedAnimals,
+      livestock_sales: sales.map(mapSale),
+      quickEntry: quickEntryPropsFromDb(db),
+    };
+  });
 });
 
 export type HerdHealthPageData = {
@@ -565,35 +600,124 @@ export const loadHerdHealthData = cache(async (): Promise<HerdHealthPageData> =>
     };
   }
 
-  const client = createServiceClient();
-  const [animals, medical, breeding, weights, contacts, transactions] = await Promise.all([
-    selectAll(client, "animals"),
-    selectAllOptional(client, "medical_events"),
-    selectAllOptional(client, "breeding_events"),
-    selectAllOptional(client, "weight_logs"),
-    selectAll(client, "contacts"),
-    selectAll(client, "transactions"),
-  ]);
+  return supabaseCached(["herd-health-data"], async () => {
+    const client = createServiceClient();
+    const [animals, medical, breeding, weights, contacts, transactions] = await Promise.all([
+      selectAll(client, "animals"),
+      selectAllOptional(client, "medical_events"),
+      selectAllOptional(client, "breeding_events"),
+      selectAllOptional(client, "weight_logs"),
+      selectAll(client, "contacts"),
+      selectAll(client, "transactions"),
+    ]);
 
-  const mappedAnimals = await mapAnimalsWithParents(client, animals);
-  const medicalEvents = medical.map(mapMedical);
-  const quickEntryDb = emptyDb();
-  quickEntryDb.animals = mappedAnimals;
-  quickEntryDb.contacts = contacts.map(mapContact);
-  quickEntryDb.breeding_events = breeding.map(mapBreeding);
-  quickEntryDb.medical_events = medicalEvents;
-  quickEntryDb.transactions = filterLedgerTxs(transactions);
+    const mappedAnimals = await mapAnimalsWithParents(client, animals);
+    const medicalEvents = medical.map(mapMedical);
+    const quickEntryDb = emptyDb();
+    quickEntryDb.animals = mappedAnimals;
+    quickEntryDb.contacts = contacts.map(mapContact);
+    quickEntryDb.breeding_events = breeding.map(mapBreeding);
+    quickEntryDb.medical_events = medicalEvents;
+    quickEntryDb.transactions = filterLedgerTxs(transactions);
 
-  return {
-    herd: computeHerdHealth({
-      animals: mappedAnimals,
-      medical_events: medicalEvents,
-      breeding_events: breeding.map(mapBreeding),
-      weight_logs: weights.map(mapWeight),
-    }),
-    quickEntry: quickEntryPropsFromDb(quickEntryDb),
-    vaccineSchedules: mergeVaccineSchedules(medicalEvents),
-  };
+    return {
+      herd: computeHerdHealth({
+        animals: mappedAnimals,
+        medical_events: medicalEvents,
+        breeding_events: breeding.map(mapBreeding),
+        weight_logs: weights.map(mapWeight),
+      }),
+      quickEntry: quickEntryPropsFromDb(quickEntryDb),
+      vaccineSchedules: mergeVaccineSchedules(medicalEvents),
+    };
+  });
+});
+
+export type HealthLogData = {
+  animals: QuickEntryProps["animals"];
+  vaccineSchedules: VaccineScheduleEntry[];
+  dewormerNamesByType: QuickEntryProps["dewormerNamesByType"];
+};
+
+export const loadHealthLogData = cache(async (): Promise<HealthLogData> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    const props = quickEntryPropsFromDb(db);
+    return {
+      animals: props.animals,
+      vaccineSchedules: props.vaccineSchedules,
+      dewormerNamesByType: props.dewormerNamesByType,
+    };
+  }
+  return supabaseCached(["health-log-data"], async () => {
+    const client = createServiceClient();
+    const [animals, medical] = await Promise.all([
+      selectAll(client, "animals"),
+      selectAllOptional(client, "medical_events"),
+    ]);
+    const mappedAnimals = await mapAnimalsWithParents(client, animals);
+    const medicalEvents = medical.map(mapMedical);
+    const miniDb = emptyDb();
+    miniDb.animals = mappedAnimals;
+    miniDb.medical_events = medicalEvents;
+    const props = quickEntryPropsFromDb(miniDb);
+    return {
+      animals: props.animals,
+      vaccineSchedules: props.vaccineSchedules,
+      dewormerNamesByType: props.dewormerNamesByType,
+    };
+  });
+});
+
+export type ActiveAnimalOptions = QuickEntryProps["animals"];
+
+export const loadActiveAnimalOptions = cache(async (): Promise<ActiveAnimalOptions> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    return quickEntryPropsFromDb(db).animals;
+  }
+  return supabaseCached(["active-animal-options"], async () => {
+    const client = createServiceClient();
+    const animals = await selectAll(client, "animals");
+    const mappedAnimals = await mapAnimalsWithParents(client, animals);
+    const miniDb = emptyDb();
+    miniDb.animals = mappedAnimals;
+    return quickEntryPropsFromDb(miniDb).animals;
+  });
+});
+
+export type BreedingRecordData = {
+  femaleAnimals: QuickEntryProps["femaleAnimals"];
+  maleAnimals: QuickEntryProps["maleAnimals"];
+  pastBuckNames: QuickEntryProps["pastBuckNames"];
+};
+
+export const loadBreedingRecordData = cache(async (): Promise<BreedingRecordData> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    const props = quickEntryPropsFromDb(db);
+    return {
+      femaleAnimals: props.femaleAnimals ?? props.animals,
+      maleAnimals: props.maleAnimals,
+      pastBuckNames: props.pastBuckNames,
+    };
+  }
+  return supabaseCached(["breeding-record-data"], async () => {
+    const client = createServiceClient();
+    const [animals, pastBuckNames] = await Promise.all([
+      selectAll(client, "animals"),
+      selectPastBuckNames(client),
+    ]);
+    const mappedAnimals = await mapAnimalsWithParents(client, animals);
+    const miniDb = emptyDb();
+    miniDb.animals = mappedAnimals;
+    const props = quickEntryPropsFromDb(miniDb);
+    return {
+      femaleAnimals: props.femaleAnimals ?? props.animals,
+      maleAnimals: props.maleAnimals,
+      pastBuckNames,
+    };
+  });
 });
 
 /** Helper for pages that only need contact name lookup from a contacts list. */

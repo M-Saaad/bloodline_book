@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getQuickEntryData } from "@/lib/db/queries";
+import { loadActiveAnimalOptions } from "@/lib/db/queries";
 import { getWriteAccess } from "@/lib/auth/roles";
 import { LogPhotoForm } from "@/components/forms/LogPhotoForm";
 
@@ -9,10 +9,10 @@ export default async function LogPhotoPage() {
   const canWrite = await getWriteAccess();
   if (!canWrite) redirect("/");
 
-  const data = await getQuickEntryData();
+  const animals = await loadActiveAnimalOptions();
   return (
     <main className="min-h-screen bg-[var(--card-bg)]">
-      <LogPhotoForm animals={data.animals} />
+      <LogPhotoForm animals={animals} />
     </main>
   );
 }

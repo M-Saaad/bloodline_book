@@ -10,6 +10,7 @@ type Props = {
   animalId: number;
   supabaseEnabled: boolean;
   canWrite?: boolean;
+  initialUrls?: Record<string, string | null>;
 };
 
 export function AnimalMediaGallery({
@@ -17,12 +18,15 @@ export function AnimalMediaGallery({
   animalId,
   supabaseEnabled,
   canWrite = true,
+  initialUrls,
 }: Props) {
-  const [urls, setUrls] = useState<Record<string, string | null>>({});
-  const [loading, setLoading] = useState(media.length > 0);
+  const [urls, setUrls] = useState<Record<string, string | null>>(initialUrls ?? {});
+  const [loading, setLoading] = useState(
+    media.length > 0 && initialUrls == null
+  );
 
   useEffect(() => {
-    if (media.length === 0) {
+    if (initialUrls != null || media.length === 0) {
       setLoading(false);
       return;
     }
@@ -38,7 +42,7 @@ export function AnimalMediaGallery({
     return () => {
       cancelled = true;
     };
-  }, [media]);
+  }, [media, initialUrls]);
 
   return (
     <section className="mb-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">

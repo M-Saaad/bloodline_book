@@ -96,3 +96,14 @@ export async function signedMediaUrl(storagePath: string, expiresIn = 3600): Pro
   if (error) return null;
   return data.signedUrl;
 }
+
+export async function signMediaUrls(
+  paths: string[],
+  expiresIn = 3600
+): Promise<Record<string, string | null>> {
+  if (paths.length === 0) return {};
+  const entries = await Promise.all(
+    paths.map(async (path) => [path, await signedMediaUrl(path, expiresIn)] as const)
+  );
+  return Object.fromEntries(entries);
+}

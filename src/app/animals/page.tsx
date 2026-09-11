@@ -27,8 +27,7 @@ export default async function AnimalsPage({
   searchParams: Promise<{ q?: string; filter?: string }>;
 }) {
   const sp = await searchParams;
-  const canWrite = await getWriteAccess();
-  const data = await loadAnimalsListData();
+  const [canWrite, data] = await Promise.all([getWriteAccess(), loadAnimalsListData()]);
   const today = todayIso();
   const q = sp.q || "";
   const filter = sp.filter || "all";

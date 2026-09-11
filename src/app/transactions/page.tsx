@@ -23,8 +23,7 @@ export default async function TransactionsPage({
   searchParams: Promise<{ q?: string; filter?: string; from?: string; to?: string }>;
 }) {
   const sp = await searchParams;
-  const canWrite = await getWriteAccess();
-  const data = await loadTransactionsData();
+  const [canWrite, data] = await Promise.all([getWriteAccess(), loadTransactionsData()]);
   const q = (sp.q || "").toLowerCase().trim();
   const filter = sp.filter || "all";
   const fromDate = sp.from?.trim().slice(0, 10);

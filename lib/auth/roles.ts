@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { FARM_ROLE_HEADER, parseRoleHeader } from "@/lib/auth/middleware-role";
 
 export type UserRole = "partner" | "guest";
 
@@ -12,6 +14,10 @@ export async function getSessionRole(): Promise<UserRole | null> {
   if (!isSupabaseConfigured()) {
     return "partner";
   }
+
+  const headerStore = await headers();
+  const fromMiddleware = parseRoleHeader(headerStore.get(FARM_ROLE_HEADER));
+  if (fromMiddleware) return fromMiddleware;
 
   const supabase = await createClient();
   const {
