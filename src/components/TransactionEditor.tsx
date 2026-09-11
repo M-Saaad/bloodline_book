@@ -1,0 +1,413 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  actionDeleteTransaction,
+  actionUpdateTransaction,
+} from "@/lib/server-actions";
+import { NEW_EXPENSE_CATEGORY_VALUE } from "@/lib/transactions/expense-categories";
+import { formatPkr, formatDate } from "@/lib/format";
+import type { TransactionEditVariant } from "@/lib/transactions/mutate";
+import { NON_NEGATIVE_NUMBER_INPUT_PROPS } from "@/lib/form-numbers";
+import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { ContactSelect, type ContactOption } from "@/components/ContactSelect";
+
+export type AnimalOption = { id: number; label: string };
+
+export type EditableTransaction = {
+  id: string;
+  date: string;
+  amount: number;
+  kind: "cost" | "income";
+  category: string;
+  variant: TransactionEditVariant;
+  notes: string | null;
+  animalId: number | null;
+  animalLabel: string | null;
+  vendorName: string | null;
+  customerName: string | null;
+  sale: {
+    animalIds: number[];
+    grossSalePrice: number;
+    deliveryCost: number;
+  } | null;
+};
+
+const field =
+  "mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-base text-stone-900 outline-none focus:border-emerald-600";
+const labelCls = "block text-sm font-medium text-stone-700";
+
+export function TransactionEditor({
+  transactions,
+  animals,
+  allAnimals,
+  vendors,
+  expenseCategories,
+  canWrite = true,
+}: {
+  transactions: EditableTransaction[];
+  animals: AnimalOption[];
+  allAnimals: AnimalOption[];
+  vendors: ContactOption[];
+  expenseCategories: string[];
+  canWrite?: boolean;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState<EditableTransaction | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function close() {
+    setEditing(null);
+    setError(null);
+  }
+
+  function onDelete(tx: EditableTransaction) {
+    setMenuOpenId(null);
+    const ok = window.confirm(
+      `Delete ${tx.category} · ${formatPkr(Math.abs(tx.amount))} on ${formatDate(tx.date)}? This cannot be undone.`
+    );
+    if (!ok) return;
+    setError(null);
+    setDeletingId(tx.id);
+    startTransition(async () => {
+      try {
+        const fd = new FormData();
+        fd.set("id", tx.id);
+        await actionDeleteTransaction(fd);
+        router.refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Delete failed");
+      } finally {
+        setDeletingId(null);
+      }
+    });
+  }
+
+  return (
+    <>
+      {error && (
+        <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          {error}
+        </p>
+      )}
+      {pending && deletingId && (
+        <p className="mb-2 rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-600">
+          Deleting…
+        </p>
+      )}
+      <ul className={`divide-y divide-stone-100 ${pending ? "pointer-events-none opacity-70" : ""}`}>
+        {transactions.map((tx) => (
+          <li key={tx.id} className="flex items-start justify-between gap-2 py-2 text-sm">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-stone-800">{tx.category}</p>
+              <p className="text-xs text-stone-500">
+                {formatDate(tx.date)} · {tx.kind}
+                {tx.animalLabel ? ` · ${tx.animalLabel}` : ""}
+              </p>
+              {tx.notes && (
+                <p className="text-xs text-stone-500 line-clamp-1">{tx.notes}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-start gap-1">
+              <p className={`pt-0.5 font-semibold ${tx.kind === "cost" ? "text-red-700" : "text-emerald-700"}`}>
+                {formatPkr(tx.amount)}
+              </p>
+              {canWrite && (
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label="Transaction actions"
+                  aria-expanded={menuOpenId === tx.id}
+                  disabled={pending}
+                  onClick={() =>
+                    setMenuOpenId((id) => (id === tx.id ? null : tx.id))
+                  }
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 hover:text-stone-800 disabled:opacity-50"
+                >
+                  <MoreVerticalIcon />
+                </button>
+                {menuOpenId === tx.id && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label="Close menu"
+                      className="fixed inset-0 z-10 cursor-default"
+                      onClick={() => setMenuOpenId(null)}
+                    />
+                    <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-xl bg-white py-1 shadow-lg ring-1 ring-stone-200">
+                      <button
+                        type="button"
+                        className="block w-full px-3 py-2 text-left text-sm font-medium text-stone-800 hover:bg-stone-50"
+                        onClick={() => {
+                          setMenuOpenId(null);
+                          setError(null);
+                          setEditing(tx);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50"
+                        onClick={() => onDelete(tx)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {canWrite && editing && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/40 sm:items-center sm:justify-center">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-stone-50 p-4 sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-stone-900">Edit {editing.category}</h2>
+              <button type="button" onClick={close} className="rounded-lg px-3 py-1 text-stone-600">
+                Close
+              </button>
+            </div>
+
+            <ActionForm action={actionUpdateTransaction} onSuccess={close}>
+              <input type="hidden" name="id" value={editing.id} />
+              <input type="hidden" name="variant" value={editing.variant} />
+
+              {editing.variant === "expense" && (
+                <ExpenseForm tx={editing} animals={animals} expenseCategories={expenseCategories} />
+              )}
+              {editing.variant === "livestock_purchase" && (
+                <PurchaseForm tx={editing} vendors={vendors} />
+              )}
+              {editing.variant === "livestock_sale" && (
+                <SaleForm tx={editing} animals={allAnimals} />
+              )}
+
+              <SubmitButton label="Save changes" />
+            </ActionForm>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Field(props: {
+  label: string;
+  name: string;
+  type?: string;
+  defaultValue?: string | number;
+  required?: boolean;
+  step?: string | number;
+  min?: number;
+}) {
+  const isNumber = props.type === "number";
+  return (
+    <div>
+      <label className={labelCls}>{props.label}</label>
+      <input
+        className={field}
+        name={props.name}
+        type={props.type || "text"}
+        defaultValue={props.defaultValue}
+        required={props.required}
+        step={props.step ?? (isNumber ? NON_NEGATIVE_NUMBER_INPUT_PROPS.step : undefined)}
+        min={props.min ?? (isNumber ? NON_NEGATIVE_NUMBER_INPUT_PROPS.min : undefined)}
+      />
+    </div>
+  );
+}
+
+function ExpenseForm({
+  tx,
+  animals,
+  expenseCategories,
+}: {
+  tx: EditableTransaction;
+  animals: AnimalOption[];
+  expenseCategories: string[];
+}) {
+  const baseOptions = expenseCategories.includes(tx.category)
+    ? expenseCategories
+    : [tx.category, ...expenseCategories];
+  const [category, setCategory] = useState(tx.category);
+
+  return (
+    <>
+      <Field label="Date" name="date" type="date" defaultValue={tx.date} required />
+      <Field
+        label="Amount (PKR)"
+        name="amount"
+        type="number"
+        defaultValue={tx.amount}
+        required
+        step="any"
+      />
+      <div>
+        <label className={labelCls}>Category</label>
+        <select
+          name="category"
+          className={field}
+          required
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+        >
+          {baseOptions.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+          <option value={NEW_EXPENSE_CATEGORY_VALUE}>+ Add new category…</option>
+        </select>
+      </div>
+      {category === NEW_EXPENSE_CATEGORY_VALUE && (
+        <Field label="New category name" name="categoryOther" required />
+      )}
+      <div>
+        <label className={labelCls}>Goat (optional)</label>
+        <select
+          name="animalId"
+          className={field}
+          defaultValue={tx.animalId != null ? String(tx.animalId) : ""}
+        >
+          <option value="">—</option>
+          {animals.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.label}
+            </option>
+          ))}
+          {tx.animalId != null &&
+            !animals.some((a) => a.id === tx.animalId) &&
+            tx.animalLabel && (
+              <option value={tx.animalId}>{tx.animalLabel}</option>
+            )}
+        </select>
+      </div>
+      <Field label="Notes" name="notes" defaultValue={tx.notes ?? ""} />
+    </>
+  );
+}
+
+function PurchaseForm({
+  tx,
+  vendors,
+}: {
+  tx: EditableTransaction;
+  vendors: ContactOption[];
+}) {
+  return (
+    <>
+      {tx.animalLabel && (
+        <p className="rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-600">
+          Linked animal: <span className="font-semibold">{tx.animalLabel}</span>
+        </p>
+      )}
+      <Field label="Date" name="date" type="date" defaultValue={tx.date} required />
+      <Field
+        label="Price (PKR)"
+        name="amount"
+        type="number"
+        defaultValue={tx.amount}
+        required
+        step="any"
+      />
+      <ContactSelect
+        label="Vendor"
+        name="vendorName"
+        options={vendors}
+        defaultValue={tx.vendorName ?? undefined}
+        allowEmpty
+        emptyLabel="—"
+        addNewLabel="+ Add new vendor"
+      />
+      <Field label="Notes" name="notes" defaultValue={tx.notes ?? ""} />
+    </>
+  );
+}
+
+function SaleForm({
+  tx,
+  animals,
+}: {
+  tx: EditableTransaction;
+  animals: AnimalOption[];
+}) {
+  const sale = tx.sale;
+  const primaryId = sale?.animalIds[0] ?? tx.animalId ?? "";
+  const secondId = sale?.animalIds[1] ?? "";
+  return (
+    <>
+      <div>
+        <label className={labelCls}>Goat</label>
+        <select
+          name="animalId"
+          className={field}
+          required
+          defaultValue={primaryId !== "" ? String(primaryId) : undefined}
+        >
+          {animals.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className={labelCls}>Second goat (optional)</label>
+        <select
+          name="additionalAnimalId"
+          className={field}
+          defaultValue={secondId !== "" ? String(secondId) : ""}
+        >
+          <option value="">—</option>
+          {animals.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Field label="Sale date" name="date" type="date" defaultValue={tx.date} required />
+      <Field
+        label="Gross sale price (PKR)"
+        name="grossSalePrice"
+        type="number"
+        defaultValue={sale?.grossSalePrice ?? tx.amount}
+        required
+        step="any"
+      />
+      <Field
+        label="Delivery deducted from proceeds"
+        name="deliveryCost"
+        type="number"
+        defaultValue={sale?.deliveryCost ?? 0}
+        step="any"
+      />
+      <Field label="Notes" name="notes" defaultValue={tx.notes ?? ""} />
+    </>
+  );
+}
+
+function MoreVerticalIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="h-5 w-5"
+      aria-hidden
+    >
+      <circle cx="12" cy="5" r="1.75" />
+      <circle cx="12" cy="12" r="1.75" />
+      <circle cx="12" cy="19" r="1.75" />
+    </svg>
+  );
+}
