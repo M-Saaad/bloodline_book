@@ -8,6 +8,9 @@ node_modules/
 dist/
 web-build/
 public/@powersync/
+
+# Supabase CLI
+supabase/.temp/
 expo-env.d.ts
 
 # Native
