@@ -1,8 +1,9 @@
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -11,30 +12,38 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   async function handleSignUp() {
+    setErrorMessage('');
+    setSuccessMessage('');
+
     if (!email || !password) {
-      Alert.alert('Missing fields', 'Enter your email and password.');
+      setErrorMessage('Enter your email and password.');
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert('Weak password', 'Use at least 8 characters.');
+      setErrorMessage('Use a password with at least 8 characters.');
       return;
     }
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password);
-      Alert.alert(
-        'Account created',
-        'If email confirmation is enabled, check your inbox. Otherwise sign in now.',
-        [{ text: 'OK', onPress: () => router.replace('/(auth)/sign-in') }],
+      const { sessionCreated } = await signUp(email.trim(), password);
+
+      if (sessionCreated) {
+        router.replace('/');
+        return;
+      }
+
+      setSuccessMessage(
+        'Account created. Check your email to confirm, then sign in.',
       );
     } catch (error) {
-      Alert.alert(
-        'Sign up failed',
-        error instanceof Error ? error.message : 'Unknown error',
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Sign up failed. Try again.',
       );
     } finally {
       setLoading(false);
@@ -51,6 +60,9 @@ export default function SignUpScreen() {
       <Text className="text-gray-600 mb-8">
         Start managing your herd with offline-capable records.
       </Text>
+
+      <FormMessage message={errorMessage} tone="error" />
+      <FormMessage message={successMessage} tone="success" />
 
       <Input
         label="Email"

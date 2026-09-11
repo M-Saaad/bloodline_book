@@ -1,8 +1,9 @@
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -11,10 +12,13 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   async function handleSignIn() {
+    setErrorMessage('');
+
     if (!email || !password) {
-      Alert.alert('Missing fields', 'Enter your email and password.');
+      setErrorMessage('Enter your email and password.');
       return;
     }
 
@@ -23,9 +27,8 @@ export default function SignInScreen() {
       await signIn(email.trim(), password);
       router.replace('/');
     } catch (error) {
-      Alert.alert(
-        'Sign in failed',
-        error instanceof Error ? error.message : 'Unknown error',
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Sign in failed. Try again.',
       );
     } finally {
       setLoading(false);
@@ -42,6 +45,8 @@ export default function SignInScreen() {
       <Text className="text-gray-600 mb-8">
         Herd records for dairy and meat goat operations.
       </Text>
+
+      <FormMessage message={errorMessage} tone="error" />
 
       <Input
         label="Email"
