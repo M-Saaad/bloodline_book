@@ -175,21 +175,27 @@ function lastFamachaByAnimal(events: MedicalEvent[]): Map<number, MedicalEvent> 
   return map;
 }
 
-function lastVaccineByKey(
+/** One pass over medical events for all vaccine schedule keys. */
+function buildLastVaccineMaps(
   events: MedicalEvent[],
-  key: string,
   schedules: VaccineScheduleEntry[]
-): Map<number, MedicalEvent> {
-  const map = new Map<number, MedicalEvent>();
+): Map<string, Map<number, MedicalEvent>> {
+  const byKey = new Map<string, Map<number, MedicalEvent>>();
   for (const e of events) {
     if (e.event_type !== "Vaccine" || !e.date) continue;
-    if (vaccineKeyFromNotes(e.notes, schedules) !== key) continue;
+    const key = vaccineKeyFromNotes(e.notes, schedules);
+    if (!key) continue;
+    let map = byKey.get(key);
+    if (!map) {
+      map = new Map();
+      byKey.set(key, map);
+    }
     const prev = map.get(e.animal_id);
     if (!prev || e.date > (prev.date || "")) {
       map.set(e.animal_id, e);
     }
   }
-  return map;
+  return byKey;
 }
 
 function buildDueList(
@@ -393,12 +399,13 @@ export function computeHerdHealth(input: {
   const lastInternalDeworm = lastDewormByKind(medicalEvents, "internal");
   const lastExternalDeworm = lastDewormByKind(medicalEvents, "external");
   const lastFamacha = lastFamachaByAnimal(medicalEvents);
+  const lastVaccineMaps = buildLastVaccineMaps(medicalEvents, vaccineSchedules);
 
   const vaccines = vaccineSchedules
     .flatMap(({ key, intervalDays }) =>
       buildDueList(
         activeAnimals,
-        lastVaccineByKey(medicalEvents, key, vaccineSchedules),
+        lastVaccineMaps.get(key) ?? new Map(),
         intervalDays,
         today,
         key

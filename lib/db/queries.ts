@@ -35,7 +35,7 @@ import {
   selectAll,
   selectAllOptional,
 } from "./supabase";
-import { quickEntryPropsFromDb } from "../quick-entry-props";
+import { quickEntryPropsFromDb, quickEntryPropsForProfile } from "../quick-entry-props";
 import { mapAnimalsWithParents } from "../livestock/animal-parents-store";
 import { computeHerdHealth, type HerdHealthData } from "../livestock/herd-health";
 import { mergeVaccineSchedules, type VaccineScheduleEntry } from "../livestock/vaccine-schedule";
@@ -62,6 +62,27 @@ async function selectOne(
   const { data, error } = await client.from(table).select("*").eq(column, value).maybeSingle();
   if (error) throw new Error(`${table}: ${error.message}`);
   return (data ?? null) as Record<string, unknown> | null;
+}
+
+async function selectSalesForAnimal(client: SupabaseClient, animalId: number) {
+  const { data, error } = await client
+    .from("livestock_sales")
+    .select("*")
+    .contains("animal_ids", [animalId]);
+  if (error) throw new Error(`livestock_sales: ${error.message}`);
+  return (data ?? []) as Record<string, unknown>[];
+}
+
+async function selectPastBuckNames(client: SupabaseClient): Promise<string[]> {
+  const { data, error } = await client.from("breeding_events").select("buck_name");
+  if (error) throw new Error(`breeding_events: ${error.message}`);
+  return [
+    ...new Set(
+      (data ?? [])
+        .map((row) => (row as { buck_name?: string | null }).buck_name)
+        .filter((n): n is string => Boolean(n && n.trim()))
+    ),
+  ].sort((a, b) => a.localeCompare(b));
 }
 
 function filterLedgerTxs(rows: Record<string, unknown>[]): Transaction[] {
@@ -93,30 +114,118 @@ export const getQuickEntryData = cache(async (): Promise<QuickEntryProps> => {
   return quickEntryPropsFromDb(db);
 });
 
-export type HomeData = {
-  contacts: Contact[];
-  transactions: Transaction[];
+export type HomePageData = {
   animals: Animal[];
   lactations: FarmDatabase["lactations"];
   breeding_events: BreedingEvent[];
   medical_events: MedicalEvent[];
   farm_settings: FarmDatabase["farm_settings"];
+  herd: HerdHealthData;
+};
+
+/** Single loader for `/` — avoids duplicate table fetches and full herd-health recompute. */
+export const loadHomePageData = cache(async (): Promise<HomePageData> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    const medicalEvents = db.medical_events ?? [];
+    return {
+      animals: db.animals,
+      lactations: db.lactations ?? [],
+      breeding_events: db.breeding_events ?? [],
+      medical_events: medicalEvents,
+      farm_settings: db.farm_settings,
+      herd: computeHerdHealth({
+        animals: db.animals,
+        medical_events: medicalEvents,
+        breeding_events: db.breeding_events ?? [],
+        weight_logs: db.weight_logs ?? [],
+      }),
+    };
+  }
+
+  const client = createServiceClient();
+  const [animalRows, lactations, breeding, medical, weights, farmSettingsRows] =
+    await Promise.all([
+      selectAll(client, "animals"),
+      selectAllOptional(client, "lactations"),
+      selectAllOptional(client, "breeding_events"),
+      selectAllOptional(client, "medical_events"),
+      selectAllOptional(client, "weight_logs"),
+      selectAllOptional(client, "farm_settings"),
+    ]);
+
+  const mappedAnimals = await mapAnimalsWithParents(client, animalRows);
+  const medicalEvents = medical.map(mapMedical);
+  const breedingEvents = breeding.map(mapBreeding);
+
+  return {
+    animals: mappedAnimals,
+    lactations: lactations.map(mapLactation),
+    breeding_events: breedingEvents,
+    medical_events: medicalEvents,
+    farm_settings: mapFarmSettings(farmSettingsRows[0]),
+    herd: computeHerdHealth({
+      animals: mappedAnimals,
+      medical_events: medicalEvents,
+      breeding_events: breedingEvents,
+      weight_logs: weights.map(mapWeight),
+    }),
+  };
+});
+
+export type VetContactsData = {
+  vet_contacts: FarmDatabase["vet_contacts"];
+};
+
+export const loadVetContactsData = cache(async (): Promise<VetContactsData> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    return { vet_contacts: db.vet_contacts ?? [] };
+  }
+  const client = createServiceClient();
+  const vetContacts = await selectAllOptional(client, "vet_contacts");
+  return { vet_contacts: vetContacts.map(mapVetContact) };
+});
+
+export type MilkLogData = {
+  animals: Animal[];
+  lactations: FarmDatabase["lactations"];
+};
+
+export const loadMilkLogData = cache(async (): Promise<MilkLogData> => {
+  if (!isSupabaseDb()) {
+    const db = await getCachedDb();
+    return { animals: db.animals, lactations: db.lactations ?? [] };
+  }
+  const client = createServiceClient();
+  const [animals, lactations] = await Promise.all([
+    selectAll(client, "animals"),
+    selectAllOptional(client, "lactations"),
+  ]);
+  return {
+    animals: animals.map(mapAnimal),
+    lactations: lactations.map(mapLactation),
+  };
+});
+
+/** @deprecated Prefer loadHomePageData for the dashboard; kept for diagnostics. */
+export type HomeData = HomePageData & {
+  contacts: Contact[];
+  transactions: Transaction[];
   vet_contacts: FarmDatabase["vet_contacts"];
   meta: FarmDatabase["meta"];
   quickEntry: QuickEntryProps;
 };
 
+/** @deprecated Prefer loadHomePageData — loads extra tables for /api/health-check only. */
 export const loadHomeData = cache(async (): Promise<HomeData> => {
+  const home = await loadHomePageData();
   if (!isSupabaseDb()) {
     const db = await getCachedDb();
     return {
+      ...home,
       contacts: db.contacts,
       transactions: db.transactions,
-      animals: db.animals,
-      lactations: db.lactations ?? [],
-      breeding_events: db.breeding_events,
-      medical_events: db.medical_events,
-      farm_settings: db.farm_settings,
       vet_contacts: db.vet_contacts,
       meta: db.meta,
       quickEntry: quickEntryPropsFromDb(db),
@@ -124,31 +233,27 @@ export const loadHomeData = cache(async (): Promise<HomeData> => {
   }
 
   const client = createServiceClient();
-  const [contacts, transactions, metaRows, animalRows, vetContacts, lactations, breeding, medical, farmSettingsRows, quickEntry] =
-    await Promise.all([
-      selectAll(client, "contacts"),
-      selectAll(client, "transactions"),
-      selectAll(client, "app_meta"),
-      selectAll(client, "animals"),
-      selectAllOptional(client, "vet_contacts"),
-      selectAllOptional(client, "lactations"),
-      selectAllOptional(client, "breeding_events"),
-      selectAllOptional(client, "medical_events"),
-      selectAllOptional(client, "farm_settings"),
-      getQuickEntryData(),
-    ]);
+  const [contacts, transactions, metaRows, vetContacts] = await Promise.all([
+    selectAll(client, "contacts"),
+    selectAll(client, "transactions"),
+    selectAll(client, "app_meta"),
+    selectAllOptional(client, "vet_contacts"),
+  ]);
+  const mappedContacts = contacts.map(mapContact);
+  const quickEntryDb = emptyDb();
+  quickEntryDb.animals = home.animals;
+  quickEntryDb.contacts = mappedContacts;
+  quickEntryDb.breeding_events = home.breeding_events;
+  quickEntryDb.medical_events = home.medical_events;
+  quickEntryDb.transactions = filterLedgerTxs(transactions);
 
   return {
-    contacts: contacts.map(mapContact),
-    transactions: filterLedgerTxs(transactions),
-    animals: animalRows.map(mapAnimal),
-    lactations: lactations.map(mapLactation),
-    breeding_events: breeding.map(mapBreeding),
-    medical_events: medical.map(mapMedical),
-    farm_settings: mapFarmSettings(farmSettingsRows[0]),
+    ...home,
+    contacts: mappedContacts,
+    transactions: quickEntryDb.transactions,
     vet_contacts: vetContacts.map(mapVetContact),
     meta: mapMeta(metaRows[0]),
-    quickEntry,
+    quickEntry: quickEntryPropsFromDb(quickEntryDb),
   };
 });
 
@@ -158,7 +263,6 @@ export type AnimalsListData = {
   breeding_events: BreedingEvent[];
   lactations: FarmDatabase["lactations"];
   medical_events: MedicalEvent[];
-  quickEntry: QuickEntryProps;
 };
 
 export const loadAnimalsListData = cache(async (): Promise<AnimalsListData> => {
@@ -170,7 +274,6 @@ export const loadAnimalsListData = cache(async (): Promise<AnimalsListData> => {
       breeding_events: db.breeding_events,
       lactations: db.lactations ?? [],
       medical_events: db.medical_events,
-      quickEntry: quickEntryPropsFromDb(db),
     };
   }
 
@@ -183,23 +286,12 @@ export const loadAnimalsListData = cache(async (): Promise<AnimalsListData> => {
     selectAllOptional(client, "medical_events"),
   ]);
 
-  const mappedAnimals = await mapAnimalsWithParents(client, animals);
-  const mappedContacts = contacts.map(mapContact);
-  const mappedBreeding = breeding.map(mapBreeding);
-  const db = emptyDb();
-  db.animals = mappedAnimals;
-  db.contacts = mappedContacts;
-  db.breeding_events = mappedBreeding;
-  db.lactations = lactations.map(mapLactation);
-  db.medical_events = medical.map(mapMedical);
-
   return {
-    animals: mappedAnimals,
-    contacts: mappedContacts,
-    breeding_events: mappedBreeding,
+    animals: await mapAnimalsWithParents(client, animals),
+    contacts: contacts.map(mapContact),
+    breeding_events: breeding.map(mapBreeding),
     lactations: lactations.map(mapLactation),
     medical_events: medical.map(mapMedical),
-    quickEntry: quickEntryPropsFromDb(db),
   };
 });
 
@@ -217,7 +309,7 @@ export type AnimalProfileData = {
   sale_balance: number | null;
   weight_logs: WeightLog[];
   animal_media: AnimalMedia[];
-  quickEntry: QuickEntryProps;
+  quickEntry: ReturnType<typeof quickEntryPropsForProfile>;
 };
 
 function profileTransactions(
@@ -270,12 +362,20 @@ export const loadAnimalProfileData = cache(
       const saleMeta = (db.livestock_sales ?? []).filter((s) => s.animal_ids.includes(animalId));
       const purchase = resolvePurchaseAgreement(db, animal);
       const sale = saleMeta[0];
+      const herdVaccines = db.medical_events.filter((m) => m.event_type === "Vaccine");
+      const pastBuckNames = [
+        ...new Set(
+          db.breeding_events
+            .map((b) => b.buck_name)
+            .filter((n): n is string => Boolean(n && n.trim()))
+        ),
+      ].sort((a, b) => a.localeCompare(b));
       return {
         animal,
         animals: db.animals,
         contacts: db.contacts,
         medical_events: db.medical_events.filter((m) => m.animal_id === animalId),
-        herd_vaccine_events: db.medical_events.filter((m) => m.event_type === "Vaccine"),
+        herd_vaccine_events: herdVaccines,
         breeding_events: db.breeding_events.filter((b) => b.female_animal_id === animalId),
         transactions: profileTransactions(db, animalId, saleMeta),
         livestock_sales: saleMeta,
@@ -284,12 +384,17 @@ export const loadAnimalProfileData = cache(
         sale_balance: sale ? Math.max(0, sale.net_received - sale.amount_received) : null,
         weight_logs: db.weight_logs.filter((w) => w.animal_id === animalId),
         animal_media: (db.animal_media ?? []).filter((m) => m.animal_id === animalId),
-        quickEntry: quickEntryPropsFromDb(db),
+        quickEntry: quickEntryPropsForProfile(
+          db.contacts,
+          db.animals,
+          pastBuckNames,
+          mergeVaccineSchedules(herdVaccines)
+        ),
       };
     }
 
     const client = createServiceClient();
-    const [animalRow, contacts, allAnimals, medical, herdVaccines, breeding, sales, purchaseRows, weights, media, quickEntry] =
+    const [animalRow, contacts, allAnimals, medical, herdVaccines, breeding, sales, purchaseRows, weights, media, pastBuckNames] =
       await Promise.all([
         selectOne(client, "animals", "id", animalId),
         selectAll(client, "contacts"),
@@ -297,11 +402,11 @@ export const loadAnimalProfileData = cache(
         selectWhere(client, "medical_events", "animal_id", animalId),
         selectWhere(client, "medical_events", "event_type", "Vaccine"),
         selectWhere(client, "breeding_events", "female_animal_id", animalId),
-        selectAll(client, "livestock_sales"),
+        selectSalesForAnimal(client, animalId),
         selectWhere(client, "purchase_agreements", "animal_id", animalId),
         selectWhere(client, "weight_logs", "animal_id", animalId),
         selectWhere(client, "animal_media", "animal_id", animalId),
-        getQuickEntryData(),
+        selectPastBuckNames(client),
       ]);
 
     if (!animalRow) return null;
@@ -355,6 +460,8 @@ export const loadAnimalProfileData = cache(
     const mappedAllAnimals = await mapAnimalsWithParents(client, allAnimals);
     const animal = mappedAllAnimals.find((a) => a.id === animalId);
     if (!animal) return null;
+    const mappedContacts = contacts.map(mapContact);
+    const mappedHerdVaccines = herdVaccines.map(mapMedical);
     const miniDb = emptyDb();
     miniDb.animals = [animal];
     miniDb.transactions = [...txById.values()];
@@ -366,9 +473,9 @@ export const loadAnimalProfileData = cache(
     return {
       animal,
       animals: mappedAllAnimals,
-      contacts: contacts.map(mapContact),
+      contacts: mappedContacts,
       medical_events: medical.map(mapMedical),
-      herd_vaccine_events: herdVaccines.map(mapMedical),
+      herd_vaccine_events: mappedHerdVaccines,
       breeding_events: breeding.map(mapBreeding),
       transactions: profileTransactions(miniDb, animalId, mappedSales),
       livestock_sales: mappedSales,
@@ -377,7 +484,12 @@ export const loadAnimalProfileData = cache(
       sale_balance: sale ? Math.max(0, sale.net_received - sale.amount_received) : null,
       weight_logs: weights.map(mapWeight),
       animal_media: media.map(mapMedia),
-      quickEntry,
+      quickEntry: quickEntryPropsForProfile(
+        mappedContacts,
+        mappedAllAnimals,
+        pastBuckNames,
+        mergeVaccineSchedules(mappedHerdVaccines)
+      ),
     };
   }
 );
@@ -454,16 +566,23 @@ export const loadHerdHealthData = cache(async (): Promise<HerdHealthPageData> =>
   }
 
   const client = createServiceClient();
-  const [animals, medical, breeding, weights, quickEntry] = await Promise.all([
+  const [animals, medical, breeding, weights, contacts, transactions] = await Promise.all([
     selectAll(client, "animals"),
     selectAllOptional(client, "medical_events"),
     selectAllOptional(client, "breeding_events"),
     selectAllOptional(client, "weight_logs"),
-    getQuickEntryData(),
+    selectAll(client, "contacts"),
+    selectAll(client, "transactions"),
   ]);
 
   const mappedAnimals = await mapAnimalsWithParents(client, animals);
   const medicalEvents = medical.map(mapMedical);
+  const quickEntryDb = emptyDb();
+  quickEntryDb.animals = mappedAnimals;
+  quickEntryDb.contacts = contacts.map(mapContact);
+  quickEntryDb.breeding_events = breeding.map(mapBreeding);
+  quickEntryDb.medical_events = medicalEvents;
+  quickEntryDb.transactions = filterLedgerTxs(transactions);
 
   return {
     herd: computeHerdHealth({
@@ -472,7 +591,7 @@ export const loadHerdHealthData = cache(async (): Promise<HerdHealthPageData> =>
       breeding_events: breeding.map(mapBreeding),
       weight_logs: weights.map(mapWeight),
     }),
-    quickEntry,
+    quickEntry: quickEntryPropsFromDb(quickEntryDb),
     vaccineSchedules: mergeVaccineSchedules(medicalEvents),
   };
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   loadAnimalProfileData,
-  loadHomeData,
+  loadHomePageData,
   loadAnimalsListData,
   loadHerdHealthData,
   loadTransactionsData,
@@ -21,7 +21,7 @@ export async function GET() {
   };
 
   const loaders = [
-    ["home", loadHomeData],
+    ["home", loadHomePageData],
     ["animals", loadAnimalsListData],
     ["health", loadHerdHealthData],
     ["transactions", loadTransactionsData],

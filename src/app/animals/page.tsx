@@ -9,7 +9,7 @@ import {
   isAnimalInMilk,
 } from "@/lib/livestock/herd-metrics";
 import { isBreedingInPipeline } from "@/lib/livestock/breeding";
-import { animalListBadge } from "@/lib/livestock/animal-status";
+import { animalListBadgeFromContext, buildAnimalBadgeContext } from "@/lib/livestock/animal-status";
 import { todayIso } from "@/lib/format";
 import { BottomNav } from "@/components/BottomNav";
 import { AnimalsFilters } from "@/components/AnimalsFilters";
@@ -17,7 +17,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ViewOnlyBanner } from "@/components/ViewOnlyBanner";
 import { getWriteAccess } from "@/lib/auth/roles";
-import type { Animal, BreedingEvent, Lactation, MedicalEvent } from "@/lib/types";
+import type { Animal } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +61,13 @@ export default async function AnimalsPage({
 
   animals.sort((a, b) => displayBarnName(a).localeCompare(displayBarnName(b)));
 
+  const badgeContext = buildAnimalBadgeContext(
+    data.lactations,
+    data.breeding_events,
+    data.medical_events,
+    today
+  );
+
   return (
     <main className="relative flex min-h-screen flex-col pb-24">
       <div className="flex items-center justify-between px-4 pb-2.5 pt-4">
@@ -92,9 +99,7 @@ export default async function AnimalsPage({
             <AnimalRow
               key={a.id}
               animal={a}
-              lactations={data.lactations}
-              breeding={data.breeding_events}
-              medical={data.medical_events}
+              badgeContext={badgeContext}
               today={today}
             />
           ))
@@ -118,18 +123,14 @@ export default async function AnimalsPage({
 
 function AnimalRow({
   animal,
-  lactations,
-  breeding,
-  medical,
+  badgeContext,
   today,
 }: {
   animal: Animal;
-  lactations: Lactation[];
-  breeding: BreedingEvent[];
-  medical: MedicalEvent[];
+  badgeContext: ReturnType<typeof buildAnimalBadgeContext>;
   today: string;
 }) {
-  const badge = animalListBadge(animal, lactations, breeding, medical, today);
+  const badge = animalListBadgeFromContext(animal, badgeContext, today);
   const reg = displayRegisteredName(animal);
   const breedLine = [reg, animal.breed].filter(Boolean).join(" · ");
 

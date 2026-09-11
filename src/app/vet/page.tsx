@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, Pencil } from "lucide-react";
-import { loadHomeData } from "@/lib/db/queries";
+import { loadVetContactsData } from "@/lib/db/queries";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { actionDeleteVetContact, actionUpsertVetContact } from "@/lib/server-actions";
 import { getWriteAccess } from "@/lib/auth/roles";
@@ -26,7 +26,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default async function VetPage() {
-  const [data, canWrite] = await Promise.all([loadHomeData(), getWriteAccess()]);
+  const [data, canWrite] = await Promise.all([loadVetContactsData(), getWriteAccess()]);
   const contacts = data.vet_contacts ?? [];
 
   return (

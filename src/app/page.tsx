@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { loadHomeData, loadHerdHealthData } from "@/lib/db/queries";
+import { loadHomePageData } from "@/lib/db/queries";
 import { computeHerdMetrics } from "@/lib/livestock/herd-metrics";
 import { DEFAULT_FARM_SETTINGS } from "@/lib/livestock/breeding";
 import { HomeHeader } from "@/components/HomeHeader";
@@ -32,8 +32,8 @@ function HomePageFallback() {
 
 async function HomePageContent() {
   const canWrite = await getWriteAccess();
-  const [data, healthData] = await Promise.all([loadHomeData(), loadHerdHealthData()]);
-  const { herd } = healthData;
+  const data = await loadHomePageData();
+  const { herd } = data;
   const farmName = data.farm_settings?.farm_name ?? DEFAULT_FARM_SETTINGS.farm_name ?? "My farm";
   const metrics = computeHerdMetrics(
     data.animals,

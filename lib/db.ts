@@ -47,7 +47,7 @@ function loadJsonDb(): FarmDatabase {
 
 function saveJsonDb(db: FarmDatabase): void {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  fs.writeFileSync(DB_PATH, JSON.stringify(db));
 }
 
 /** Sync JSON load — used by local verify scripts when Supabase is not configured. */
