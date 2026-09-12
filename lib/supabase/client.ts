@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import {
   isValidSupabaseProjectUrl,
   normalizeSupabaseUrl,
+  sanitizeSupabaseJwtKey,
 } from '@/lib/supabase/config';
 
 const authStorage: SupportedStorage =
@@ -19,8 +20,9 @@ const authStorage: SupportedStorage =
 const supabaseUrl = normalizeSupabaseUrl(
   process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
 );
-const supabaseAnonKey =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key';
+const supabaseAnonKey = sanitizeSupabaseJwtKey(
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key',
+);
 
 export const isSupabaseConfigured = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL &&

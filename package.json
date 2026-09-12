@@ -43,7 +43,8 @@
     "ios": "bash scripts/setup-env.sh && expo start --ios",
     "web": "bash scripts/setup-env.sh && expo start --web",
     "build:web": "bash scripts/vercel-build.sh",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/assert-jwt-sanitize.mjs"
   },
   "private": true
 }
