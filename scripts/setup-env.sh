@@ -18,6 +18,18 @@ extract_project_ref() {
   fi
 }
 
+# Secrets sometimes duplicate the JWT header (header.header.payload.sig).
+sanitize_supabase_jwt_key() {
+  local key="${1-}"
+  local p0 p1 p2 p3 extra
+  IFS='.' read -r p0 p1 p2 p3 extra <<< "$key"
+  if [[ -n "$p0" && -n "$p1" && -n "$p2" && -n "$p3" && -z "$extra" && "$p0" == "$p1" && "$p0" == eyJ* ]]; then
+    echo "${p0}.${p2}.${p3}"
+    return
+  fi
+  echo "$key"
+}
+
 fetch_anon_key() {
   local project_ref="$1"
   if [[ -z "${SUPABASE_ACCESS_TOKEN:-}" || -z "$project_ref" ]]; then
@@ -108,6 +120,7 @@ if [[ -z "$POWERSYNC_URL" ]]; then
 fi
 
 SUPABASE_URL="$(normalize_supabase_url "$SUPABASE_URL")"
+SUPABASE_ANON_KEY="$(sanitize_supabase_jwt_key "$SUPABASE_ANON_KEY")"
 
 if [[ "$SUPABASE_URL" == *"/rest/v1"* ]]; then
   echo "WARNING: Supabase URL should be https://<ref>.supabase.co (not /rest/v1)."
@@ -121,6 +134,8 @@ if [[ -n "$PROJECT_REF" ]]; then
     echo "Refreshed anon key from Supabase API for project ${PROJECT_REF}."
   fi
 fi
+
+SUPABASE_ANON_KEY="$(sanitize_supabase_jwt_key "$SUPABASE_ANON_KEY")"
 
 cat > "$ENV_FILE" <<EOF
 EXPO_PUBLIC_DATABASE_TARGET=${DATABASE_TARGET}
