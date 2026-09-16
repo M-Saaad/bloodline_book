@@ -76,5 +76,22 @@ fi
 echo "Supabase URL host: ${EXPO_PUBLIC_SUPABASE_URL#https://}"
 echo "PowerSync URL set: yes"
 
+# Expo loads .env at export time; writing one avoids cases where only Vercel-injected
+# shell vars are not picked up consistently across Expo CLI versions.
+cat > .env <<EOF
+EXPO_PUBLIC_DATABASE_TARGET=${EXPO_PUBLIC_DATABASE_TARGET}
+EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}
+EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}
+EXPO_PUBLIC_POWERSYNC_URL=${EXPO_PUBLIC_POWERSYNC_URL}
+EOF
+
 npx --yes @powersync/web copy-assets --output public
 npx expo export --platform web
+
+if rg -q 'placeholder\.supabase\.co|placeholder-anon-key|your-project\.supabase\.co' dist; then
+  echo "ERROR: Built bundle still contains placeholder Supabase credentials."
+  echo "  Check Vercel env var names/scopes (Production) and redeploy without build cache."
+  exit 1
+fi
+
+echo "Vercel build OK: credentials embedded in static export."
