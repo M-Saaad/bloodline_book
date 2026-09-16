@@ -15,8 +15,10 @@ export default function IndexScreen() {
           Bloodline Book
         </Text>
         <Text className="text-center text-gray-600">
-          Copy .env.example to .env and set your Supabase and PowerSync
-          credentials, then restart the dev server.
+          Supabase credentials are not configured for this deployment. In Vercel,
+          set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (legacy
+          NEXT_PUBLIC_* names are accepted at build time), plus
+          EXPO_PUBLIC_POWERSYNC_URL, then redeploy.
         </Text>
       </View>
     );
