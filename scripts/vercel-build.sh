@@ -36,9 +36,16 @@ echo "Vercel build: VERCEL_ENV=${VERCEL_ENV:-unknown}, database=${EXPO_PUBLIC_DA
 
 # Expo reads EXPO_PUBLIC_* at build time. Older Vercel projects (Next.js era) used
 # NEXT_PUBLIC_* — map those so existing dashboard vars keep working.
-export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
-export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
-export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-}"
+# Production deploys may also use *_PROD suffixes (same naming as Cloud Agent secrets).
+if [[ "${EXPO_PUBLIC_DATABASE_TARGET}" == "production" ]]; then
+  export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${EXPO_PUBLIC_SUPABASE_URL_PROD:-${NEXT_PUBLIC_SUPABASE_URL:-}}}"
+  export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}}"
+  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${EXPO_PUBLIC_POWERSYNC_URL_PROD:-}}"
+else
+  export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
+  export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
+  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-}"
+fi
 
 if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]]; then
   export EXPO_PUBLIC_SUPABASE_URL="$(normalize_supabase_url "$EXPO_PUBLIC_SUPABASE_URL")"
@@ -56,8 +63,13 @@ if [[ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" || -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:
 fi
 
 if [[ -z "${EXPO_PUBLIC_POWERSYNC_URL:-}" ]]; then
-  echo "ERROR: EXPO_PUBLIC_POWERSYNC_URL is not set in Vercel."
-  echo "  Add your PowerSync instance URL (Dashboard → Connect) for Production and Preview."
+  echo "ERROR: PowerSync URL is not set in Vercel."
+  if [[ "${EXPO_PUBLIC_DATABASE_TARGET}" == "production" ]]; then
+    echo "  Set EXPO_PUBLIC_POWERSYNC_URL or EXPO_PUBLIC_POWERSYNC_URL_PROD (Production scope)."
+  else
+    echo "  Set EXPO_PUBLIC_POWERSYNC_URL (Preview scope)."
+  fi
+  echo "  Get the URL from PowerSync Dashboard → Connect on your instance."
   exit 1
 fi
 
