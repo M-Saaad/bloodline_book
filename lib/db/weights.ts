@@ -83,3 +83,32 @@ export async function getWeightLogsForSession(
   );
   return rows.map(mapWeightLog);
 }
+
+export interface AnimalWeightEntry {
+  id: string;
+  date: string;
+  weighPoint: WeighSession['weighPoint'];
+  weightValue: number;
+  weightUnit: WeightLog['weightUnit'];
+}
+
+export async function getWeightHistoryForAnimal(
+  animalId: string,
+): Promise<AnimalWeightEntry[]> {
+  const rows = await powersync.getAll<Record<string, unknown>>(
+    `SELECT wl.id, ws.date, ws.weigh_point, wl.weight_value, wl.weight_unit
+     FROM weight_logs wl
+     JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+     WHERE wl.animal_id = ?
+     ORDER BY ws.date DESC, wl.created_at DESC`,
+    [animalId],
+  );
+
+  return rows.map((row) => ({
+    id: String(row.id),
+    date: String(row.date),
+    weighPoint: row.weigh_point as WeighSession['weighPoint'],
+    weightValue: Number(row.weight_value),
+    weightUnit: row.weight_unit as WeightLog['weightUnit'],
+  }));
+}

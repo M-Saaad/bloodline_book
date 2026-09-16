@@ -6,12 +6,14 @@ import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function DashboardScreen() {
-  const { activeFarm } = useFarm();
+  const { activeFarm, isLoading: farmLoading } = useFarm();
 
-  const { data: herdStats } = useQuery(
+  const { data: herdStats, isLoading: statsLoading } = useQuery(
     activeFarm
       ? `SELECT status, lifecycle_stage, COUNT(*) as count
          FROM animals WHERE farm_id = ?
@@ -20,7 +22,7 @@ export default function DashboardScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const { data: recentSessions } = useQuery(
+  const { data: recentSessions, isLoading: sessionsLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM weigh_sessions WHERE farm_id = ?
          ORDER BY date DESC LIMIT 3`
@@ -28,19 +30,36 @@ export default function DashboardScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
+  if (farmLoading) {
+    return <LoadingState message="Loading farm…" />;
+  }
+
   if (!activeFarm) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
-        <Text className="text-gray-600">No farm selected.</Text>
+      <View className="flex-1 bg-gray-50">
+        <EmptyState
+          title="No farm selected"
+          description="Create or select a farm to see your dashboard."
+        />
       </View>
     );
   }
+
+  const isDataLoading = statsLoading || sessionsLoading;
 
   const totalAnimals =
     herdStats?.reduce(
       (sum, row) => sum + Number((row as { count: number }).count),
       0,
     ) ?? 0;
+
+  const activeCount =
+    herdStats
+      ?.filter((row) => (row as { status: string }).status === 'active')
+      .reduce(
+        (sum, row) => sum + Number((row as { count: number }).count),
+        0,
+      ) ?? 0;
 
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
@@ -53,9 +72,13 @@ export default function DashboardScreen() {
           <Badge label={activeFarm.segment} />
           <Badge label={activeFarm.weightUnit} tone="success" />
         </View>
-        <Text className="text-gray-600">
-          {totalAnimals} animal{totalAnimals === 1 ? '' : 's'} on record
-        </Text>
+        {isDataLoading ? (
+          <Text className="text-gray-500">Loading herd stats…</Text>
+        ) : (
+          <Text className="text-gray-600">
+            {activeCount} active · {totalAnimals} total on record
+          </Text>
+        )}
       </Card>
 
       <Card>
@@ -79,8 +102,19 @@ export default function DashboardScreen() {
         <Text className="text-lg font-semibold text-gray-900 mb-3">
           Recent weigh sessions
         </Text>
-        {(recentSessions ?? []).length === 0 ? (
-          <Text className="text-gray-500">No weigh sessions yet.</Text>
+        {sessionsLoading ? (
+          <Text className="text-gray-500">Loading sessions…</Text>
+        ) : (recentSessions ?? []).length === 0 ? (
+          <View>
+            <Text className="text-gray-500 mb-3">
+              No weigh sessions yet. Record your first batch on Weigh Day.
+            </Text>
+            <Button
+              title="Start Weigh Day"
+              variant="outline"
+              onPress={() => router.push('/(tabs)/livestock/weight')}
+            />
+          </View>
         ) : (
           (recentSessions ?? []).map((row) => {
             const session = row as {

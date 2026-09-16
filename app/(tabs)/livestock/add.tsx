@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { createAnimal, getBreedsForFarm } from '@/lib/db/animals';
 import type { Animal, Breed } from '@/lib/types/animals';
@@ -18,6 +19,7 @@ export default function AddAnimalScreen() {
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [breedId, setBreedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!activeFarm) {
@@ -31,6 +33,7 @@ export default function AddAnimalScreen() {
       return;
     }
 
+    setErrorMessage('');
     setLoading(true);
     try {
       await createAnimal(activeFarm.id, {
@@ -41,9 +44,8 @@ export default function AddAnimalScreen() {
       });
       router.back();
     } catch (error) {
-      Alert.alert(
-        'Could not save animal',
-        error instanceof Error ? error.message : 'Unknown error',
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not save animal.',
       );
     } finally {
       setLoading(false);
@@ -58,6 +60,8 @@ export default function AddAnimalScreen() {
     <ScrollView
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4">
+      <FormMessage message={errorMessage} tone="error" />
+
       <Input label="Name" value={name} onChangeText={setName} placeholder="Daisy" />
       <Input
         label="Tag number"
