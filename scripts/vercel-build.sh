@@ -88,7 +88,7 @@ EOF
 npx --yes @powersync/web copy-assets --output public
 npx expo export --platform web
 
-if rg -q 'placeholder\.supabase\.co|placeholder-anon-key|your-project\.supabase\.co' dist; then
+if grep -R -q -E 'placeholder\.supabase\.co|placeholder-anon-key|your-project\.supabase\.co' dist; then
   echo "ERROR: Built bundle still contains placeholder Supabase credentials."
   echo "  Check Vercel env var names/scopes (Production) and redeploy without build cache."
   exit 1
