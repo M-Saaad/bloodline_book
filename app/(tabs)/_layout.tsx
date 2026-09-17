@@ -41,6 +41,7 @@ export default function TabLayout() {
         name="finances"
         options={{
           title: 'Finances',
+          headerShown: false,
           tabBarIcon: () => <TabIcon label="💰" />,
         }}
       />

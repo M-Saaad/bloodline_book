@@ -2,12 +2,19 @@
 
 Multi-tenant SaaS for US goat operations — herd records, health, breeding, weight/performance, and finances with offline-capable data entry via PowerSync.
 
-## Phase 0 (current)
+## Phase 0 (complete)
 
 - Expo + TypeScript + NativeWind + Expo Router
 - Supabase Auth (email/password) with farm creation flow
 - PowerSync local SQLite for `farms`, `farm_members`, `breeds`, `animals`, `weigh_sessions`, `weight_logs`
 - Weigh Day batch entry (single local transaction)
+- Animal detail/edit, FormMessage on web, loading & empty states
+
+## Phase 1 (current)
+
+- **Finances** — transaction tracking (`transactions` table, migration 0007)
+- **More** — settings, team invites, documents, tasks (migrations 0008–0009)
+- PowerSync sync rules updated for new tables
 
 ## Setup
 

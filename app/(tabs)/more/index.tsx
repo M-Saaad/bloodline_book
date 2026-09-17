@@ -1,9 +1,17 @@
-import { ScrollView, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
+
+const MENU_ITEMS = [
+  { title: 'Settings', route: '/(tabs)/more/settings' as const },
+  { title: 'Team', route: '/(tabs)/more/team' as const },
+  { title: 'Documents', route: '/(tabs)/more/documents' as const },
+  { title: 'Tasks', route: '/(tabs)/more/tasks' as const },
+];
 
 export default function MoreScreen() {
   const { signOut } = useAuth();
@@ -24,11 +32,19 @@ export default function MoreScreen() {
       )}
 
       <Card>
-        <Text className="text-gray-600 mb-4">
-          Settings, documents, tasks, and team management arrive in Phase 1.
-        </Text>
-        <Button title="Sign Out" variant="outline" onPress={() => signOut()} />
+        {MENU_ITEMS.map((item) => (
+          <Pressable
+            key={item.route}
+            onPress={() => router.push(item.route)}
+            className="py-3 border-b border-gray-100 active:bg-gray-50">
+            <Text className="text-base font-medium text-gray-900">
+              {item.title}
+            </Text>
+          </Pressable>
+        ))}
       </Card>
+
+      <Button title="Sign Out" variant="outline" onPress={() => signOut()} />
     </ScrollView>
   );
 }
