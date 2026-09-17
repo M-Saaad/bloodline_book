@@ -97,6 +97,58 @@ const weightLogs = new Table(
   },
 );
 
+const transactions = new Table(
+  {
+    farm_id: column.text,
+    date: column.text,
+    amount: column.real,
+    kind: column.text,
+    category: column.text,
+    notes: column.text,
+    created_at: column.text,
+  },
+  { indexes: { transaction_farm: ['farm_id'], transaction_date: ['date'] } },
+);
+
+const farmInvites = new Table(
+  {
+    farm_id: column.text,
+    email: column.text,
+    role: column.text,
+    status: column.text,
+    created_at: column.text,
+  },
+  { indexes: { invite_farm: ['farm_id'] } },
+);
+
+const documents = new Table(
+  {
+    farm_id: column.text,
+    animal_id: column.text,
+    type: column.text,
+    title: column.text,
+    storage_path: column.text,
+    notes: column.text,
+    created_at: column.text,
+  },
+  { indexes: { document_farm: ['farm_id'] } },
+);
+
+const tasks = new Table(
+  {
+    farm_id: column.text,
+    title: column.text,
+    due_date: column.text,
+    priority: column.text,
+    assigned_to: column.text,
+    source: column.text,
+    source_id: column.text,
+    completed: column.integer,
+    created_at: column.text,
+  },
+  { indexes: { task_farm: ['farm_id'], task_due: ['due_date'] } },
+);
+
 export const AppSchema = new Schema({
   farms,
   farm_members: farmMembers,
@@ -104,6 +156,10 @@ export const AppSchema = new Schema({
   animals,
   weigh_sessions: weighSessions,
   weight_logs: weightLogs,
+  transactions,
+  farm_invites: farmInvites,
+  documents,
+  tasks,
 });
 
 export type Database = (typeof AppSchema)['types'];

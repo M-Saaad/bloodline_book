@@ -24,3 +24,15 @@ streams:
       - SELECT * FROM weight_logs WHERE farm_id IN (
           SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
         )
+      - SELECT * FROM transactions WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM farm_invites WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM documents WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM tasks WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )

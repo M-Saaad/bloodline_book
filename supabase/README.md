@@ -1,10 +1,13 @@
 # Supabase migrations
 
-Run SQL files in numeric order. Phase 0 requires:
+Run SQL files in numeric order:
 
 1. `0001_extensions_and_tenancy.sql`
 2. `0003_breeds_and_animals.sql`
 3. `0004_weight_tracking.sql`
+4. `0007_finances.sql`
+5. `0008_farm_invites.sql`
+6. `0009_documents_and_tasks.sql`
 
 ## PowerSync replication setup
 
