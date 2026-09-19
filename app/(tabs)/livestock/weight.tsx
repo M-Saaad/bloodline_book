@@ -2,7 +2,6 @@ import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   Text,
@@ -11,6 +10,9 @@ import {
 } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { FormMessage } from '@/components/ui/FormMessage';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { mapAnimal } from '@/lib/db/mappers';
 import { createWeighSessionWithLogs } from '@/lib/db/weights';
 import type { WeighSession } from '@/lib/types/weight';
@@ -33,8 +35,10 @@ export default function WeighDayScreen() {
     useState<WeighSession['weighPoint']>('ad_hoc');
   const [weights, setWeights] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const { data } = useQuery(
+  const { data, isLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM animals
          WHERE farm_id = ? AND status = 'active'
@@ -50,12 +54,17 @@ export default function WeighDayScreen() {
 
   function setWeight(animalId: string, value: string) {
     setWeights((prev) => ({ ...prev, [animalId]: value }));
+    setErrorMessage('');
+    setSuccessMessage('');
   }
 
   async function handleSubmit() {
     if (!activeFarm) {
       return;
     }
+
+    setErrorMessage('');
+    setSuccessMessage('');
 
     const entries = animals
       .map((animal) => {
@@ -74,7 +83,7 @@ export default function WeighDayScreen() {
       );
 
     if (entries.length === 0) {
-      Alert.alert('No weights', 'Enter at least one weight to save.');
+      setErrorMessage('Enter at least one weight to save.');
       return;
     }
 
@@ -86,15 +95,13 @@ export default function WeighDayScreen() {
         weightUnit: activeFarm.weightUnit,
         entries,
       });
-      Alert.alert(
-        'Weigh day saved',
+      setSuccessMessage(
         `Recorded ${entries.length} weight${entries.length === 1 ? '' : 's'} in one transaction.`,
-        [{ text: 'OK', onPress: () => router.back() }],
       );
+      setTimeout(() => router.back(), 1200);
     } catch (error) {
-      Alert.alert(
-        'Save failed',
-        error instanceof Error ? error.message : 'Unknown error',
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not save weigh day.',
       );
     } finally {
       setSubmitting(false);
@@ -103,6 +110,10 @@ export default function WeighDayScreen() {
 
   if (!activeFarm) {
     return null;
+  }
+
+  if (isLoading) {
+    return <LoadingState message="Loading animals…" />;
   }
 
   return (
@@ -137,14 +148,24 @@ export default function WeighDayScreen() {
         </View>
       </View>
 
+      <View className="px-4 pt-3">
+        <FormMessage message={errorMessage} tone="error" />
+        <FormMessage message={successMessage} tone="success" />
+      </View>
+
       <FlatList
         data={animals}
         keyExtractor={(item) => item.id}
-        contentContainerClassName="px-4 py-2 pb-24"
+        contentContainerClassName={
+          animals.length === 0 ? 'flex-grow' : 'px-4 py-2 pb-24'
+        }
         ListEmptyComponent={
-          <Text className="text-center text-gray-500 mt-12">
-            Add animals before running weigh day.
-          </Text>
+          <EmptyState
+            title="No animals to weigh"
+            description="Add animals before running weigh day."
+            actionLabel="Add Animal"
+            onAction={() => router.push('/(tabs)/livestock/add')}
+          />
         }
         renderItem={({ item }) => (
           <View className="flex-row items-center justify-between py-3 border-b border-gray-100">

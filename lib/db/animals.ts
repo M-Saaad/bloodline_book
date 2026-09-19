@@ -80,3 +80,75 @@ export async function getAnimalById(animalId: string): Promise<Animal | null> {
   );
   return row ? mapAnimal(row) : null;
 }
+
+export async function getBreedName(breedId: string): Promise<string | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT name FROM breeds WHERE id = ?',
+    [breedId],
+  );
+  return row?.name != null ? String(row.name) : null;
+}
+
+export async function updateAnimal(
+  animalId: string,
+  input: {
+    name?: string | null;
+    tagNumber?: string | null;
+    sex?: Animal['sex'];
+    breedPrimaryId?: string | null;
+    lifecycleStage?: Animal['lifecycleStage'];
+    status?: Animal['status'];
+    notes?: string | null;
+    outDate?: string | null;
+  },
+): Promise<void> {
+  const now = new Date().toISOString();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (input.name !== undefined) {
+    fields.push('name = ?');
+    values.push(input.name);
+  }
+  if (input.tagNumber !== undefined) {
+    fields.push('tag_number = ?');
+    values.push(input.tagNumber);
+  }
+  if (input.sex !== undefined) {
+    fields.push('sex = ?');
+    values.push(input.sex);
+  }
+  if (input.breedPrimaryId !== undefined) {
+    fields.push('breed_primary_id = ?');
+    values.push(input.breedPrimaryId);
+  }
+  if (input.lifecycleStage !== undefined) {
+    fields.push('lifecycle_stage = ?');
+    values.push(input.lifecycleStage);
+  }
+  if (input.status !== undefined) {
+    fields.push('status = ?');
+    values.push(input.status);
+  }
+  if (input.notes !== undefined) {
+    fields.push('notes = ?');
+    values.push(input.notes);
+  }
+  if (input.outDate !== undefined) {
+    fields.push('out_date = ?');
+    values.push(input.outDate);
+  }
+
+  if (fields.length === 0) {
+    return;
+  }
+
+  fields.push('updated_at = ?');
+  values.push(now);
+  values.push(animalId);
+
+  await powersync.execute(
+    `UPDATE animals SET ${fields.join(', ')} WHERE id = ?`,
+    values,
+  );
+}
