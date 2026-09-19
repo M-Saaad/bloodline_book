@@ -48,3 +48,42 @@ export async function getFarmById(farmId: string): Promise<Farm | null> {
   );
   return row ? mapFarm(row) : null;
 }
+
+export async function updateFarmSettings(
+  farmId: string,
+  input: {
+    name?: string;
+    weightUnit?: Farm['weightUnit'];
+    currency?: string;
+  },
+): Promise<void> {
+  const now = new Date().toISOString();
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  if (input.name !== undefined) {
+    fields.push('name = ?');
+    values.push(input.name);
+  }
+  if (input.weightUnit !== undefined) {
+    fields.push('weight_unit = ?');
+    values.push(input.weightUnit);
+  }
+  if (input.currency !== undefined) {
+    fields.push('currency = ?');
+    values.push(input.currency);
+  }
+
+  if (fields.length === 0) {
+    return;
+  }
+
+  fields.push('updated_at = ?');
+  values.push(now);
+  values.push(farmId);
+
+  await powersync.execute(
+    `UPDATE farms SET ${fields.join(', ')} WHERE id = ?`,
+    values,
+  );
+}

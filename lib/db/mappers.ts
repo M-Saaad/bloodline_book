@@ -1,4 +1,7 @@
 import type { Animal, Breed } from '@/lib/types/animals';
+import type { FarmDocument, FarmTask } from '@/lib/types/documents';
+import type { Transaction } from '@/lib/types/finances';
+import type { FarmInvite } from '@/lib/types/team';
 import type { Farm, FarmMember } from '@/lib/types/tenancy';
 import type { WeighSession, WeightLog } from '@/lib/types/weight';
 
@@ -93,6 +96,59 @@ export function mapWeightLog(row: Record<string, unknown>): WeightLog {
     animalId: String(row.animal_id),
     weightValue: Number(row.weight_value),
     weightUnit: row.weight_unit as WeightLog['weightUnit'],
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapTransaction(row: Record<string, unknown>): Transaction {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    date: String(row.date),
+    amount: Number(row.amount),
+    kind: row.kind as Transaction['kind'],
+    category: String(row.category),
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapFarmInvite(row: Record<string, unknown>): FarmInvite {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    email: String(row.email),
+    role: row.role as FarmInvite['role'],
+    status: row.status as FarmInvite['status'],
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapDocument(row: Record<string, unknown>): FarmDocument {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    animalId: row.animal_id != null ? String(row.animal_id) : null,
+    type: row.type as FarmDocument['type'],
+    title: String(row.title),
+    storagePath:
+      row.storage_path != null ? String(row.storage_path) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapTask(row: Record<string, unknown>): FarmTask {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    title: String(row.title),
+    dueDate: row.due_date != null ? String(row.due_date) : null,
+    priority: row.priority as FarmTask['priority'],
+    assignedTo: row.assigned_to != null ? String(row.assigned_to) : null,
+    source: row.source as FarmTask['source'],
+    sourceId: row.source_id != null ? String(row.source_id) : null,
+    completed: Boolean(row.completed),
     createdAt: String(row.created_at),
   };
 }
