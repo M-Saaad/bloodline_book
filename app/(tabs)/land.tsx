@@ -10,7 +10,7 @@ export default function LandScreen() {
           Pastures & Land
         </Text>
         <Text className="text-gray-600">
-          Pasture management arrives in Phase 3 (migration 0008).
+          Pasture management arrives in Phase 3 (future migration; 0005–0006 reserved for health/breeding).
         </Text>
       </Card>
     </View>
