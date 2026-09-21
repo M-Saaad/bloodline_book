@@ -26,13 +26,6 @@ const FarmContext = createContext<FarmContextValue | null>(null);
 
 const EMPTY_FARMS_QUERY = 'SELECT 1 WHERE 0';
 
-/** Matches `farm_data` in powersync/sync-config.yaml (auto_subscribe). */
-const FARMS_SYNC_STREAM = 'farm_data';
-
-const FARMS_QUERY_OPTIONS = {
-  streams: [{ name: FARMS_SYNC_STREAM, waitForStream: true }],
-};
-
 export function FarmProvider({ children }: { children: React.ReactNode }) {
   const { user, session } = useAuth();
   const activeFarmId = useUiStore((s) => s.activeFarmId);
@@ -46,7 +39,6 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   } = useQuery<Record<string, unknown>>(
     user ? FARMS_FOR_USER_SQL : EMPTY_FARMS_QUERY,
     user ? [user.id] : [],
-    user ? FARMS_QUERY_OPTIONS : undefined,
   );
 
   const farms = useMemo(
