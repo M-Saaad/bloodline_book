@@ -20,3 +20,12 @@ export async function initPowerSync(): Promise<void> {
 export async function disconnectPowerSync(): Promise<void> {
   await powersync.disconnect();
 }
+
+export async function disconnectAndClearPowerSync(): Promise<void> {
+  await powersync.disconnectAndClear();
+}
+
+export async function reconnectPowerSync(): Promise<void> {
+  await powersync.disconnectAndClear();
+  await initPowerSync();
+}

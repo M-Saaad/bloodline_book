@@ -44,7 +44,9 @@ if [[ "${EXPO_PUBLIC_DATABASE_TARGET}" == "production" ]]; then
 else
   export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
   export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
-  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-}"
+  # Preview builds only receive Preview-scoped vars; fall back to legacy names and
+  # non-prefixed secrets when teams use a single shared PowerSync URL (see project docs).
+  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${NEXT_PUBLIC_POWERSYNC_URL:-${POWERSYNC_URL:-}}}"
 fi
 
 if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]]; then
