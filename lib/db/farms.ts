@@ -4,12 +4,14 @@ import { mapFarm } from '@/lib/db/mappers';
 import { powersync } from '@/lib/powersync/system';
 import type { Farm } from '@/lib/types/tenancy';
 
-export async function getFarmsForUser(userId: string): Promise<Farm[]> {
-  const rows = await powersync.getAll<Record<string, unknown>>(
-    `SELECT f.* FROM farms f
+export const FARMS_FOR_USER_SQL = `SELECT f.* FROM farms f
      INNER JOIN farm_members fm ON fm.farm_id = f.id
      WHERE fm.user_id = ?
-     ORDER BY f.name`,
+     ORDER BY f.name`;
+
+export async function getFarmsForUser(userId: string): Promise<Farm[]> {
+  const rows = await powersync.getAll<Record<string, unknown>>(
+    FARMS_FOR_USER_SQL,
     [userId],
   );
   return rows.map(mapFarm);

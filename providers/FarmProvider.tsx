@@ -1,3 +1,4 @@
+import { useQuery } from '@powersync/react';
 import React, {
   createContext,
   useCallback,
@@ -7,7 +8,8 @@ import React, {
   useState,
 } from 'react';
 
-import { getFarmById, getFarmsForUser } from '@/lib/db/farms';
+import { FARMS_FOR_USER_SQL, getFarmById } from '@/lib/db/farms';
+import { mapFarm } from '@/lib/db/mappers';
 import { useUiStore } from '@/lib/store/ui';
 import type { Farm } from '@/lib/types/tenancy';
 import { useAuth } from '@/providers/AuthProvider';
@@ -22,34 +24,36 @@ interface FarmContextValue {
 
 const FarmContext = createContext<FarmContextValue | null>(null);
 
+const EMPTY_FARMS_QUERY = 'SELECT 1 WHERE 0';
+
 export function FarmProvider({ children }: { children: React.ReactNode }) {
   const { user, session } = useAuth();
   const activeFarmId = useUiStore((s) => s.activeFarmId);
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
-  const [farms, setFarms] = useState<Farm[]>([]);
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
+  const {
+    data: farmRows,
+    isLoading: farmsQueryLoading,
+    refresh,
+  } = useQuery<Record<string, unknown>>(
+    user ? FARMS_FOR_USER_SQL : EMPTY_FARMS_QUERY,
+    user ? [user.id] : [],
+  );
+
+  const farms = useMemo(
+    () => (user ? (farmRows ?? []).map(mapFarm) : []),
+    [farmRows, user],
+  );
+
+  const isLoading = Boolean(session && user && farmsQueryLoading);
 
   const refreshFarms = useCallback(async () => {
     if (!user || !session) {
-      setFarms([]);
-      setFallbackFarm(null);
-      setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
-    try {
-      const result = await getFarmsForUser(user.id);
-      setFarms(result);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, session]);
-
-  useEffect(() => {
-    refreshFarms();
-  }, [refreshFarms]);
+    await refresh?.();
+  }, [user, session, refresh]);
 
   useEffect(() => {
     if (farms.length === 0) {
