@@ -1,4 +1,4 @@
-import { useQuery } from '@powersync/react';
+import { useQuery, useStatus } from '@powersync/react';
 import React, {
   createContext,
   useCallback,
@@ -39,9 +39,12 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
 
+  const syncStatus = useStatus();
+
   const {
     data: farmRows,
     isLoading: farmsQueryLoading,
+    isFetching: farmsQueryFetching,
     refresh,
   } = useQuery<Record<string, unknown>>(
     user ? FARMS_FOR_USER_SQL : EMPTY_FARMS_QUERY,
@@ -54,7 +57,21 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     [farmRows, user],
   );
 
-  const isLoading = Boolean(session && user && farmsQueryLoading);
+  const syncSettledForEmptyFarmCheck =
+    syncStatus.hasSynced === true &&
+    !syncStatus.downloading &&
+    !syncStatus.connecting;
+
+  // waitForStream (PR #15) can report hasSynced before rows are visible locally, or
+  // while a reload sync is still downloading — keep routing in a loading state until then.
+  const awaitingFarmMembership =
+    Boolean(session && user) &&
+    farms.length === 0 &&
+    (!syncSettledForEmptyFarmCheck || farmsQueryFetching);
+
+  const isLoading = Boolean(
+    session && user && (farmsQueryLoading || awaitingFarmMembership),
+  );
 
   const refreshFarms = useCallback(async () => {
     if (!user || !session) {
