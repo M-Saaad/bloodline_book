@@ -1,5 +1,17 @@
 import type { Animal } from '@/lib/types/animals';
 
+export function animalDisplayLabel(
+  animal: Pick<Animal, 'name' | 'tagNumber' | 'id'>,
+): string {
+  if (animal.name?.trim()) {
+    return animal.name.trim();
+  }
+  if (animal.tagNumber?.trim()) {
+    return `#${animal.tagNumber.trim()}`;
+  }
+  return `Animal ${animal.id.slice(0, 8)}`;
+}
+
 export function formatLifecycleStage(stage: Animal['lifecycleStage']): string {
   return stage.replace(/_/g, ' ');
 }

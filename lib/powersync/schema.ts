@@ -149,6 +149,70 @@ const tasks = new Table(
   { indexes: { task_farm: ['farm_id'], task_due: ['due_date'] } },
 );
 
+const kiddingEvents = new Table(
+  {
+    farm_id: column.text,
+    dam_id: column.text,
+    sire_id: column.text,
+    sire_external_name: column.text,
+    kid_date: column.text,
+    kids_born: column.integer,
+    kids_surviving: column.integer,
+    notes: column.text,
+    created_at: column.text,
+    updated_at: column.text,
+  },
+  {
+    indexes: {
+      kidding_farm: ['farm_id'],
+      kidding_dam: ['dam_id'],
+    },
+  },
+);
+
+const breedingEvents = new Table(
+  {
+    farm_id: column.text,
+    dam_id: column.text,
+    sire_id: column.text,
+    sire_external_name: column.text,
+    bred_date: column.text,
+    due_date: column.text,
+    status: column.text,
+    kidding_event_id: column.text,
+    notes: column.text,
+    created_at: column.text,
+    updated_at: column.text,
+  },
+  {
+    indexes: {
+      breeding_farm: ['farm_id'],
+      breeding_dam: ['dam_id'],
+    },
+  },
+);
+
+const healthRecords = new Table(
+  {
+    farm_id: column.text,
+    animal_id: column.text,
+    date: column.text,
+    kind: column.text,
+    famacha_score: column.integer,
+    product_name: column.text,
+    dosage: column.text,
+    withdrawal_days: column.integer,
+    notes: column.text,
+    created_at: column.text,
+  },
+  {
+    indexes: {
+      health_farm: ['farm_id'],
+      health_animal: ['animal_id'],
+    },
+  },
+);
+
 export const AppSchema = new Schema({
   farms,
   farm_members: farmMembers,
@@ -160,6 +224,9 @@ export const AppSchema = new Schema({
   farm_invites: farmInvites,
   documents,
   tasks,
+  kidding_events: kiddingEvents,
+  breeding_events: breedingEvents,
+  health_records: healthRecords,
 });
 
 export type Database = (typeof AppSchema)['types'];

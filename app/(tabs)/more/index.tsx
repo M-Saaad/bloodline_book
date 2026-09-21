@@ -7,6 +7,8 @@ import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
 
 const MENU_ITEMS = [
+  { title: 'Health Log', route: '/(tabs)/more/health' as const },
+  { title: 'Breeding & Kidding', route: '/(tabs)/more/breeding' as const },
   { title: 'Settings', route: '/(tabs)/more/settings' as const },
   { title: 'Team', route: '/(tabs)/more/team' as const },
   { title: 'Documents', route: '/(tabs)/more/documents' as const },
