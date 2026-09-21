@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/Input';
 import { createFarm } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { useUiStore } from '@/lib/store/ui';
-import { useFarm } from '@/providers/FarmProvider';
 
 const SEGMENTS: { value: Farm['segment']; label: string }[] = [
   { value: 'dairy', label: 'Dairy' },
@@ -17,7 +16,6 @@ const SEGMENTS: { value: Farm['segment']; label: string }[] = [
 ];
 
 export default function CreateFarmScreen() {
-  const { refreshFarms } = useFarm();
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const [name, setName] = useState('');
   const [segment, setSegment] = useState<Farm['segment']>('meat');
@@ -39,7 +37,6 @@ export default function CreateFarmScreen() {
         segment,
       });
       setActiveFarmId(farmId);
-      await refreshFarms();
       router.replace('/(tabs)/dashboard');
     } catch (error) {
       setErrorMessage(
