@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { createAnimal, getBreedsForFarm } from '@/lib/db/animals';
@@ -18,6 +19,7 @@ export default function AddAnimalScreen() {
   const [sex, setSex] = useState<Animal['sex']>('female');
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [breedId, setBreedId] = useState<string | null>(null);
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -41,6 +43,7 @@ export default function AddAnimalScreen() {
         tagNumber: tagNumber.trim() || undefined,
         sex,
         breedPrimaryId: breedId ?? undefined,
+        dateOfBirth: dateOfBirth || undefined,
       });
       router.back();
     } catch (error) {
@@ -90,6 +93,14 @@ export default function AddAnimalScreen() {
           </Pressable>
         ))}
       </View>
+
+      <DateField
+        label="Date of birth"
+        value={dateOfBirth}
+        onChange={setDateOfBirth}
+        optional
+        maximumDate={new Date()}
+      />
 
       {breeds.length > 0 && (
         <>

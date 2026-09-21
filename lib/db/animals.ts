@@ -99,6 +99,7 @@ export async function updateAnimal(
     lifecycleStage?: Animal['lifecycleStage'];
     status?: Animal['status'];
     notes?: string | null;
+    dateOfBirth?: string | null;
     outDate?: string | null;
   },
 ): Promise<void> {
@@ -133,6 +134,10 @@ export async function updateAnimal(
   if (input.notes !== undefined) {
     fields.push('notes = ?');
     values.push(input.notes);
+  }
+  if (input.dateOfBirth !== undefined) {
+    fields.push('date_of_birth = ?');
+    values.push(input.dateOfBirth);
   }
   if (input.outDate !== undefined) {
     fields.push('out_date = ?');

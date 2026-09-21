@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import { todayIso } from '@/lib/dates';
 import { LoadingState } from '@/components/ui/LoadingState';
 import {
   getAnimalById,
@@ -50,6 +52,8 @@ export default function EditAnimalScreen() {
     useState<Animal['lifecycleStage']>('kid');
   const [status, setStatus] = useState<Animal['status']>('active');
   const [notes, setNotes] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [outDate, setOutDate] = useState('');
 
   useEffect(() => {
     if (!activeFarm || !id) {
@@ -84,6 +88,8 @@ export default function EditAnimalScreen() {
         setLifecycleStage(animal.lifecycleStage);
         setStatus(animal.status);
         setNotes(animal.notes ?? '');
+        setDateOfBirth(animal.dateOfBirth ?? '');
+        setOutDate(animal.outDate ?? todayIso());
         setBreeds(farmBreeds);
       } catch (error) {
         if (!cancelled) {
@@ -114,7 +120,6 @@ export default function EditAnimalScreen() {
     setSaving(true);
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
       const leavingHerd = status !== 'active';
 
       await updateAnimal(id, {
@@ -125,7 +130,8 @@ export default function EditAnimalScreen() {
         lifecycleStage,
         status,
         notes: notes.trim() || null,
-        outDate: leavingHerd ? today : null,
+        dateOfBirth: dateOfBirth || null,
+        outDate: leavingHerd ? outDate || todayIso() : null,
       });
 
       router.back();
@@ -233,12 +239,25 @@ export default function EditAnimalScreen() {
         ))}
       </View>
 
+      <DateField
+        label="Date of birth"
+        value={dateOfBirth}
+        onChange={setDateOfBirth}
+        optional
+        maximumDate={new Date()}
+      />
+
       <Text className="text-sm font-medium text-gray-700 mb-2">Status</Text>
       <View className="flex-row flex-wrap gap-2 mb-4">
         {STATUS_OPTIONS.map((option) => (
           <Pressable
             key={option.value}
-            onPress={() => setStatus(option.value)}
+            onPress={() => {
+              setStatus(option.value);
+              if (option.value !== 'active' && !outDate) {
+                setOutDate(todayIso());
+              }
+            }}
             className={`rounded-full border px-3 py-1.5 ${
               status === option.value
                 ? 'border-bloodline-600 bg-bloodline-50'
@@ -255,6 +274,15 @@ export default function EditAnimalScreen() {
           </Pressable>
         ))}
       </View>
+
+      {status !== 'active' ? (
+        <DateField
+          label="Out date"
+          value={outDate}
+          onChange={setOutDate}
+          maximumDate={new Date()}
+        />
+      ) : null}
 
       <Input
         label="Notes"

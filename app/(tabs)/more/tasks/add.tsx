@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { createTask } from '@/lib/db/documents';
@@ -63,11 +64,12 @@ export default function AddTaskScreen() {
         onChangeText={setTitle}
         placeholder="Check water troughs"
       />
-      <Input
+      <DateField
         label="Due date"
         value={dueDate}
-        onChangeText={setDueDate}
-        placeholder="YYYY-MM-DD"
+        onChange={setDueDate}
+        optional
+        placeholder="No due date"
       />
 
       <Text className="text-sm font-medium text-gray-700 mb-2">Priority</Text>
