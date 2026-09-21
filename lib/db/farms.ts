@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 
 import { mapFarm } from '@/lib/db/mappers';
 import { powersync } from '@/lib/powersync/system';
+import { supabase } from '@/lib/supabase/client';
 import type { Farm } from '@/lib/types/tenancy';
 
 export const FARMS_FOR_USER_SQL = `SELECT f.* FROM farms f
@@ -15,6 +16,30 @@ export async function getFarmsForUser(userId: string): Promise<Farm[]> {
     [userId],
   );
   return rows.map(mapFarm);
+}
+
+/** One-time routing fallback when the local PowerSync replica is empty but the session is valid. */
+export async function getFarmsForUserFromSupabase(
+  userId: string,
+): Promise<Farm[]> {
+  const { data, error } = await supabase
+    .from('farm_members')
+    .select('farms(*)')
+    .eq('user_id', userId);
+
+  if (error || !data?.length) {
+    return [];
+  }
+
+  const farms: Farm[] = [];
+  for (const row of data) {
+    const farmRow = row.farms;
+    if (farmRow && typeof farmRow === 'object' && !Array.isArray(farmRow)) {
+      farms.push(mapFarm(farmRow as Record<string, unknown>));
+    }
+  }
+
+  return farms.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createFarm(input: {

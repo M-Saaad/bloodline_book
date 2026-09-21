@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { createFarm } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { useUiStore } from '@/lib/store/ui';
+import { useFarm } from '@/providers/FarmProvider';
 
 const SEGMENTS: { value: Farm['segment']; label: string }[] = [
   { value: 'dairy', label: 'Dairy' },
@@ -17,10 +18,25 @@ const SEGMENTS: { value: Farm['segment']; label: string }[] = [
 
 export default function CreateFarmScreen() {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
+  const { farms, activeFarm, isLoading: farmsLoading } = useFarm();
   const [name, setName] = useState('');
   const [segment, setSegment] = useState<Farm['segment']>('meat');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (!farmsLoading && (farms.length > 0 || activeFarm)) {
+      router.replace('/(tabs)/dashboard');
+    }
+  }, [farms.length, activeFarm, farmsLoading]);
+
+  if (farmsLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <ActivityIndicator size="large" color="#ca4034" />
+      </View>
+    );
+  }
 
   async function handleCreate() {
     setErrorMessage('');
