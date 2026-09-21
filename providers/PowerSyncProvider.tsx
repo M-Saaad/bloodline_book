@@ -1,9 +1,10 @@
 import { PowerSyncContext } from '@powersync/react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { isPowerSyncConfigured } from '@/lib/powersync/config';
 import {
+  disconnectAndClearPowerSync,
   disconnectPowerSync,
   initPowerSync,
   powersync,
@@ -14,6 +15,7 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
   const { session, isConfigured } = useAuth();
   const [isReady, setIsReady] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const connectedUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,10 +24,15 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
       if (!isConfigured || !session) {
         setIsReady(false);
         setConnectError(null);
+        connectedUserIdRef.current = null;
         try {
-          await disconnectPowerSync();
+          await disconnectAndClearPowerSync();
         } catch {
-          // ignore when not connected
+          try {
+            await disconnectPowerSync();
+          } catch {
+            // ignore when not connected
+          }
         }
         return;
       }
@@ -40,6 +47,14 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
 
       try {
         setConnectError(null);
+        const userId = session.user.id;
+        if (
+          connectedUserIdRef.current != null &&
+          connectedUserIdRef.current !== userId
+        ) {
+          await disconnectAndClearPowerSync();
+        }
+        connectedUserIdRef.current = userId;
         await initPowerSync();
         if (!cancelled) {
           setIsReady(true);
