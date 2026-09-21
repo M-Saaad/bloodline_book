@@ -1,4 +1,6 @@
+import type { BreedingEvent, KiddingEvent } from '@/lib/types/breeding';
 import type { Animal, Breed } from '@/lib/types/animals';
+import type { HealthRecord } from '@/lib/types/health';
 import type { FarmDocument, FarmTask } from '@/lib/types/documents';
 import type { Transaction } from '@/lib/types/finances';
 import type { FarmInvite } from '@/lib/types/team';
@@ -150,5 +152,61 @@ export function mapTask(row: Record<string, unknown>): FarmTask {
     sourceId: row.source_id != null ? String(row.source_id) : null,
     completed: Boolean(row.completed),
     createdAt: String(row.created_at),
+  };
+}
+
+export function mapHealthRecord(row: Record<string, unknown>): HealthRecord {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    animalId: String(row.animal_id),
+    date: String(row.date),
+    kind: row.kind as HealthRecord['kind'],
+    famachaScore:
+      row.famacha_score != null ? Number(row.famacha_score) : null,
+    productName:
+      row.product_name != null ? String(row.product_name) : null,
+    dosage: row.dosage != null ? String(row.dosage) : null,
+    withdrawalDays:
+      row.withdrawal_days != null ? Number(row.withdrawal_days) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapBreedingEvent(row: Record<string, unknown>): BreedingEvent {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    damId: String(row.dam_id),
+    sireId: row.sire_id != null ? String(row.sire_id) : null,
+    sireExternalName:
+      row.sire_external_name != null ? String(row.sire_external_name) : null,
+    bredDate: String(row.bred_date),
+    dueDate: row.due_date != null ? String(row.due_date) : null,
+    status: row.status as BreedingEvent['status'],
+    kiddingEventId:
+      row.kidding_event_id != null ? String(row.kidding_event_id) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function mapKiddingEvent(row: Record<string, unknown>): KiddingEvent {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    damId: String(row.dam_id),
+    sireId: row.sire_id != null ? String(row.sire_id) : null,
+    sireExternalName:
+      row.sire_external_name != null ? String(row.sire_external_name) : null,
+    kidDate: String(row.kid_date),
+    kidsBorn: Number(row.kids_born),
+    kidsSurviving:
+      row.kids_surviving != null ? Number(row.kids_surviving) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
   };
 }

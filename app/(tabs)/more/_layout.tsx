@@ -13,6 +13,8 @@ export default function MoreLayout() {
       <Stack.Screen name="team" options={{ title: 'Team' }} />
       <Stack.Screen name="documents" options={{ headerShown: false }} />
       <Stack.Screen name="tasks" options={{ headerShown: false }} />
+      <Stack.Screen name="health" options={{ headerShown: false }} />
+      <Stack.Screen name="breeding" options={{ headerShown: false }} />
     </Stack>
   );
 }

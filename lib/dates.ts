@@ -26,6 +26,18 @@ export function parseIsoDate(iso: string): Date | null {
   return date;
 }
 
+/** Approximate goat gestation (days) for breeding due-date estimates. */
+export const GOAT_GESTATION_DAYS = 150;
+
+export function addDaysToIso(iso: string, days: number): string | null {
+  const parsed = parseIsoDate(iso);
+  if (!parsed) {
+    return null;
+  }
+  parsed.setDate(parsed.getDate() + days);
+  return formatIsoDate(parsed);
+}
+
 export function formatDisplayDate(iso: string): string {
   const parsed = parseIsoDate(iso);
   if (!parsed) {
