@@ -28,6 +28,7 @@ const config: ExpoConfig = {
     favicon: './assets/images/favicon.png',
   },
   plugins: [
+    '@react-native-community/datetimepicker',
     'expo-router',
     [
       'expo-splash-screen',

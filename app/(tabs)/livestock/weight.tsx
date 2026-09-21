@@ -9,7 +9,9 @@ import {
   View,
 } from 'react-native';
 
+import { DateField } from '@/components/ui/DateField';
 import { Button } from '@/components/ui/Button';
+import { todayIso } from '@/lib/dates';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -30,7 +32,7 @@ const WEIGH_POINTS: { value: WeighSession['weighPoint']; label: string }[] = [
 
 export default function WeighDayScreen() {
   const { activeFarm } = useFarm();
-  const today = new Date().toISOString().slice(0, 10);
+  const [sessionDate, setSessionDate] = useState(todayIso);
   const [weighPoint, setWeighPoint] =
     useState<WeighSession['weighPoint']>('ad_hoc');
   const [weights, setWeights] = useState<Record<string, string>>({});
@@ -90,7 +92,7 @@ export default function WeighDayScreen() {
     setSubmitting(true);
     try {
       await createWeighSessionWithLogs(activeFarm.id, {
-        date: today,
+        date: sessionDate,
         weighPoint,
         weightUnit: activeFarm.weightUnit,
         entries,
@@ -119,8 +121,14 @@ export default function WeighDayScreen() {
   return (
     <View className="flex-1 bg-gray-50">
       <View className="px-4 py-3 border-b border-gray-200 bg-white">
+        <DateField
+          label="Weigh date"
+          value={sessionDate}
+          onChange={setSessionDate}
+          maximumDate={new Date()}
+        />
         <Text className="text-sm text-gray-600 mb-2">
-          Date: {today} · Unit: {activeFarm.weightUnit}
+          Unit: {activeFarm.weightUnit}
         </Text>
         <Text className="text-sm font-medium text-gray-700 mb-2">
           Weigh point

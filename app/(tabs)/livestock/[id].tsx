@@ -98,6 +98,9 @@ export default function AnimalDetailScreen() {
             value={formatLifecycleStage(animal.lifecycleStage)}
             capitalize
           />
+          {animal.dateOfBirth ? (
+            <DetailRow label="Date of birth" value={animal.dateOfBirth} />
+          ) : null}
           {animal.outDate ? (
             <DetailRow label="Out date" value={animal.outDate} />
           ) : null}

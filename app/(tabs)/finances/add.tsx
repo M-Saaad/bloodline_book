@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import { todayIso } from '@/lib/dates';
 import { createTransaction } from '@/lib/db/transactions';
 import type { Transaction } from '@/lib/types/finances';
 import { useFarm } from '@/providers/FarmProvider';
@@ -23,7 +25,7 @@ const CATEGORY_SUGGESTIONS = [
 
 export default function AddTransactionScreen() {
   const { activeFarm } = useFarm();
-  const today = new Date().toISOString().slice(0, 10);
+  const [transactionDate, setTransactionDate] = useState(todayIso);
   const [kind, setKind] = useState<Transaction['kind']>('expense');
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
@@ -50,7 +52,7 @@ export default function AddTransactionScreen() {
     setLoading(true);
     try {
       await createTransaction(activeFarm.id, {
-        date: today,
+        date: transactionDate,
         amount: parsed,
         kind,
         category: category.trim(),
@@ -76,8 +78,14 @@ export default function AddTransactionScreen() {
       contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
+      <DateField
+        label="Date"
+        value={transactionDate}
+        onChange={setTransactionDate}
+        maximumDate={new Date()}
+      />
       <Text className="text-sm text-gray-600 mb-4">
-        Date: {today} · Currency: {activeFarm.currency}
+        Currency: {activeFarm.currency}
       </Text>
 
       <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
