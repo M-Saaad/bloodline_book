@@ -36,7 +36,7 @@ const EMPTY_FARMS_QUERY = 'SELECT 1 WHERE 0';
 const FARMS_SYNC_STREAM = 'farm_data';
 
 const FARMS_QUERY_OPTIONS = {
-  streams: [{ name: FARMS_SYNC_STREAM, waitForStream: true }],
+  streams: [{ name: FARMS_SYNC_STREAM, waitForStream: false }],
   reportFetching: true,
 };
 
@@ -46,11 +46,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
   const [bootstrapFarms, setBootstrapFarms] = useState<Farm[] | null>(null);
-  const [isRestBootstrapLoading, setIsRestBootstrapLoading] = useState(false);
   const staleSyncRecoveryAttemptedRef = useRef(false);
-  const restBootstrapAttemptedRef = useRef(false);
-  const [isRecoveringStaleSync, setIsRecoveringStaleSync] = useState(false);
-  const [farmStreamWaitTimedOut, setFarmStreamWaitTimedOut] = useState(false);
 
   const syncStatus = useStatus();
   const farmStreamStatus = useSyncStream({ name: FARMS_SYNC_STREAM });
@@ -59,7 +55,6 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
 
   const {
     data: farmRows,
-    isLoading: farmsQueryLoading,
     isFetching: farmsQueryFetching,
     refresh,
   } = useQuery<Record<string, unknown>>(
@@ -81,28 +76,12 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   }, [localFarms, bootstrapFarms]);
 
   const syncSettledForEmptyFarmCheck =
-    (farmDataStreamSynced || farmStreamWaitTimedOut) &&
+    farmDataStreamSynced &&
     !syncStatus.downloading &&
     !syncStatus.connecting;
 
-  const awaitingFarmMembership =
-    Boolean(session && user) &&
-    localFarms.length === 0 &&
-    bootstrapFarms === null &&
-    (!syncSettledForEmptyFarmCheck ||
-      farmsQueryFetching ||
-      isRestBootstrapLoading);
-
   const isLoading = Boolean(
-    session &&
-      user &&
-      farms.length === 0 &&
-      (awaitingFarmMembership ||
-        isRestBootstrapLoading ||
-        (farmsQueryLoading &&
-          !farmStreamWaitTimedOut &&
-          !farmDataStreamSynced) ||
-        isRecoveringStaleSync),
+    session && user && localFarms.length === 0 && bootstrapFarms === null,
   );
 
   const refreshFarms = useCallback(async () => {
@@ -114,24 +93,34 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     staleSyncRecoveryAttemptedRef.current = false;
-    restBootstrapAttemptedRef.current = false;
     setBootstrapFarms(null);
-    setIsRestBootstrapLoading(false);
-    setFarmStreamWaitTimedOut(false);
   }, [user?.id]);
 
   useEffect(() => {
-    if (!session || !user || localFarms.length > 0 || farmDataStreamSynced) {
-      setFarmStreamWaitTimedOut(false);
+    const userId = user?.id;
+    if (!userId || !session) {
       return;
     }
 
-    const timeout = setTimeout(() => {
-      setFarmStreamWaitTimedOut(true);
-    }, 15_000);
+    let cancelled = false;
 
-    return () => clearTimeout(timeout);
-  }, [session, user, localFarms.length, farmDataStreamSynced]);
+    getFarmsForUserFromSupabase(userId)
+      .then((serverFarms) => {
+        if (!cancelled) {
+          setBootstrapFarms(serverFarms);
+        }
+      })
+      .catch((error) => {
+        console.error('Supabase farm bootstrap failed:', error);
+        if (!cancelled) {
+          setBootstrapFarms([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, session]);
 
   useEffect(() => {
     const userId = user?.id;
@@ -141,31 +130,16 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       localFarms.length > 0 ||
       farmsQueryFetching ||
       !syncSettledForEmptyFarmCheck ||
-      restBootstrapAttemptedRef.current
+      staleSyncRecoveryAttemptedRef.current ||
+      (bootstrapFarms ?? []).length === 0
     ) {
       return;
     }
 
-    const resolvedUserId = userId;
     let cancelled = false;
-    restBootstrapAttemptedRef.current = true;
-    setIsRestBootstrapLoading(true);
+    staleSyncRecoveryAttemptedRef.current = true;
 
-    async function bootstrapFromServerWhenReplicaEmpty() {
-      const serverFarms = await getFarmsForUserFromSupabase(resolvedUserId);
-      if (cancelled) {
-        return;
-      }
-
-      setBootstrapFarms(serverFarms);
-      setIsRestBootstrapLoading(false);
-
-      if (serverFarms.length === 0 || staleSyncRecoveryAttemptedRef.current) {
-        return;
-      }
-
-      staleSyncRecoveryAttemptedRef.current = true;
-      setIsRecoveringStaleSync(true);
+    async function recoverStaleLocalReplica() {
       console.warn(
         'Farm membership exists on server but local PowerSync replica is empty — reconnecting sync.',
       );
@@ -176,14 +150,10 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (recoveryError) {
         console.error('PowerSync stale-sync recovery failed:', recoveryError);
-      } finally {
-        if (!cancelled) {
-          setIsRecoveringStaleSync(false);
-        }
       }
     }
 
-    bootstrapFromServerWhenReplicaEmpty();
+    recoverStaleLocalReplica();
 
     return () => {
       cancelled = true;
@@ -194,6 +164,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     localFarms.length,
     farmsQueryFetching,
     syncSettledForEmptyFarmCheck,
+    bootstrapFarms,
     refresh,
   ]);
 

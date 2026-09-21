@@ -12,9 +12,17 @@ export const powersync = new PowerSyncDatabase({
   },
 });
 
-export async function initPowerSync(): Promise<void> {
+export async function preparePowerSync(): Promise<void> {
   await powersync.init();
+}
+
+export async function connectPowerSyncBackend(): Promise<void> {
   await powersync.connect(connector);
+}
+
+export async function initPowerSync(): Promise<void> {
+  await preparePowerSync();
+  await connectPowerSyncBackend();
 }
 
 export async function disconnectPowerSync(): Promise<void> {
@@ -27,5 +35,6 @@ export async function disconnectAndClearPowerSync(): Promise<void> {
 
 export async function reconnectPowerSync(): Promise<void> {
   await powersync.disconnectAndClear();
-  await initPowerSync();
+  await preparePowerSync();
+  await connectPowerSyncBackend();
 }
