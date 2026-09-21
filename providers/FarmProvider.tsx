@@ -1,4 +1,4 @@
-import { useQuery, useStatus } from '@powersync/react';
+import { useQuery, useStatus, useSyncStream } from '@powersync/react';
 import React, {
   createContext,
   useCallback,
@@ -31,6 +31,7 @@ const FARMS_SYNC_STREAM = 'farm_data';
 
 const FARMS_QUERY_OPTIONS = {
   streams: [{ name: FARMS_SYNC_STREAM, waitForStream: true }],
+  reportFetching: true,
 };
 
 export function FarmProvider({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,9 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
 
   const syncStatus = useStatus();
+  const farmStreamStatus = useSyncStream({ name: FARMS_SYNC_STREAM });
+  const farmDataStreamSynced =
+    farmStreamStatus?.subscription?.hasSynced === true;
 
   const {
     data: farmRows,
@@ -58,12 +62,13 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   );
 
   const syncSettledForEmptyFarmCheck =
-    syncStatus.hasSynced === true &&
+    farmDataStreamSynced &&
     !syncStatus.downloading &&
     !syncStatus.connecting;
 
-  // waitForStream (PR #15) can report hasSynced before rows are visible locally, or
-  // while a reload sync is still downloading — keep routing in a loading state until then.
+  // waitForStream can flip before replicated rows are visible in the farms JOIN, and
+  // global SyncStatus.hasSynced can be true before the farm_data stream finishes — gate
+  // on stream-specific sync plus reportFetching (PR #16 omitted reportFetching on web).
   const awaitingFarmMembership =
     Boolean(session && user) &&
     farms.length === 0 &&
