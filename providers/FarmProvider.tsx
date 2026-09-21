@@ -50,6 +50,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const staleSyncRecoveryAttemptedRef = useRef(false);
   const restBootstrapAttemptedRef = useRef(false);
   const [isRecoveringStaleSync, setIsRecoveringStaleSync] = useState(false);
+  const [farmStreamWaitTimedOut, setFarmStreamWaitTimedOut] = useState(false);
 
   const syncStatus = useStatus();
   const farmStreamStatus = useSyncStream({ name: FARMS_SYNC_STREAM });
@@ -80,7 +81,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   }, [localFarms, bootstrapFarms]);
 
   const syncSettledForEmptyFarmCheck =
-    farmDataStreamSynced &&
+    (farmDataStreamSynced || farmStreamWaitTimedOut) &&
     !syncStatus.downloading &&
     !syncStatus.connecting;
 
@@ -90,16 +91,18 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     bootstrapFarms === null &&
     (!syncSettledForEmptyFarmCheck ||
       farmsQueryFetching ||
-      isRecoveringStaleSync ||
       isRestBootstrapLoading);
 
   const isLoading = Boolean(
     session &&
       user &&
-      (farmsQueryLoading ||
-        awaitingFarmMembership ||
-        isRecoveringStaleSync ||
-        isRestBootstrapLoading),
+      farms.length === 0 &&
+      (awaitingFarmMembership ||
+        isRestBootstrapLoading ||
+        (farmsQueryLoading &&
+          !farmStreamWaitTimedOut &&
+          !farmDataStreamSynced) ||
+        isRecoveringStaleSync),
   );
 
   const refreshFarms = useCallback(async () => {
@@ -114,7 +117,21 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     restBootstrapAttemptedRef.current = false;
     setBootstrapFarms(null);
     setIsRestBootstrapLoading(false);
+    setFarmStreamWaitTimedOut(false);
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!session || !user || localFarms.length > 0 || farmDataStreamSynced) {
+      setFarmStreamWaitTimedOut(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setFarmStreamWaitTimedOut(true);
+    }, 15_000);
+
+    return () => clearTimeout(timeout);
+  }, [session, user, localFarms.length, farmDataStreamSynced]);
 
   useEffect(() => {
     const userId = user?.id;
