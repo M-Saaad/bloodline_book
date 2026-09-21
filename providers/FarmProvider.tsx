@@ -1,4 +1,3 @@
-import { useQuery, useStatus, useSyncStream } from '@powersync/react';
 import React, {
   createContext,
   useCallback,
@@ -8,8 +7,7 @@ import React, {
   useState,
 } from 'react';
 
-import { FARMS_FOR_USER_SQL, getFarmById } from '@/lib/db/farms';
-import { mapFarm } from '@/lib/db/mappers';
+import { getFarmById, getFarmsForUser } from '@/lib/db/farms';
 import { useUiStore } from '@/lib/store/ui';
 import type { Farm } from '@/lib/types/tenancy';
 import { useAuth } from '@/providers/AuthProvider';
@@ -24,66 +22,34 @@ interface FarmContextValue {
 
 const FarmContext = createContext<FarmContextValue | null>(null);
 
-const EMPTY_FARMS_QUERY = 'SELECT 1 WHERE 0';
-
-/** Matches `farm_data` in powersync/sync-config.yaml (auto_subscribe). */
-const FARMS_SYNC_STREAM = 'farm_data';
-
-const FARMS_QUERY_OPTIONS = {
-  streams: [{ name: FARMS_SYNC_STREAM, waitForStream: true }],
-  reportFetching: true,
-};
-
 export function FarmProvider({ children }: { children: React.ReactNode }) {
   const { user, session } = useAuth();
   const activeFarmId = useUiStore((s) => s.activeFarmId);
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
+  const [farms, setFarms] = useState<Farm[]>([]);
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
-
-  const syncStatus = useStatus();
-  const farmStreamStatus = useSyncStream({ name: FARMS_SYNC_STREAM });
-  const farmDataStreamSynced =
-    farmStreamStatus?.subscription?.hasSynced === true;
-
-  const {
-    data: farmRows,
-    isLoading: farmsQueryLoading,
-    isFetching: farmsQueryFetching,
-    refresh,
-  } = useQuery<Record<string, unknown>>(
-    user ? FARMS_FOR_USER_SQL : EMPTY_FARMS_QUERY,
-    user ? [user.id] : [],
-    user ? FARMS_QUERY_OPTIONS : undefined,
-  );
-
-  const farms = useMemo(
-    () => (user ? (farmRows ?? []).map(mapFarm) : []),
-    [farmRows, user],
-  );
-
-  const syncSettledForEmptyFarmCheck =
-    farmDataStreamSynced &&
-    !syncStatus.downloading &&
-    !syncStatus.connecting;
-
-  // waitForStream can flip before replicated rows are visible in the farms JOIN, and
-  // global SyncStatus.hasSynced can be true before the farm_data stream finishes — gate
-  // on stream-specific sync plus reportFetching (PR #16 omitted reportFetching on web).
-  const awaitingFarmMembership =
-    Boolean(session && user) &&
-    farms.length === 0 &&
-    (!syncSettledForEmptyFarmCheck || farmsQueryFetching);
-
-  const isLoading = Boolean(
-    session && user && (farmsQueryLoading || awaitingFarmMembership),
-  );
+  const [isLoading, setIsLoading] = useState(true);
 
   const refreshFarms = useCallback(async () => {
     if (!user || !session) {
+      setFarms([]);
+      setFallbackFarm(null);
+      setIsLoading(false);
       return;
     }
-    await refresh?.();
-  }, [user, session, refresh]);
+
+    setIsLoading(true);
+    try {
+      const result = await getFarmsForUser(user.id);
+      setFarms(result);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, session]);
+
+  useEffect(() => {
+    refreshFarms();
+  }, [refreshFarms]);
 
   useEffect(() => {
     if (farms.length === 0) {
