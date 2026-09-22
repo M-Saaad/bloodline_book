@@ -18,28 +18,52 @@ export async function getFarmsForUser(userId: string): Promise<Farm[]> {
   return rows.map(mapFarm);
 }
 
-/** One-time routing fallback when the local PowerSync replica is empty but the session is valid. */
+/** Routing fallback when the local PowerSync replica is empty but the session is valid. */
 export async function getFarmsForUserFromSupabase(
   userId: string,
 ): Promise<Farm[]> {
   const { data, error } = await supabase
     .from('farm_members')
-    .select('farms(*)')
+    .select('farm_id, farms(*)')
     .eq('user_id', userId);
 
-  if (error || !data?.length) {
+  if (error) {
+    console.error('getFarmsForUserFromSupabase (farm_members):', error.message);
+    return [];
+  }
+  if (!data?.length) {
     return [];
   }
 
   const farms: Farm[] = [];
+  const missingFarmIds: string[] = [];
+
   for (const row of data) {
     const farmRow = row.farms;
     if (farmRow && typeof farmRow === 'object' && !Array.isArray(farmRow)) {
       farms.push(mapFarm(farmRow as Record<string, unknown>));
+    } else if (row.farm_id) {
+      missingFarmIds.push(String(row.farm_id));
     }
   }
 
-  return farms.sort((a, b) => a.name.localeCompare(b.name));
+  if (missingFarmIds.length > 0) {
+    const { data: farmRows, error: farmsError } = await supabase
+      .from('farms')
+      .select('*')
+      .in('id', missingFarmIds);
+
+    if (farmsError) {
+      console.error('getFarmsForUserFromSupabase (farms):', farmsError.message);
+    } else {
+      for (const row of farmRows ?? []) {
+        farms.push(mapFarm(row as Record<string, unknown>));
+      }
+    }
+  }
+
+  const byId = new Map(farms.map((farm) => [farm.id, farm]));
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function createFarm(input: {

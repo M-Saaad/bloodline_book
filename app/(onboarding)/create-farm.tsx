@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -18,11 +18,18 @@ const SEGMENTS: { value: Farm['segment']; label: string }[] = [
 
 export default function CreateFarmScreen() {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
-  const { farms, activeFarm, isLoading: farmsLoading } = useFarm();
+  const { farms, activeFarm, isLoading: farmsLoading, refreshFarms } =
+    useFarm();
   const [name, setName] = useState('');
   const [segment, setSegment] = useState<Farm['segment']>('meat');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshFarms();
+    }, [refreshFarms]),
+  );
 
   useEffect(() => {
     if (!farmsLoading && (farms.length > 0 || activeFarm)) {
@@ -53,6 +60,7 @@ export default function CreateFarmScreen() {
         segment,
       });
       setActiveFarmId(farmId);
+      await refreshFarms();
       router.replace('/(tabs)/dashboard');
     } catch (error) {
       setErrorMessage(

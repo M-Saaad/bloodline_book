@@ -12,6 +12,7 @@ import React, {
 import {
   FARMS_FOR_USER_SQL,
   getFarmById,
+  getFarmsForUser,
   getFarmsForUserFromSupabase,
 } from '@/lib/db/farms';
 import { mapFarm } from '@/lib/db/mappers';
@@ -85,10 +86,25 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshFarms = useCallback(async () => {
-    if (!user || !session) {
+    const userId = user?.id;
+    if (!userId || !session) {
       return;
     }
+
     await refresh?.();
+
+    const local = await getFarmsForUser(userId);
+    if (local.length > 0) {
+      setBootstrapFarms(null);
+      return;
+    }
+
+    try {
+      setBootstrapFarms(await getFarmsForUserFromSupabase(userId));
+    } catch (error) {
+      console.error('Supabase farm bootstrap failed:', error);
+      setBootstrapFarms([]);
+    }
   }, [user, session, refresh]);
 
   useEffect(() => {
