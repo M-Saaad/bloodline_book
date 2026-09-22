@@ -9,6 +9,7 @@ dist/
 web-build/
 .vercel
 public/@powersync/
+public/powersync/
 
 # Supabase CLI
 supabase/.temp/

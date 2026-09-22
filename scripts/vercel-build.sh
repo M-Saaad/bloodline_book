@@ -87,7 +87,7 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}
 EXPO_PUBLIC_POWERSYNC_URL=${EXPO_PUBLIC_POWERSYNC_URL}
 EOF
 
-npx --yes @powersync/web copy-assets --output public
+bash "$ROOT/scripts/copy-powersync-web-assets.sh"
 npx expo export --platform web
 
 if grep -R -q -E 'placeholder\.supabase\.co|placeholder-anon-key|your-project\.supabase\.co' dist; then

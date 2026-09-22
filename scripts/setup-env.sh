@@ -119,6 +119,18 @@ if [[ -z "$POWERSYNC_URL" ]]; then
   POWERSYNC_URL="$(read_env_value EXPO_PUBLIC_POWERSYNC_URL)"
 fi
 
+# One-project setups only store prod secrets. Reuse them on feature branches
+# so Cloud Agent web still talks to the same Supabase/PowerSync as Vercel prod.
+if [[ -z "$SUPABASE_URL" ]]; then
+  SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL_PROD:-$(read_env_value EXPO_PUBLIC_SUPABASE_URL_PROD)}"
+fi
+if [[ -z "$SUPABASE_ANON_KEY" ]]; then
+  SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD:-$(read_env_value EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD)}"
+fi
+if [[ -z "$POWERSYNC_URL" ]]; then
+  POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL_PROD:-$(read_env_value EXPO_PUBLIC_POWERSYNC_URL_PROD)}"
+fi
+
 SUPABASE_URL="$(normalize_supabase_url "$SUPABASE_URL")"
 SUPABASE_ANON_KEY="$(sanitize_supabase_jwt_key "$SUPABASE_ANON_KEY")"
 
@@ -146,7 +158,7 @@ EOF
 
 echo "Wrote $ENV_FILE (database=${DATABASE_TARGET}, branch=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown))"
 
-npx --yes @powersync/web copy-assets --output public 2>/dev/null || true
+bash "$ROOT/scripts/copy-powersync-web-assets.sh" 2>/dev/null || true
 
 if [[ -z "$POWERSYNC_URL" ]]; then
   echo "ERROR: PowerSync URL is not set for ${DATABASE_TARGET} database."

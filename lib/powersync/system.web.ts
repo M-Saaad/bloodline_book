@@ -2,8 +2,39 @@ import { PowerSyncDatabase } from '@powersync/web';
 
 import { SupabaseConnector } from '@/lib/powersync/connector';
 import { AppSchema } from '@/lib/powersync/schema';
+import {
+  getPowerSyncWorkerUrl,
+  inspectWebRuntime,
+  POWER_SYNC_WEB_WORKER_PATH,
+  resolvePowerSyncWebFlags,
+} from '@/lib/powersync/web-runtime';
 
-const WORKER_PATH = '/@powersync/worker.js';
+const runtime = inspectWebRuntime();
+const webFlags = resolvePowerSyncWebFlags(runtime);
+
+function workerScriptUrl(): string {
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : undefined;
+  return getPowerSyncWorkerUrl(origin, POWER_SYNC_WEB_WORKER_PATH);
+}
+
+function createDatabaseWorker(options: {
+  flags?: { enableMultiTabs?: boolean };
+  dbFilename?: string;
+}): Worker | SharedWorker {
+  const url = workerScriptUrl();
+  const name = options.dbFilename ?? 'bloodline.db';
+  if (options.flags?.enableMultiTabs && typeof SharedWorker !== 'undefined') {
+    return new SharedWorker(url, {
+      name: `shared-DB-worker-${name}`,
+      type: 'module',
+    });
+  }
+  return new Worker(url, {
+    name: `DB-worker-${name}`,
+    type: 'module',
+  });
+}
 
 export const connector = new SupabaseConnector();
 
@@ -11,11 +42,17 @@ export const powersync = new PowerSyncDatabase({
   schema: AppSchema,
   database: {
     dbFilename: 'bloodline.db',
-    worker: WORKER_PATH,
+    worker: createDatabaseWorker,
     disableSSRWarning: true,
+    enableMultiTabs: webFlags.enableMultiTabs,
+    useWebWorker: webFlags.useWebWorker,
   },
   sync: {
-    worker: WORKER_PATH,
+    worker: () =>
+      new SharedWorker(workerScriptUrl(), {
+        name: 'shared-sync-bloodline.db',
+        type: 'module',
+      }),
   },
 });
 
