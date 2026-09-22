@@ -10,11 +10,20 @@ Multi-tenant SaaS for US goat operations — herd records, health, breeding, wei
 - Weigh Day batch entry (single local transaction)
 - Animal detail/edit, FormMessage on web, loading & empty states
 
-## Phase 1 (current)
+## Phase 1 (complete)
 
 - **Finances** — transaction tracking (`transactions` table, migration 0007)
 - **More** — settings, team invites, documents, tasks (migrations 0008–0009)
 - PowerSync sync rules updated for new tables
+
+## Phase 2 (complete)
+
+- Health records and breeding/kidding (migrations 0005–0006)
+- Kidding kid records, health-driven tasks, breeding calendar
+
+## Phase 3 (current)
+
+- **Land** — pastures, grazing occupancy, and feed logs (migration 0010)
 
 ## Setup
 
@@ -25,6 +34,12 @@ Multi-tenant SaaS for US goat operations — herd records, health, breeding, wei
    - `0001_extensions_and_tenancy.sql`
    - `0003_breeds_and_animals.sql`
    - `0004_weight_tracking.sql`
+   - `0005_breeding_and_kidding.sql`
+   - `0006_health_records.sql`
+   - `0007_finances.sql`
+   - `0008_farm_invites.sql`
+   - `0009_documents_and_tasks.sql`
+   - `0010_pastures_and_feed.sql`
 3. Create a PowerSync replication role and publication (see [PowerSync + Supabase guide](https://docs.powersync.com/integration-guides/supabase-+-powersync)).
 4. Disable email confirmation for local dev (Authentication → Providers → Email).
 

@@ -213,6 +213,53 @@ const healthRecords = new Table(
   },
 );
 
+const pastures = new Table(
+  {
+    farm_id: column.text,
+    name: column.text,
+    acres: column.real,
+    forage_type: column.text,
+    status: column.text,
+    notes: column.text,
+    created_at: column.text,
+    updated_at: column.text,
+  },
+  { indexes: { pasture_farm: ['farm_id'] } },
+);
+
+const grazingRecords = new Table(
+  {
+    farm_id: column.text,
+    pasture_id: column.text,
+    animal_id: column.text,
+    start_date: column.text,
+    end_date: column.text,
+    notes: column.text,
+    created_at: column.text,
+  },
+  {
+    indexes: {
+      grazing_farm: ['farm_id'],
+      grazing_pasture: ['pasture_id'],
+      grazing_animal: ['animal_id'],
+    },
+  },
+);
+
+const feedLogs = new Table(
+  {
+    farm_id: column.text,
+    date: column.text,
+    feed_type: column.text,
+    quantity: column.real,
+    unit: column.text,
+    pasture_id: column.text,
+    notes: column.text,
+    created_at: column.text,
+  },
+  { indexes: { feed_farm: ['farm_id'], feed_date: ['date'] } },
+);
+
 export const AppSchema = new Schema({
   farms,
   farm_members: farmMembers,
@@ -227,6 +274,9 @@ export const AppSchema = new Schema({
   kidding_events: kiddingEvents,
   breeding_events: breedingEvents,
   health_records: healthRecords,
+  pastures,
+  grazing_records: grazingRecords,
+  feed_logs: feedLogs,
 });
 
 export type Database = (typeof AppSchema)['types'];

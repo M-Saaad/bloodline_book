@@ -4,6 +4,7 @@ import type { HealthRecord } from '@/lib/types/health';
 import type { FarmDocument, FarmTask } from '@/lib/types/documents';
 import type { Transaction } from '@/lib/types/finances';
 import type { FarmInvite } from '@/lib/types/team';
+import type { FeedLog, GrazingRecord, Pasture } from '@/lib/types/land';
 import type { Farm, FarmMember } from '@/lib/types/tenancy';
 import type { WeighSession, WeightLog } from '@/lib/types/weight';
 
@@ -190,6 +191,47 @@ export function mapBreedingEvent(row: Record<string, unknown>): BreedingEvent {
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+  };
+}
+
+export function mapPasture(row: Record<string, unknown>): Pasture {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    name: String(row.name),
+    acres: row.acres != null ? Number(row.acres) : null,
+    forageType: row.forage_type as Pasture['forageType'],
+    status: row.status as Pasture['status'],
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function mapGrazingRecord(row: Record<string, unknown>): GrazingRecord {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    pastureId: String(row.pasture_id),
+    animalId: String(row.animal_id),
+    startDate: String(row.start_date),
+    endDate: row.end_date != null ? String(row.end_date) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
+  };
+}
+
+export function mapFeedLog(row: Record<string, unknown>): FeedLog {
+  return {
+    id: String(row.id),
+    farmId: String(row.farm_id),
+    date: String(row.date),
+    feedType: String(row.feed_type),
+    quantity: row.quantity != null ? Number(row.quantity) : null,
+    unit: row.unit as FeedLog['unit'],
+    pastureId: row.pasture_id != null ? String(row.pasture_id) : null,
+    notes: row.notes != null ? String(row.notes) : null,
+    createdAt: String(row.created_at),
   };
 }
 
