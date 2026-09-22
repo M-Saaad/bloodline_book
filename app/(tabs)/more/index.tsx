@@ -46,7 +46,14 @@ export default function MoreScreen() {
         ))}
       </Card>
 
-      <Button title="Sign Out" variant="outline" onPress={() => signOut()} />
+      <Button
+        title="Sign Out"
+        variant="outline"
+        onPress={async () => {
+          await signOut();
+          router.replace('/(auth)/sign-in');
+        }}
+      />
     </ScrollView>
   );
 }

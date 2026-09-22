@@ -1,7 +1,10 @@
 import { Stack } from 'expo-router';
 
+import { RequireAuth } from '@/components/RequireAuth';
+
 export default function OnboardingLayout() {
   return (
+    <RequireAuth>
     <Stack
       screenOptions={{
         headerShown: true,
@@ -11,5 +14,6 @@ export default function OnboardingLayout() {
       }}>
       <Stack.Screen name="create-farm" options={{ title: 'Create Farm' }} />
     </Stack>
+    </RequireAuth>
   );
 }

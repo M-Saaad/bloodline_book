@@ -1,12 +1,15 @@
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
+import { RequireAuth } from '@/components/RequireAuth';
+
 function TabIcon({ label }: { label: string }) {
   return <Text className="text-lg">{label}</Text>;
 }
 
 export default function TabLayout() {
   return (
+    <RequireAuth>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#ca4034',
@@ -54,5 +57,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </RequireAuth>
   );
 }
