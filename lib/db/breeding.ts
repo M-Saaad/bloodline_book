@@ -91,7 +91,7 @@ export async function getBreedingEventsForFarm(
   const rows = await powersync.getAll<Record<string, unknown>>(
     `SELECT * FROM breeding_events
      WHERE farm_id = ?
-     ORDER BY due_date DESC NULLS LAST, bred_date DESC`,
+     ORDER BY (due_date IS NULL), due_date DESC, bred_date DESC`,
     [farmId],
   );
   return rows.map(mapBreedingEvent);

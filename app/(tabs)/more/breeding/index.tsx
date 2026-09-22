@@ -23,7 +23,7 @@ export default function BreedingScreen() {
     activeFarm
       ? `SELECT * FROM breeding_events
          WHERE farm_id = ?
-         ORDER BY due_date DESC NULLS LAST, bred_date DESC`
+         ORDER BY (due_date IS NULL), due_date DESC, bred_date DESC`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );
