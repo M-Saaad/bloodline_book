@@ -12,6 +12,12 @@ import {
 const runtime = inspectWebRuntime();
 const webFlags = resolvePowerSyncWebFlags(runtime);
 
+if (!webFlags.useWebWorker) {
+  console.info(
+    '[PowerSync] Using main-thread SQLite (Agent/embedded preview). Workers stay enabled on VM Chrome and Vercel.',
+  );
+}
+
 function workerScriptUrl(): string {
   const origin =
     typeof window !== 'undefined' ? window.location.origin : undefined;
