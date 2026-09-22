@@ -27,77 +27,51 @@ fn(module.exports, module);
 const {
   POWER_SYNC_WEB_WORKER_PATH,
   getPowerSyncWorkerUrl,
-  isEmbeddedBrowserUserAgent,
-  isPowerSyncWebWorkerSafe,
   resolvePowerSyncWebFlags,
 } = module.exports;
-
-function snapshot(overrides) {
-  return {
-    hasWindow: true,
-    isIframe: false,
-    isEmbeddedBrowser: false,
-    hostname: 'localhost',
-    hasSharedWorker: true,
-    hasDedicatedWorker: true,
-    hasWebLocks: true,
-    isSecureContext: true,
-    ...overrides,
-  };
-}
 
 assert.equal(POWER_SYNC_WEB_WORKER_PATH, '/powersync/worker.js');
 assert.equal(
   getPowerSyncWorkerUrl('https://8081-preview.example.com'),
   'https://8081-preview.example.com/powersync/worker.js',
 );
+assert.equal(getPowerSyncWorkerUrl(), '/powersync/worker.js');
 assert.doesNotMatch(getPowerSyncWorkerUrl('https://app.example'), /\/@/);
 
-assert.equal(isEmbeddedBrowserUserAgent('Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36'), false);
-assert.equal(
-  isEmbeddedBrowserUserAgent(
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Cursor/2.0.0 Chrome/128.0.6613.186 Electron/32.2.6 Safari/537.36',
-  ),
-  true,
-);
-
-const vmBrowser = resolvePowerSyncWebFlags(snapshot({ hostname: 'localhost' }));
-assert.deepEqual(vmBrowser, { enableMultiTabs: true, useWebWorker: true });
-assert.equal(isPowerSyncWebWorkerSafe(snapshot({ hostname: 'localhost' })), true);
-
-const vercelLike = resolvePowerSyncWebFlags(
-  snapshot({ hostname: 'bloodline-book.vercel.app' }),
-);
-assert.deepEqual(vercelLike, { enableMultiTabs: true, useWebWorker: true });
-
-const agentEmbedded = resolvePowerSyncWebFlags(
-  snapshot({
-    hostname: 'localhost',
-    isEmbeddedBrowser: true,
-  }),
-);
-assert.deepEqual(agentEmbedded, {
-  enableMultiTabs: false,
-  useWebWorker: false,
+const vercelLike = resolvePowerSyncWebFlags({
+  hasWindow: true,
+  isIframe: false,
+  hasSharedWorker: true,
+  hasDedicatedWorker: true,
+  hasWebLocks: true,
+  isSecureContext: true,
+});
+assert.deepEqual(vercelLike, {
+  enableMultiTabs: true,
+  useWebWorker: true,
 });
 
-const agentIframe = resolvePowerSyncWebFlags(
-  snapshot({
-    hostname: 'localhost',
-    isIframe: true,
-  }),
-);
+const agentIframe = resolvePowerSyncWebFlags({
+  hasWindow: true,
+  isIframe: true,
+  hasSharedWorker: true,
+  hasDedicatedWorker: true,
+  hasWebLocks: true,
+  isSecureContext: true,
+});
 assert.deepEqual(agentIframe, {
   enableMultiTabs: false,
-  useWebWorker: false,
+  useWebWorker: true,
 });
 
-const insecure = resolvePowerSyncWebFlags(
-  snapshot({
-    hasWebLocks: false,
-    isSecureContext: false,
-  }),
-);
+const insecure = resolvePowerSyncWebFlags({
+  hasWindow: true,
+  isIframe: false,
+  hasSharedWorker: true,
+  hasDedicatedWorker: true,
+  hasWebLocks: false,
+  isSecureContext: false,
+});
 assert.deepEqual(insecure, {
   enableMultiTabs: false,
   useWebWorker: false,
