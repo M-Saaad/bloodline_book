@@ -42,11 +42,11 @@ if [[ "${EXPO_PUBLIC_DATABASE_TARGET}" == "production" ]]; then
   export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}}"
   export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${EXPO_PUBLIC_POWERSYNC_URL_PROD:-}}"
 else
-  export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-${EXPO_PUBLIC_SUPABASE_URL_PROD:-}}}"
-  export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-${EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD:-}}}"
-  # Preview builds only receive Preview-scoped vars. Single-project setups
-  # often store credentials as Production or *_PROD only — reuse those.
-  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${NEXT_PUBLIC_POWERSYNC_URL:-${POWERSYNC_URL:-${EXPO_PUBLIC_POWERSYNC_URL_PROD:-}}}}"
+  export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
+  export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
+  # Preview builds only receive Preview-scoped vars; fall back to legacy names and
+  # non-prefixed secrets when teams use a single shared PowerSync URL (see project docs).
+  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${NEXT_PUBLIC_POWERSYNC_URL:-${POWERSYNC_URL:-}}}"
 fi
 
 if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]]; then
@@ -69,7 +69,7 @@ if [[ -z "${EXPO_PUBLIC_POWERSYNC_URL:-}" ]]; then
   if [[ "${EXPO_PUBLIC_DATABASE_TARGET}" == "production" ]]; then
     echo "  Set EXPO_PUBLIC_POWERSYNC_URL or EXPO_PUBLIC_POWERSYNC_URL_PROD (Production scope)."
   else
-    echo "  Set EXPO_PUBLIC_POWERSYNC_URL (Preview scope), or EXPO_PUBLIC_POWERSYNC_URL_PROD for a single-project setup."
+    echo "  Set EXPO_PUBLIC_POWERSYNC_URL (Preview scope)."
   fi
   echo "  Get the URL from PowerSync Dashboard → Connect on your instance."
   exit 1
