@@ -11,7 +11,9 @@ import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
 import { createHealthRecord } from '@/lib/db/health';
+import { healthKindSupportsWithdrawal } from '@/lib/domain/health';
 import type { HealthRecordKind } from '@/lib/types/health';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const HEALTH_KINDS: { value: HealthRecordKind; label: string }[] = [
@@ -34,6 +36,7 @@ export default function AddHealthRecordScreen() {
   const [famachaScore, setFamachaScore] = useState<number>(3);
   const [productName, setProductName] = useState('');
   const [dosage, setDosage] = useState('');
+  const [withdrawalDays, setWithdrawalDays] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -63,6 +66,18 @@ export default function AddHealthRecordScreen() {
       return;
     }
 
+    let parsedWithdrawal: number | undefined;
+    if (withdrawalDays.trim() && healthKindSupportsWithdrawal(kind)) {
+      parsedWithdrawal = Number.parseInt(withdrawalDays, 10);
+      if (Number.isNaN(parsedWithdrawal) || parsedWithdrawal < 0) {
+        setErrorMessage('Enter a valid withdrawal period in days.');
+        return;
+      }
+    }
+
+    const animal = animals.find((item) => item.id === animalId);
+    const animalLabel = animal ? animalDisplayLabel(animal) : 'Animal';
+
     setLoading(true);
     try {
       await createHealthRecord(activeFarm.id, {
@@ -72,7 +87,9 @@ export default function AddHealthRecordScreen() {
         famachaScore: kind === 'famacha' ? famachaScore : undefined,
         productName: productName.trim() || undefined,
         dosage: dosage.trim() || undefined,
+        withdrawalDays: parsedWithdrawal,
         notes: notes.trim() || undefined,
+        animalLabel,
       });
       router.back();
     } catch (error) {
@@ -168,6 +185,15 @@ export default function AddHealthRecordScreen() {
         onChangeText={setDosage}
         placeholder="Optional"
       />
+      {healthKindSupportsWithdrawal(kind) ? (
+        <Input
+          label="Withdrawal period (days)"
+          value={withdrawalDays}
+          onChangeText={setWithdrawalDays}
+          keyboardType="numeric"
+          placeholder="Optional — creates a follow-up task"
+        />
+      ) : null}
       <Input
         label="Notes"
         value={notes}

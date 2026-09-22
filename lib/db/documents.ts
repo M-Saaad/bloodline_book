@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 
 import { mapDocument, mapTask } from '@/lib/db/mappers';
+import { ORDER_TASKS_BY_DUE } from '@/lib/sql/portableOrder';
 import { powersync } from '@/lib/powersync/system';
 import type { FarmDocument, FarmTask } from '@/lib/types/documents';
 
@@ -51,7 +52,7 @@ export async function getTasksForFarm(farmId: string): Promise<FarmTask[]> {
   const rows = await powersync.getAll<Record<string, unknown>>(
     `SELECT * FROM tasks
      WHERE farm_id = ?
-     ORDER BY completed ASC, due_date ASC NULLS LAST, created_at DESC`,
+     ORDER BY ${ORDER_TASKS_BY_DUE}`,
     [farmId],
   );
   return rows.map(mapTask);
@@ -63,6 +64,8 @@ export async function createTask(
     title: string;
     dueDate?: string;
     priority?: FarmTask['priority'];
+    source?: FarmTask['source'];
+    sourceId?: string;
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
@@ -70,14 +73,16 @@ export async function createTask(
 
   await powersync.execute(
     `INSERT INTO tasks (
-      id, farm_id, title, due_date, priority, source, completed, created_at
-    ) VALUES (?, ?, ?, ?, ?, 'manual', 0, ?)`,
+      id, farm_id, title, due_date, priority, source, source_id, completed, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
     [
       id,
       farmId,
       input.title,
       input.dueDate ?? null,
       input.priority ?? 'medium',
+      input.source ?? 'manual',
+      input.sourceId ?? null,
       now,
     ],
   );

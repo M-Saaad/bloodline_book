@@ -6,6 +6,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import {
@@ -13,22 +14,31 @@ import {
   mapBreedingEvent,
   mapKiddingEvent,
 } from '@/lib/db/mappers';
+import { ORDER_DUE_DATE_DESC } from '@/lib/sql/portableOrder';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function BreedingScreen() {
   const { activeFarm } = useFarm();
 
-  const { data: breedingRows, isLoading: breedingLoading } = useQuery(
+  const {
+    data: breedingRows,
+    isLoading: breedingLoading,
+    error: breedingError,
+  } = useQuery(
     activeFarm
       ? `SELECT * FROM breeding_events
          WHERE farm_id = ?
-         ORDER BY due_date DESC NULLS LAST, bred_date DESC`
+         ORDER BY ${ORDER_DUE_DATE_DESC}`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const { data: kiddingRows, isLoading: kiddingLoading } = useQuery(
+  const {
+    data: kiddingRows,
+    isLoading: kiddingLoading,
+    error: kiddingError,
+  } = useQuery(
     activeFarm
       ? `SELECT * FROM kidding_events
          WHERE farm_id = ?
@@ -64,8 +74,25 @@ export default function BreedingScreen() {
     return null;
   }
 
+  const queryError = breedingError ?? kiddingError;
+
   if (breedingLoading || kiddingLoading) {
     return <LoadingState message="Loading breeding records…" />;
+  }
+
+  if (queryError) {
+    return (
+      <View className="flex-1 bg-gray-50 p-4">
+        <FormMessage
+          message={
+            queryError instanceof Error
+              ? queryError.message
+              : 'Could not load breeding records.'
+          }
+          tone="error"
+        />
+      </View>
+    );
   }
 
   const isEmpty = breedingEvents.length === 0 && kiddingEvents.length === 0;
@@ -82,12 +109,17 @@ export default function BreedingScreen() {
           variant="outline"
           onPress={() => router.push('/(tabs)/more/breeding/add-kidding')}
         />
+        <Button
+          title="Breeding Calendar"
+          variant="secondary"
+          onPress={() => router.push('/(tabs)/more/breeding/calendar')}
+        />
       </View>
 
       {isEmpty ? (
         <EmptyState
           title="No breeding records yet"
-          description="Track breedings with estimated due dates and log kidding litters. Linking kids to litters arrives in a follow-up."
+          description="Track breedings with estimated due dates, log kiddings, and register kids in the herd. Due-date tasks are added automatically."
           actionLabel="Log Breeding"
           onAction={() => router.push('/(tabs)/more/breeding/add-breeding')}
         />

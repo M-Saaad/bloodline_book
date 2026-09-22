@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
@@ -9,8 +9,9 @@ import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
-import { createKiddingEvent } from '@/lib/db/breeding';
+import { createKiddingEvent, type KiddingKidDraft } from '@/lib/db/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function AddKiddingScreen() {
@@ -21,6 +22,8 @@ export default function AddKiddingScreen() {
   const [kidDate, setKidDate] = useState(todayIso);
   const [kidsBorn, setKidsBorn] = useState('1');
   const [kidsSurviving, setKidsSurviving] = useState('');
+  const [registerKids, setRegisterKids] = useState(false);
+  const [kidDrafts, setKidDrafts] = useState<KiddingKidDraft[]>([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -49,6 +52,29 @@ export default function AddKiddingScreen() {
     [animals],
   );
 
+  const bornCount = Number.parseInt(kidsBorn, 10);
+
+  useEffect(() => {
+    if (!registerKids || Number.isNaN(bornCount) || bornCount < 1) {
+      setKidDrafts([]);
+      return;
+    }
+    const count = Math.min(bornCount, 12);
+    setKidDrafts((prev) => {
+      const next: KiddingKidDraft[] = [];
+      for (let i = 0; i < count; i++) {
+        next.push(prev[i] ?? { sex: 'female' });
+      }
+      return next;
+    });
+  }, [registerKids, bornCount]);
+
+  function setKidSex(index: number, sex: 'male' | 'female') {
+    setKidDrafts((prev) =>
+      prev.map((kid, i) => (i === index ? { ...kid, sex } : kid)),
+    );
+  }
+
   async function handleSave() {
     if (!activeFarm) {
       return;
@@ -76,6 +102,9 @@ export default function AddKiddingScreen() {
       surviving = parsed;
     }
 
+    const dam = females.find((animal) => animal.id === damId);
+    const damLabel = dam ? animalDisplayLabel(dam) : 'Dam';
+
     setLoading(true);
     try {
       await createKiddingEvent(activeFarm.id, {
@@ -86,6 +115,8 @@ export default function AddKiddingScreen() {
         kidsBorn: born,
         kidsSurviving: surviving,
         notes: notes.trim() || undefined,
+        damLabel,
+        registerKids: registerKids ? kidDrafts : undefined,
       });
       router.back();
     } catch (error) {
@@ -144,6 +175,54 @@ export default function AddKiddingScreen() {
         keyboardType="numeric"
         placeholder="Optional"
       />
+
+      <Pressable
+        onPress={() => setRegisterKids((value) => !value)}
+        className="flex-row items-center gap-2 mb-3">
+        <View
+          className={`w-5 h-5 rounded border ${
+            registerKids
+              ? 'bg-bloodline-600 border-bloodline-600'
+              : 'border-gray-400 bg-white'
+          }`} />
+        <Text className="text-gray-800">Register kids in herd (links litter)</Text>
+      </Pressable>
+
+      {registerKids && kidDrafts.length > 0 ? (
+        <View className="mb-4 gap-3">
+          {kidDrafts.map((kid, index) => (
+            <View
+              key={index}
+              className="bg-white border border-gray-200 rounded-xl p-3">
+              <Text className="text-sm font-medium text-gray-700 mb-2">
+                Kid {index + 1}
+              </Text>
+              <View className="flex-row gap-2">
+                {(['female', 'male'] as const).map((sex) => (
+                  <Pressable
+                    key={sex}
+                    onPress={() => setKidSex(index, sex)}
+                    className={`flex-1 rounded-lg border py-2 items-center ${
+                      kid.sex === sex
+                        ? 'border-bloodline-600 bg-bloodline-50'
+                        : 'border-gray-300'
+                    }`}>
+                    <Text
+                      className={
+                        kid.sex === sex
+                          ? 'text-bloodline-700 font-medium capitalize'
+                          : 'text-gray-700 capitalize'
+                      }>
+                      {sex}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <Input
         label="Notes"
         value={notes}

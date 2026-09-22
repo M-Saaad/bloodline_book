@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { mapAnimal } from '@/lib/db/mappers';
+import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
 import { formatDisplayDate } from '@/lib/dates';
+import { formatHealthRecordKind } from '@/lib/ui/health-labels';
 import {
   formatAnimalStatus,
   formatLifecycleStage,
@@ -41,6 +42,16 @@ export default function AnimalDetailScreen() {
          JOIN pastures p ON p.id = g.pasture_id
          WHERE g.animal_id = ? AND g.end_date IS NULL
          LIMIT 1`
+      : 'SELECT 1 WHERE 0',
+    id ? [id] : [],
+  );
+
+  const { data: healthRows, isLoading: healthLoading } = useQuery(
+    id
+      ? `SELECT * FROM health_records
+         WHERE animal_id = ?
+         ORDER BY date DESC, created_at DESC
+         LIMIT 10`
       : 'SELECT 1 WHERE 0',
     id ? [id] : [],
   );
@@ -138,6 +149,55 @@ export default function AnimalDetailScreen() {
         variant="secondary"
         onPress={() => router.push(`/(tabs)/livestock/edit/${id}`)}
       />
+
+      <Card>
+        <Text className="text-lg font-semibold text-gray-900 mb-3">
+          Health history
+        </Text>
+        {healthLoading ? (
+          <Text className="text-gray-500">Loading health records…</Text>
+        ) : (healthRows ?? []).length === 0 ? (
+          <View>
+            <Text className="text-gray-500 mb-3">
+              No health events yet. Log vaccinations, FAMACHA, and treatments
+              under More → Health Log.
+            </Text>
+            <Button
+              title="Add Health Record"
+              variant="outline"
+              onPress={() => router.push('/(tabs)/more/health/add')}
+            />
+          </View>
+        ) : (
+          (healthRows ?? []).map((row) => {
+            const record = mapHealthRecord(row as Record<string, unknown>);
+            return (
+              <View
+                key={record.id}
+                className="py-2 border-b border-gray-100">
+                <View className="flex-row justify-between items-start">
+                  <Text className="text-gray-800 font-medium">
+                    {formatHealthRecordKind(record.kind)}
+                  </Text>
+                  <Text className="text-gray-500 text-sm">
+                    {formatDisplayDate(record.date)}
+                  </Text>
+                </View>
+                {record.kind === 'famacha' && record.famachaScore != null ? (
+                  <Text className="text-gray-600 text-sm mt-1">
+                    Score {record.famachaScore}
+                  </Text>
+                ) : null}
+                {record.productName ? (
+                  <Text className="text-gray-600 text-sm mt-1">
+                    {record.productName}
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })
+        )}
+      </Card>
 
       <Card>
         <Text className="text-lg font-semibold text-gray-900 mb-3">

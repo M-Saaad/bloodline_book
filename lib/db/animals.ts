@@ -45,6 +45,10 @@ export async function createAnimal(
     lifecycleStage?: Animal['lifecycleStage'];
     purpose?: Animal['purpose'];
     dateOfBirth?: string;
+    damId?: string;
+    sireId?: string;
+    sireExternalName?: string;
+    litterId?: string;
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
@@ -53,8 +57,9 @@ export async function createAnimal(
   await powersync.execute(
     `INSERT INTO animals (
       id, farm_id, name, tag_number, sex, status, lifecycle_stage,
-      purpose, breed_primary_id, date_of_birth, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`,
+      purpose, breed_primary_id, date_of_birth, dam_id, sire_id,
+      sire_external_name, litter_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       farmId,
@@ -65,6 +70,10 @@ export async function createAnimal(
       input.purpose ?? null,
       input.breedPrimaryId ?? null,
       input.dateOfBirth ?? null,
+      input.damId ?? null,
+      input.sireId ?? null,
+      input.sireExternalName ?? null,
+      input.litterId ?? null,
       now,
       now,
     ],
