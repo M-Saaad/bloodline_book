@@ -5,9 +5,12 @@ Run SQL files in numeric order:
 1. `0001_extensions_and_tenancy.sql`
 2. `0003_breeds_and_animals.sql`
 3. `0004_weight_tracking.sql`
-4. `0007_finances.sql`
-5. `0008_farm_invites.sql`
-6. `0009_documents_and_tasks.sql`
+4. `0005_breeding_and_kidding.sql`
+5. `0006_health_records.sql`
+6. `0007_finances.sql`
+7. `0008_farm_invites.sql`
+8. `0009_documents_and_tasks.sql`
+9. `0010_pastures_and_feed.sql`
 
 ## PowerSync replication setup
 

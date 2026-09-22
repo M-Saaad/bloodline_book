@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapAnimal } from '@/lib/db/mappers';
+import { formatDisplayDate } from '@/lib/dates';
 import {
   formatAnimalStatus,
   formatLifecycleStage,
@@ -31,6 +32,17 @@ export default function AnimalDetailScreen() {
     animalRows?.[0]?.breed_primary_id
       ? [animalRows[0].breed_primary_id]
       : [],
+  );
+
+  const { data: pastureRows } = useQuery(
+    id
+      ? `SELECT p.id, p.name, g.start_date
+         FROM grazing_records g
+         JOIN pastures p ON p.id = g.pasture_id
+         WHERE g.animal_id = ? AND g.end_date IS NULL
+         LIMIT 1`
+      : 'SELECT 1 WHERE 0',
+    id ? [id] : [],
   );
 
   const { data: weightRows, isLoading: weightsLoading } = useQuery(
@@ -104,6 +116,14 @@ export default function AnimalDetailScreen() {
           {animal.outDate ? (
             <DetailRow label="Out date" value={animal.outDate} />
           ) : null}
+          {pastureRows?.[0]?.name != null ? (
+            <DetailRow
+              label="Pasture"
+              value={`${String(pastureRows[0].name)} since ${formatDisplayDate(String(pastureRows[0].start_date))}`}
+            />
+          ) : (
+            <DetailRow label="Pasture" value="Not assigned" />
+          )}
           {animal.notes ? (
             <View className="mt-2 pt-2 border-t border-gray-100">
               <Text className="text-sm text-gray-500 mb-1">Notes</Text>

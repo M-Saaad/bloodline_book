@@ -45,7 +45,7 @@
     "web": "bash scripts/setup-env.sh && expo start --web",
     "build:web": "bash scripts/vercel-build.sh",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/assert-jwt-sanitize.mjs && node scripts/assert-upload-errors.mjs"
+    "test": "node scripts/assert-jwt-sanitize.mjs && node scripts/assert-upload-errors.mjs && node scripts/assert-land-domain.mjs"
   },
   "private": true
 }

@@ -95,6 +95,11 @@ export default function DashboardScreen() {
             variant="secondary"
             onPress={() => router.push('/(tabs)/livestock/weight')}
           />
+          <Button
+            title="Land"
+            variant="outline"
+            onPress={() => router.push('/(tabs)/land')}
+          />
         </View>
       </Card>
 

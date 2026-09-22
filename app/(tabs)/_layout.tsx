@@ -37,6 +37,7 @@ export default function TabLayout() {
         name="land"
         options={{
           title: 'Land',
+          headerShown: false,
           tabBarIcon: () => <TabIcon label="🌾" />,
         }}
       />

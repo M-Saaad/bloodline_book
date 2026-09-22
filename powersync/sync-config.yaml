@@ -36,3 +36,21 @@ streams:
       - SELECT * FROM tasks WHERE farm_id IN (
           SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
         )
+      - SELECT * FROM kidding_events WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM breeding_events WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM health_records WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM pastures WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM grazing_records WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
+      - SELECT * FROM feed_logs WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
