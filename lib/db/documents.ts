@@ -51,7 +51,7 @@ export async function getTasksForFarm(farmId: string): Promise<FarmTask[]> {
   const rows = await powersync.getAll<Record<string, unknown>>(
     `SELECT * FROM tasks
      WHERE farm_id = ?
-     ORDER BY completed ASC, (due_date IS NULL), due_date ASC, created_at DESC`,
+     ORDER BY completed ASC, due_date ASC NULLS LAST, created_at DESC`,
     [farmId],
   );
   return rows.map(mapTask);
