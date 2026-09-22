@@ -21,9 +21,15 @@ Multi-tenant SaaS for US goat operations — herd records, health, breeding, wei
 - Health records and breeding/kidding (migrations 0005–0006)
 - Kidding kid records, health-driven tasks, breeding calendar
 
-## Phase 3 (current)
+## Phase 3 (complete)
 
 - **Land** — pastures, grazing occupancy, and feed logs (migration 0010)
+
+## Phase 4 (current)
+
+- **Breeding follow-ups** — kidding links open breedings, optional kid registration (`litter_id`), breeding calendar, due-date tasks
+- **Health follow-ups** — FAMACHA 4–5 and withdrawal tasks; health timeline on animal detail
+- **Web SQL** — portable `ORDER BY` (no `NULLS LAST`) for PowerSync web SQLite
 
 ## Setup
 

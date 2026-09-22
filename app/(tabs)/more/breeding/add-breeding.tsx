@@ -15,6 +15,7 @@ import {
 } from '@/lib/dates';
 import { createBreedingEvent } from '@/lib/db/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function AddBreedingScreen() {
@@ -64,6 +65,9 @@ export default function AddBreedingScreen() {
       return;
     }
 
+    const dam = females.find((animal) => animal.id === damId);
+    const damLabel = dam ? animalDisplayLabel(dam) : 'Dam';
+
     setLoading(true);
     try {
       await createBreedingEvent(activeFarm.id, {
@@ -72,6 +76,8 @@ export default function AddBreedingScreen() {
         sireExternalName: sireExternalName.trim() || undefined,
         bredDate,
         notes: notes.trim() || undefined,
+        damLabel,
+        scheduleDueTask: true,
       });
       router.back();
     } catch (error) {
