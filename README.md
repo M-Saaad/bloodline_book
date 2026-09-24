@@ -2,63 +2,14 @@
 
 Multi-tenant SaaS for US goat operations — herd records, health, breeding, weight/performance, and finances with offline-capable data entry via PowerSync.
 
-## Phase 0 (complete)
-
-- Expo + TypeScript + NativeWind + Expo Router
-- Supabase Auth (email/password) with farm creation flow
-- PowerSync local SQLite for `farms`, `farm_members`, `breeds`, `animals`, `weigh_sessions`, `weight_logs`
-- Weigh Day batch entry (single local transaction)
-- Animal detail/edit, FormMessage on web, loading & empty states
-
-## Phase 1 (complete)
-
-- **Finances** — transaction tracking (`transactions` table, migration 0007)
-- **More** — settings, team invites, documents, tasks (migrations 0008–0009)
-- PowerSync sync rules updated for new tables
-
-## Phase 2 (complete)
-
-- Health records and breeding/kidding (migrations 0005–0006)
-- Kidding kid records, health-driven tasks, breeding calendar
-
-## Phase 3 (complete)
-
-- **Land** — pastures, grazing occupancy, and feed logs (migration 0010)
-
-## Phase 4 (complete)
-
-- **Breeding follow-ups** — kidding links open breedings, optional kid registration (`litter_id`), breeding calendar, due-date tasks
-- **Health follow-ups** — FAMACHA 4–5 and withdrawal tasks; health timeline on animal detail
-- **Web SQL** — portable `ORDER BY` (no `NULLS LAST`) for PowerSync web SQLite
-
-## Roadmap (Phases 5–16)
-
-Build order, acceptance criteria, and migration numbers for everything after Phase 4 live in **[ROADMAP.md](ROADMAP.md)** (written against `main` at Phase 4 merge).
-
-| Milestone | Phases | Focus |
-|---|---|---|
-| **Next** | **5** | Data-loss fixes, sync badge, password reset, FAMACHA default |
-| 30-day trial release | 5–11 + checkpoint | Edit/delete, identity, breeding windows, kidding, withdrawal/FAMACHA, Today screen |
-| Post-pilot | 12–15 | Finances per goat, Work Day, team roles, document attachments |
-| Gated | 16 | Dairy / milk records (only when farms ask) |
-
-Give Cursor **one phase section at a time** from `ROADMAP.md`, plus the file’s “Rules for every phase” block.
+All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADMAP.md)** (phases 0–16). **Current:** Phase 4 complete — **next:** [Phase 5 — Nothing gets lost](ROADMAP.md#phase-5--nothing-gets-lost).
 
 ## Setup
 
 ### 1. Supabase
 
 1. Create a [Supabase](https://supabase.com) project.
-2. Run migrations in order from `supabase/migrations/`:
-   - `0001_extensions_and_tenancy.sql`
-   - `0003_breeds_and_animals.sql`
-   - `0004_weight_tracking.sql`
-   - `0005_breeding_and_kidding.sql`
-   - `0006_health_records.sql`
-   - `0007_finances.sql`
-   - `0008_farm_invites.sql`
-   - `0009_documents_and_tasks.sql`
-   - `0010_pastures_and_feed.sql`
+2. Run migrations in order from `supabase/migrations/` (through `0010` on `main`; later phases add `0011+` — see [ROADMAP.md](ROADMAP.md)).
 3. Create a PowerSync replication role and publication (see [PowerSync + Supabase guide](https://docs.powersync.com/integration-guides/supabase-+-powersync)).
 4. Disable email confirmation for local dev (Authentication → Providers → Email).
 
@@ -77,15 +28,3 @@ npm run web:dev   # or npm run ios:dev / npm run android:dev
 ```
 
 See [docs/environments.md](docs/environments.md) for branch → database mapping (same app, different Supabase/PowerSync per branch).
-
-## Offline verification (Phase 0 acceptance)
-
-1. Sign up and create a farm.
-2. Add at least one animal.
-3. Enable airplane mode on the device.
-4. Complete a Weigh Day session — data should save locally.
-5. Disable airplane mode — data should sync to Supabase (check Table Editor).
-
-## Project structure
-
-See [ROADMAP.md](ROADMAP.md) for Phases 5–16 (schema changes, build order, and “Done when” checks).

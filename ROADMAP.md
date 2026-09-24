@@ -1,33 +1,85 @@
-# Bloodline Book — build phases 5 to 16
+# Bloodline Book — ROADMAP
 
-Written 24 Sep 2026 against `main` at `b0307cf` (Phase 4 merged).
-Based on the producer review of `PRODUCT-REVIEW.md` and `USER-FLOWS.md`.
+Single source of truth for build phases **0–16**: what shipped, what’s next, acceptance checks, and migration numbers.
 
-The order is: first the fixes that lose data, then the answers to the ten review questions, sorted so each phase only builds on phases before it. The table at the end shows where every review item landed.
+Written 24 Sep 2026 against `main` at `b0307cf` (Phase 4 merged). Phases **5–16** follow the producer review of `PRODUCT-REVIEW.md` and `USER-FLOWS.md` (order: data-loss fixes first, then the ten review questions, each phase building only on earlier ones).
 
 ## At a glance
 
-| Phase | Name | Review item | Size | Needs |
-|---|---|---|---|---|
-| 5 | Nothing gets lost | The three data-loss fixes, FAMACHA default, password reset | M | — |
-| 6 | Fix mistakes | Q10: edit and delete | L (can split 6a / 6b) | 5 |
-| 7 | Know every goat | Q5: identity, parents, search | M | 6 |
-| 8 | Breeding the way it happens | Q3: due window, confirm / open | M | 5, 6 |
-| 9 | Kidding in one step | Q4: kids, birth weights, weaning | M | 7, 8 |
-| 10 | Health you can trust at sale time | Q8: meat/milk withdrawal, FAMACHA | M | 6, 7 |
-| 11 | The Today screen | Q2 | M | 8, 10 |
-| — | **Checkpoint: 30-day trial release** | Q10 | — | 5–11 |
-| 12 | Money tied to goats | Q7 | M | 7, 10 |
-| 13 | Herd work day | Batch weight, FAMACHA, deworming | L | 10 |
-| 14 | Team that works on a real farm | Q9 | L | 5, 13 |
-| 15 | Paperwork with the paper | Q6 | L | 7 |
-| 16 | Dairy (gated) | Q8: milk records | L | 9, 10 |
+| Phase | Name | Status | Review item | Size | Needs |
+|---|---|---|---|---|---|
+| 0 | Foundation | **Complete** | — | — | — |
+| 1 | Finances & More | **Complete** | — | — | 0 |
+| 2 | Health & breeding | **Complete** | — | — | 0 |
+| 3 | Land | **Complete** | — | — | 2 |
+| 4 | Breeding & health follow-ups | **Complete** | — | — | 2, 3 |
+| 5 | Nothing gets lost | **Next** | Data-loss fixes, FAMACHA default, password reset | M | — |
+| 6 | Fix mistakes | Planned | Q10: edit and delete | L (can split 6a / 6b) | 5 |
+| 7 | Know every goat | Planned | Q5: identity, parents, search | M | 6 |
+| 8 | Breeding the way it happens | Planned | Q3: due window, confirm / open | M | 5, 6 |
+| 9 | Kidding in one step | Planned | Q4: kids, birth weights, weaning | M | 7, 8 |
+| 10 | Health you can trust at sale time | Planned | Q8: meat/milk withdrawal, FAMACHA | M | 6, 7 |
+| 11 | The Today screen | Planned | Q2 | M | 8, 10 |
+| — | **Checkpoint: 30-day trial release** | Planned | Q10 | — | 5–11 |
+| 12 | Money tied to goats | Planned | Q7 | M | 7, 10 |
+| 13 | Herd work day | Planned | — | L | 10 |
+| 14 | Team that works on a real farm | Planned | Q9 | L | 5, 13 |
+| 15 | Paperwork with the paper | Planned | Q6 | L | 7 |
+| 16 | Dairy (gated) | Planned | Q8: milk records | L | 9, 10 |
 
 **How to use this file**
 
-- One phase = one branch = one PR. Give Cursor one phase at a time: the phase section plus "Rules for every phase".
-- Phases 5–11 together are the 30-day trial release. Put a real farm on it before starting Phase 12.
-- Phase 16 only starts when dairy farms ask for it.
+- One phase = one branch = one PR. Give Cursor one phase at a time: the phase section plus [Rules for every phase](#rules-for-every-phase).
+- Phases **5–11** together are the 30-day trial release. Put a real farm on it before starting Phase 12.
+- Phase **16** only starts when dairy farms ask for it.
+- When a phase merges, set its **Status** in the table above to **Complete** and set the next row to **Next**.
+
+---
+
+## Phases 0–4 (complete)
+
+Summaries of what is already on `main`. Detailed specs for new work start at [Phase 5](#phase-5--nothing-gets-lost).
+
+### Phase 0 — Foundation
+
+- Expo + TypeScript + NativeWind + Expo Router
+- Supabase Auth (email/password) with farm creation flow
+- PowerSync local SQLite for `farms`, `farm_members`, `breeds`, `animals`, `weigh_sessions`, `weight_logs`
+- Weigh Day batch entry (single local transaction)
+- Animal detail/edit, FormMessage on web, loading and empty states
+
+**Done when (offline smoke test)**
+
+1. Sign up and create a farm.
+2. Add at least one animal.
+3. Enable airplane mode on the device.
+4. Complete a Weigh Day session — data saves locally.
+5. Disable airplane mode — data syncs to Supabase (Table Editor).
+
+### Phase 1 — Finances & More
+
+- **Finances** — transaction tracking (`transactions`, migration `0007`)
+- **More** — settings, team invites, documents, tasks (migrations `0008`–`0009`)
+- PowerSync sync rules updated for new tables
+
+### Phase 2 — Health & breeding
+
+- Health records and breeding/kidding (migrations `0005`–`0006`)
+- Kidding kid records, health-driven tasks, breeding calendar
+
+### Phase 3 — Land
+
+- Pastures, grazing occupancy, and feed logs (migration `0010`)
+
+### Phase 4 — Breeding & health follow-ups
+
+- Kidding links open breedings, optional kid registration (`litter_id`), breeding calendar, due-date tasks
+- FAMACHA 4–5 and withdrawal tasks; health timeline on animal detail
+- Web SQL — portable `ORDER BY` (no `NULLS LAST`) for PowerSync web SQLite
+
+**Database migrations shipped through Phase 4** (run in order from `supabase/migrations/`):
+
+`0001` → `0003` → `0004` → `0005` → `0006` → `0007` → `0008` → `0009` → `0010`
 
 ---
 
@@ -58,7 +110,7 @@ Give these to Cursor with every phase.
 4. Test offline every time: airplane mode on, run the "Done when" steps, airplane mode off, then check the Supabase tables.
 5. From Phase 5 on, the "Changes not saved" list must be empty after the "Done when" steps. If it isn't, the phase isn't done.
 6. Ask for confirmation with `confirmAction()` (added in 5.9). Never use `window.confirm` directly.
-7. When the PR merges, update the phase list in `README.md` (and `USER-FLOWS.md` / `PRODUCT-REVIEW.md` if you keep them).
+7. When the PR merges, update **Status** in the [At a glance](#at-a-glance) table in this file (and `USER-FLOWS.md` / `PRODUCT-REVIEW.md` if you keep them).
 
 ---
 
