@@ -7,6 +7,7 @@ export default function FinancesLayout() {
     <Stack screenOptions={stackWithSyncBadge}>
       <Stack.Screen name="index" options={{ title: 'Finances' }} />
       <Stack.Screen name="add" options={{ title: 'Add Transaction' }} />
+      <Stack.Screen name="edit/[id]" options={{ title: 'Edit Transaction' }} />
     </Stack>
   );
 }

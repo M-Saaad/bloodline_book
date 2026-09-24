@@ -10,7 +10,7 @@ Companion overview: [PRODUCT-REVIEW.md](PRODUCT-REVIEW.md).
 
 - Dates the user picks cannot be in the future, except a task due date, which may be left blank or set to any calendar day the date field allows.
 - Almost every save writes on the phone first and syncs later. The screen does not show “waiting to sync.”
-- There is no edit or delete after save for health, breeding, kidding, weights, money, feed, documents, or pastures. Tasks can be toggled. Pasture status can be changed. Grazing can be ended. Invites can be revoked. Animals can be edited.
+- After Phase 6, most records can be edited or deleted from their list row (weights, health, breeding, kidding, transactions, feed logs, grazing history, tasks). Pasture name/acres/forage can be edited; pasture status can still be changed on the pasture page. Animals can be edited; mistaken goats can be deleted when they have no breeding/kidding/parent links. Documents still cannot be edited (Phase 15).
 - Lists of animals used inside forms include **active** goats only.
 - The herd list also shows **active** goats only. Sold and deceased goats leave that list and cannot be opened again from it.
 
