@@ -215,14 +215,18 @@ export default function PastureDetailScreen() {
             <View
               key={record.id}
               className="flex-row justify-between items-center py-2 border-b border-gray-100">
-              <View className="flex-1 pr-3">
+              <Pressable
+                onPress={() =>
+                  router.push(`/(tabs)/land/edit-grazing/${record.id}`)
+                }
+                className="flex-1 pr-3">
                 <Text className="text-gray-900 font-medium">
                   {animalsById.get(record.animalId) ?? 'Unknown animal'}
                 </Text>
                 <Text className="text-gray-500 text-sm">
                   Since {formatDisplayDate(record.startDate)}
                 </Text>
-              </View>
+              </Pressable>
               <Button
                 title={endingIds.includes(record.id) ? 'Moving…' : 'Move out'}
                 variant="outline"
