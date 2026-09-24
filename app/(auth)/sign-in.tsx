@@ -8,14 +8,17 @@ import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SignInScreen() {
-  const { signIn } = useAuth();
+  const { signIn, requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function handleSignIn() {
     setErrorMessage('');
+    setResetSent(false);
 
     if (!email || !password) {
       setErrorMessage('Enter your email and password.');
@@ -35,6 +38,30 @@ export default function SignInScreen() {
     }
   }
 
+  async function handleForgotPassword() {
+    setErrorMessage('');
+    setResetSent(false);
+
+    if (!email.trim()) {
+      setErrorMessage('Enter your email first, then tap Forgot password.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setResetSent(true);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Could not send reset email. Try again.',
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   return (
     <ScrollView
       className="flex-1 bg-gray-50"
@@ -47,6 +74,12 @@ export default function SignInScreen() {
       </Text>
 
       <FormMessage message={errorMessage} tone="error" />
+      {resetSent ? (
+        <FormMessage
+          message="Check your email for a password reset link."
+          tone="success"
+        />
+      ) : null}
 
       <Input
         label="Email"
@@ -64,6 +97,12 @@ export default function SignInScreen() {
         secureTextEntry
         autoCapitalize="none"
       />
+
+      <Pressable onPress={handleForgotPassword} disabled={resetLoading} className="mb-3">
+        <Text className="text-bloodline-600 font-semibold text-sm">
+          {resetLoading ? 'Sending reset email…' : 'Forgot password?'}
+        </Text>
+      </Pressable>
 
       <Button
         title={loading ? 'Signing in…' : 'Sign In'}

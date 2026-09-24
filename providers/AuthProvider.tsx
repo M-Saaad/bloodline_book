@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { Session, User } from '@supabase/supabase-js';
 import React, {
   createContext,
@@ -20,6 +21,8 @@ interface AuthContextValue {
     email: string,
     password: string,
   ) => Promise<{ sessionCreated: boolean }>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -70,6 +73,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { sessionCreated: data.session != null };
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const redirectTo = Linking.createURL('/reset-password');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      throw error;
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -85,9 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isConfigured: isSupabaseConfigured,
       signIn,
       signUp,
+      requestPasswordReset,
+      updatePassword,
       signOut,
     }),
-    [session, isLoading, signIn, signUp, signOut],
+    [session, isLoading, signIn, signUp, requestPasswordReset, updatePassword, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

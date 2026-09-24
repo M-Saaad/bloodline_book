@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { DateField } from '@/components/ui/DateField';
 import { Button } from '@/components/ui/Button';
 import { todayIso } from '@/lib/dates';
@@ -119,6 +120,7 @@ export default function WeighDayScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <View className="flex-1 bg-gray-50">
       <View className="px-4 py-3 border-b border-gray-200 bg-white">
         <DateField
@@ -205,5 +207,6 @@ export default function WeighDayScreen() {
         />
       </View>
     </View>
+    </HandWriteBlocked>
   );
 }

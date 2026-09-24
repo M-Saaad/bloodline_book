@@ -239,7 +239,7 @@ export async function getUpcomingBreedingsForFarm(
        AND due_date IS NOT NULL
        AND due_date >= ?
        AND due_date <= ?
-       AND status IN ('bred', 'confirmed', 'open')
+       AND status IN ('bred', 'confirmed')
      ORDER BY due_date ASC, bred_date DESC`,
     [farmId, fromDate, toDate],
   );

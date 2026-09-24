@@ -13,8 +13,8 @@ Written 24 Sep 2026 against `main` at `b0307cf` (Phase 4 merged). Phases **5–1
 | 2 | Health & breeding | **Complete** | — | — | 0 |
 | 3 | Land | **Complete** | — | — | 2 |
 | 4 | Breeding & health follow-ups | **Complete** | — | — | 2, 3 |
-| 5 | Nothing gets lost | **Next** | Data-loss fixes, FAMACHA default, password reset | M | — |
-| 6 | Fix mistakes | Planned | Q10: edit and delete | L (can split 6a / 6b) | 5 |
+| 5 | Nothing gets lost | **Complete** | Data-loss fixes, FAMACHA default, password reset | M | — |
+| 6 | Fix mistakes | **Next** | Q10: edit and delete | L (can split 6a / 6b) | 5 |
 | 7 | Know every goat | Planned | Q5: identity, parents, search | M | 6 |
 | 8 | Breeding the way it happens | Planned | Q3: due window, confirm / open | M | 5, 6 |
 | 9 | Kidding in one step | Planned | Q4: kids, birth weights, weaning | M | 7, 8 |

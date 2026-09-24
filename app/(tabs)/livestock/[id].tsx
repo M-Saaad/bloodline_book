@@ -2,6 +2,7 @@ import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
+import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -144,11 +145,13 @@ export default function AnimalDetailScreen() {
         </View>
       </Card>
 
-      <Button
-        title="Edit Animal"
-        variant="secondary"
-        onPress={() => router.push(`/(tabs)/livestock/edit/${id}`)}
-      />
+      <FarmWriteGate>
+        <Button
+          title="Edit Animal"
+          variant="secondary"
+          onPress={() => router.push(`/(tabs)/livestock/edit/${id}`)}
+        />
+      </FarmWriteGate>
 
       <Card>
         <Text className="text-lg font-semibold text-gray-900 mb-3">
@@ -162,11 +165,13 @@ export default function AnimalDetailScreen() {
               No health events yet. Log vaccinations, FAMACHA, and treatments
               under More → Health Log.
             </Text>
-            <Button
-              title="Add Health Record"
-              variant="outline"
-              onPress={() => router.push('/(tabs)/more/health/add')}
-            />
+            <FarmWriteGate>
+              <Button
+                title="Add Health Record"
+                variant="outline"
+                onPress={() => router.push('/(tabs)/more/health/add')}
+              />
+            </FarmWriteGate>
           </View>
         ) : (
           (healthRows ?? []).map((row) => {

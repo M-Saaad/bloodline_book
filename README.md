@@ -2,7 +2,7 @@
 
 Multi-tenant SaaS for US goat operations — herd records, health, breeding, weight/performance, and finances with offline-capable data entry via PowerSync.
 
-All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADMAP.md)** (phases 0–16). **Current:** Phase 4 complete — **next:** [Phase 5 — Nothing gets lost](ROADMAP.md#phase-5--nothing-gets-lost).
+All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADMAP.md)** (phases 0–16). **Current:** Phase 5 complete — **next:** [Phase 6 — Fix mistakes](ROADMAP.md#phase-6--fix-mistakes).
 
 ## Setup
 

@@ -260,6 +260,20 @@ const feedLogs = new Table(
   { indexes: { feed_farm: ['farm_id'], feed_date: ['date'] } },
 );
 
+const uploadFailures = new Table(
+  {
+    table_name: column.text,
+    op: column.text,
+    row_id: column.text,
+    op_data: column.text,
+    error_code: column.text,
+    error_message: column.text,
+    applied_before_failure: column.integer,
+    created_at: column.text,
+  },
+  { localOnly: true, indexes: { upload_failure_created: ['created_at'] } },
+);
+
 export const AppSchema = new Schema({
   farms,
   farm_members: farmMembers,
@@ -277,6 +291,7 @@ export const AppSchema = new Schema({
   pastures,
   grazing_records: grazingRecords,
   feed_logs: feedLogs,
+  upload_failures: uploadFailures,
 });
 
 export type Database = (typeof AppSchema)['types'];

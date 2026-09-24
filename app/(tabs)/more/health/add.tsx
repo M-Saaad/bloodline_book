@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -33,7 +34,7 @@ export default function AddHealthRecordScreen() {
   const [animalId, setAnimalId] = useState<string | null>(null);
   const [recordDate, setRecordDate] = useState(todayIso);
   const [kind, setKind] = useState<HealthRecordKind>('vaccination');
-  const [famachaScore, setFamachaScore] = useState<number>(3);
+  const [famachaScore, setFamachaScore] = useState<number | null>(null);
   const [productName, setProductName] = useState('');
   const [dosage, setDosage] = useState('');
   const [withdrawalDays, setWithdrawalDays] = useState('');
@@ -66,6 +67,11 @@ export default function AddHealthRecordScreen() {
       return;
     }
 
+    if (kind === 'famacha' && famachaScore == null) {
+      setErrorMessage('Pick a FAMACHA score.');
+      return;
+    }
+
     let parsedWithdrawal: number | undefined;
     if (withdrawalDays.trim() && healthKindSupportsWithdrawal(kind)) {
       parsedWithdrawal = Number.parseInt(withdrawalDays, 10);
@@ -84,7 +90,7 @@ export default function AddHealthRecordScreen() {
         animalId,
         date: recordDate,
         kind,
-        famachaScore: kind === 'famacha' ? famachaScore : undefined,
+        famachaScore: kind === 'famacha' ? (famachaScore ?? undefined) : undefined,
         productName: productName.trim() || undefined,
         dosage: dosage.trim() || undefined,
         withdrawalDays: parsedWithdrawal,
@@ -106,6 +112,7 @@ export default function AddHealthRecordScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <ScrollView
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4">
@@ -126,7 +133,12 @@ export default function AddHealthRecordScreen() {
         {HEALTH_KINDS.map((option) => (
           <Pressable
             key={option.value}
-            onPress={() => setKind(option.value)}
+            onPress={() => {
+              setKind(option.value);
+              if (option.value !== 'famacha') {
+                setFamachaScore(null);
+              }
+            }}
             className={`rounded-full border px-3 py-1.5 ${
               kind === option.value
                 ? 'border-bloodline-600 bg-bloodline-50'
@@ -207,5 +219,6 @@ export default function AddHealthRecordScreen() {
         disabled={loading}
       />
     </ScrollView>
+    </HandWriteBlocked>
   );
 }

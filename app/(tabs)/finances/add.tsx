@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -73,6 +74,7 @@ export default function AddTransactionScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <ScrollView
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4">
@@ -160,5 +162,6 @@ export default function AddTransactionScreen() {
         disabled={loading}
       />
     </ScrollView>
+    </HandWriteBlocked>
   );
 }
