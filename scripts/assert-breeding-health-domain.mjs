@@ -47,4 +47,11 @@ function validateKiddingCounts(kidsBorn, kidsSurviving) {
 assert.match(validateKiddingCounts(3, 4) ?? '', /cannot be more/);
 assert.equal(validateKiddingCounts(3, 3), null);
 
+function targetRegisteredKidCount(kidsBorn, kidsSurviving) {
+  return kidsSurviving ?? kidsBorn;
+}
+
+assert.equal(targetRegisteredKidCount(5, 3), 3);
+assert.equal(targetRegisteredKidCount(5, undefined), 5);
+
 console.log('assert-breeding-health-domain: ok');

@@ -20,6 +20,14 @@ export function kidAnimalDefaultName(
   return `${damLabel} kid ${index}`;
 }
 
+/** How many kid animals should exist in Livestock for a registered litter. */
+export function targetRegisteredKidCount(
+  kidsBorn: number,
+  kidsSurviving?: number,
+): number {
+  return kidsSurviving ?? kidsBorn;
+}
+
 export function validateKiddingCounts(
   kidsBorn: number,
   kidsSurviving?: number,
