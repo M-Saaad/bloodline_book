@@ -12,6 +12,8 @@ import { resolve } from 'node:path';
 
 const DEMO_EMAIL = 'demo@bloodlinebook.test';
 const DEMO_PASSWORD = 'DemoHerd2026!';
+const HAND_EMAIL = 'hand@bloodlinebook.test';
+const HAND_PASSWORD = 'DemoHand2026!';
 const FARM_NAME = 'Willow Creek Demo';
 
 function loadEnv() {
@@ -93,6 +95,84 @@ async function ensureSession() {
     );
   }
   return retry.data.session;
+}
+
+async function signInDemoOwner() {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: DEMO_EMAIL,
+    password: DEMO_PASSWORD,
+  });
+  if (error || !data.session) {
+    throw error ?? new Error('Could not sign in demo owner');
+  }
+  return data.session;
+}
+
+async function ensureHandUserId() {
+  const existing = await supabase.auth.signInWithPassword({
+    email: HAND_EMAIL,
+    password: HAND_PASSWORD,
+  });
+  if (!existing.error && existing.data.user) {
+    const userId = existing.data.user.id;
+    await supabase.auth.signOut();
+    await signInDemoOwner();
+    return userId;
+  }
+
+  const signUp = await supabase.auth.signUp({
+    email: HAND_EMAIL,
+    password: HAND_PASSWORD,
+  });
+  if (signUp.error) {
+    throw signUp.error;
+  }
+  const userId = signUp.data.user?.id;
+  if (!userId) {
+    throw new Error(
+      'Hand account created but no user id — disable email confirmation on dev Supabase.',
+    );
+  }
+  await supabase.auth.signOut();
+  await signInDemoOwner();
+  return userId;
+}
+
+async function ensureHandMembership(farmId) {
+  const handUserId = await ensureHandUserId();
+  const { data: existing, error: lookupErr } = await supabase
+    .from('farm_members')
+    .select('role')
+    .eq('farm_id', farmId)
+    .eq('user_id', handUserId)
+    .maybeSingle();
+  if (lookupErr) {
+    throw lookupErr;
+  }
+  if (existing?.role === 'hand') {
+    return handUserId;
+  }
+  if (existing) {
+    const { error: updateErr } = await supabase
+      .from('farm_members')
+      .update({ role: 'hand' })
+      .eq('farm_id', farmId)
+      .eq('user_id', handUserId);
+    if (updateErr) {
+      throw updateErr;
+    }
+    return handUserId;
+  }
+
+  const { error: insertErr } = await supabase.from('farm_members').insert({
+    farm_id: farmId,
+    user_id: handUserId,
+    role: 'hand',
+  });
+  if (insertErr) {
+    throw insertErr;
+  }
+  return handUserId;
 }
 
 async function farmAlreadySeeded() {
@@ -492,12 +572,19 @@ async function seed() {
 }
 
 seed()
-  .then(({ farmId, skipped, dueOpen }) => {
+  .then(async ({ farmId, skipped, dueOpen }) => {
+    await ensureHandMembership(farmId);
+
     console.log('');
     console.log('Demo account ready');
     console.log('--------------------');
-    console.log(`Email:    ${DEMO_EMAIL}`);
-    console.log(`Password: ${DEMO_PASSWORD}`);
+    console.log(`Owner email:    ${DEMO_EMAIL}`);
+    console.log(`Owner password: ${DEMO_PASSWORD}`);
+    console.log('');
+    console.log('Hand account (Phase 5 read-only testing)');
+    console.log(`Hand email:     ${HAND_EMAIL}`);
+    console.log(`Hand password:  ${HAND_PASSWORD}`);
+    console.log('');
     console.log(`Farm:     ${FARM_NAME} (${farmId})`);
     if (skipped) {
       console.log('');

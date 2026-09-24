@@ -4,11 +4,23 @@ Use this account to explore Bloodline Book with pre-loaded herd data. Safe for d
 
 ## Credentials
 
+### Owner (full access)
+
 | Field | Value |
 |-------|--------|
 | **Email** | `demo@bloodlinebook.test` |
 | **Password** | `DemoHerd2026!` |
 | **Farm name** | Willow Creek Demo |
+
+### Hand (view-only — Phase 5)
+
+Same farm as the owner demo. Use this to test read-only UI, sync badge, and rejected uploads (e.g. try to complete a task — should fail on sync and appear under **Changes not saved** after online sync).
+
+| Field | Value |
+|-------|--------|
+| **Email** | `hand@bloodlinebook.test` |
+| **Password** | `DemoHand2026!` |
+| **Role** | `hand` on Willow Creek Demo |
 
 Sign in with email and password (no magic link). Email confirmation is disabled on dev Supabase projects.
 
@@ -33,7 +45,7 @@ From the repo root (uses the anon key in `.env`; run `bash scripts/setup-env.sh`
 npm run seed:demo
 ```
 
-If a farm named `Willow Creek Demo` already exists for this user, the script leaves it unchanged and prints the same credentials.
+If a farm named `Willow Creek Demo` already exists for this user, the script leaves herd data unchanged but still ensures the **hand** member exists on that farm.
 
 ## Backend
 
