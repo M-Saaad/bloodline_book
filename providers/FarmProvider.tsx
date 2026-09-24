@@ -16,6 +16,7 @@ import {
   getFarmsForUserFromSupabase,
 } from '@/lib/db/farms';
 import { mapFarm } from '@/lib/db/mappers';
+import { withTimeout } from '@/lib/network/online';
 import { reconnectPowerSync } from '@/lib/powersync/system';
 import { useUiStore } from '@/lib/store/ui';
 import type { Farm } from '@/lib/types/tenancy';
@@ -120,7 +121,13 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    getFarmsForUserFromSupabase(userId)
+    void getFarmsForUser(userId).then((local) => {
+      if (!cancelled && local.length > 0) {
+        setBootstrapFarms(local);
+      }
+    });
+
+    withTimeout(getFarmsForUserFromSupabase(userId), 8000, 'farm bootstrap')
       .then((serverFarms) => {
         if (!cancelled) {
           setBootstrapFarms(serverFarms);
@@ -129,7 +136,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       .catch((error) => {
         console.error('Supabase farm bootstrap failed:', error);
         if (!cancelled) {
-          setBootstrapFarms([]);
+          setBootstrapFarms((previous) => previous ?? []);
         }
       });
 

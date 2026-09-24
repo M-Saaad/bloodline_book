@@ -1,4 +1,3 @@
-import { useStatus } from '@powersync/react';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -7,11 +6,13 @@ import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { isSyncUploadLikelyAvailable } from '@/lib/powersync/sync-online';
 import {
   disconnectAndClearPowerSync,
   disconnectPowerSync,
   powersync,
 } from '@/lib/powersync/system';
+import { isDeviceOnline } from '@/lib/network/online';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import { useAuth } from '@/providers/AuthProvider';
@@ -31,47 +32,62 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+function offlineBlockMessage(count: number): string {
+  return `${count} change${count === 1 ? '' : 's'} are only on this device. Connect to the internet and wait for "All saved" before signing out.`;
+}
+
 export default function MoreScreen() {
   const { signOut } = useAuth();
   const { activeFarm } = useFarm();
   const { isHand } = useFarmRole();
-  const syncStatus = useStatus();
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [signOutMessage, setSignOutMessage] = useState('');
   const [pendingQueueCount, setPendingQueueCount] = useState(0);
 
+  function showPendingSignOutBlock(count: number) {
+    setPendingQueueCount(count);
+    setSignOutMessage(offlineBlockMessage(count));
+  }
+
   async function handleSignOut() {
     setSignOutMessage('');
+    setPendingQueueCount(0);
     setSignOutBusy(true);
     try {
       const stats = await powersync.getUploadQueueStats();
       if (stats.count === 0) {
         await disconnectPowerSync();
-        await signOut();
+        await signOut({ localOnly: !isDeviceOnline() });
         router.replace('/(auth)/sign-in');
         return;
       }
 
-      if (syncStatus.connected) {
-        setSignOutMessage(`Uploading ${stats.count} changes…`);
-        for (let attempt = 0; attempt < 30; attempt += 1) {
-          await sleep(1000);
-          const next = await powersync.getUploadQueueStats();
-          if (next.count === 0) {
-            await disconnectPowerSync();
-            await signOut();
-            router.replace('/(auth)/sign-in');
-            return;
-          }
-          setSignOutMessage(`Uploading ${next.count} changes…`);
+      if (!isSyncUploadLikelyAvailable()) {
+        showPendingSignOutBlock(stats.count);
+        return;
+      }
+
+      setSignOutMessage(`Uploading ${stats.count} changes…`);
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        if (!isSyncUploadLikelyAvailable()) {
+          const pending = await powersync.getUploadQueueStats();
+          showPendingSignOutBlock(pending.count);
+          return;
         }
+
+        await sleep(1000);
+        const next = await powersync.getUploadQueueStats();
+        if (next.count === 0) {
+          await disconnectPowerSync();
+          await signOut({ localOnly: false });
+          router.replace('/(auth)/sign-in');
+          return;
+        }
+        setSignOutMessage(`Uploading ${next.count} changes…`);
       }
 
       const remaining = await powersync.getUploadQueueStats();
-      setPendingQueueCount(remaining.count);
-      setSignOutMessage(
-        `${remaining.count} changes are only on this phone. Connect to the internet and wait for "All saved" before signing out.`,
-      );
+      showPendingSignOutBlock(remaining.count);
     } finally {
       setSignOutBusy(false);
     }
@@ -81,7 +97,7 @@ export default function MoreScreen() {
     const stats = await powersync.getUploadQueueStats();
     const confirmed = await confirmAction(
       'Sign out and delete local changes?',
-      `${stats.count} change${stats.count === 1 ? '' : 's'} on this phone will be permanently deleted.`,
+      `${stats.count} change${stats.count === 1 ? '' : 's'} on this device will be permanently deleted.`,
       'Sign out and delete',
     );
     if (!confirmed) {
@@ -91,7 +107,7 @@ export default function MoreScreen() {
     setSignOutBusy(true);
     try {
       await disconnectAndClearPowerSync();
-      await signOut();
+      await signOut({ localOnly: !isDeviceOnline() });
       router.replace('/(auth)/sign-in');
     } finally {
       setSignOutBusy(false);
@@ -130,7 +146,7 @@ export default function MoreScreen() {
       <FormMessage message={signOutMessage} tone="error" />
 
       <Button
-        title={signOutBusy ? 'Signing out…' : 'Sign Out'}
+        title={signOutBusy ? 'Working…' : 'Sign Out'}
         variant="outline"
         onPress={handleSignOut}
         disabled={signOutBusy}

@@ -23,7 +23,7 @@ interface AuthContextValue {
   ) => Promise<{ sessionCreated: boolean }>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: (options?: { localOnly?: boolean }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -90,8 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
+  const signOut = useCallback(async (options?: { localOnly?: boolean }) => {
+    const scope = options?.localOnly ? 'local' : 'global';
+    const { error } = await supabase.auth.signOut({ scope });
     if (error) {
       throw error;
     }
