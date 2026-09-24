@@ -95,7 +95,7 @@ In Vercel → your project → **Settings → Environment Variables**, add:
 | `EXPO_PUBLIC_POWERSYNC_URL` | ✅ | ✅ | Dev PowerSync in **Preview**, Prod in **Production** |
 | `EXPO_PUBLIC_DATABASE_TARGET` | ✅ | ✅ | `development` in **Preview**, `production` in **Production** |
 
-**Migrating from the old Next.js app:** if your Vercel project still has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, the Expo build script maps those automatically — but you must still add `EXPO_PUBLIC_POWERSYNC_URL` (required for Phase 0).
+**Migrating from the old Next.js app:** if your Vercel project still has `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, the Expo build script maps those automatically — but you must still add `EXPO_PUBLIC_POWERSYNC_URL` (required for the Phase 0 foundation in [ROADMAP.md](../ROADMAP.md)).
 
 Use the **same variable names** — Vercel injects different values per deployment type.
 
