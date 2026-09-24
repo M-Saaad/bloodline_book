@@ -14,6 +14,7 @@ import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
+import { getAnimalById } from '@/lib/db/animals';
 import { createDewormFollowUpTask, createHealthRecord } from '@/lib/db/health';
 import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
 import {
@@ -174,7 +175,9 @@ export default function AddHealthRecordScreen() {
       return;
     }
 
-    const animal = animals.find((item) => item.id === animalId);
+    const animal =
+      animals.find((item) => item.id === animalId) ??
+      (await getAnimalById(animalId));
     const animalLabel = animal ? animalDisplayLabel(animal) : 'Animal';
     const supports = healthKindSupportsWithdrawal(kind);
 
