@@ -4,6 +4,8 @@
 **Purpose:** describe what a farm user can do today, what the product quietly assumes, and where the experience stops, so you can recommend the next product step.  
 **Basis:** the current Expo app on `main` (Phases 0–4 merged). An older planning note, `docs/BLOODLINE-BOOK.md` at GitHub commit `fe665f2`, describes a different phase numbering from a previous Next.js app. That note is summarized in [Appendix B](#appendix-b--older-plan-not-the-current-app). It is not what users see now.
 
+Every path, branch, and chained story is written out in [USER-FLOWS.md](USER-FLOWS.md).
+
 ---
 
 ## 1. What this product is trying to be

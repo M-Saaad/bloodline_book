@@ -77,6 +77,8 @@ See [docs/environments.md](docs/environments.md) for branch → database mapping
 
 User-facing inventory of what the app does today, what it does not, and questions for an outside expert: [docs/PRODUCT-REVIEW.md](docs/PRODUCT-REVIEW.md).
 
+Every path from sign-in through FAMACHA scoring and kidding, including branches and chained stories: [docs/USER-FLOWS.md](docs/USER-FLOWS.md).
+
 ## Project structure
 
 See the build specification in the repository issue/PR for the full schema, build order, and Phase 1+ scope.
