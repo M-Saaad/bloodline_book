@@ -79,6 +79,8 @@ User-facing inventory of what the app does today, what it does not, and question
 
 Every path from sign-in through FAMACHA scoring and kidding, including branches and chained stories: [docs/USER-FLOWS.md](docs/USER-FLOWS.md).
 
+Demo login with sample herd data: [docs/TEST-ACCOUNT.md](docs/TEST-ACCOUNT.md) (`npm run seed:demo`).
+
 ## Project structure
 
 See the build specification in the repository issue/PR for the full schema, build order, and Phase 1+ scope.
