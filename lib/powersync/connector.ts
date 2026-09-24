@@ -12,7 +12,9 @@ import {
   isFatalUploadError,
   SERVER_MANAGED_UPLOAD_TABLES,
   toUploadError,
+  uploadRowRejectedError,
 } from '@/lib/powersync/errors';
+import { recordUploadTransactionFailures } from '@/lib/powersync/upload-failures';
 import { supabase } from '@/lib/supabase/client';
 
 export class SupabaseConnector implements PowerSyncBackendConnector {
@@ -49,27 +51,39 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       return;
     }
 
-    let lastOp: CrudEntry | null = null;
+    const ops = transaction.crud;
+    let failedOpIndex = 0;
 
     try {
-      for (const op of transaction.crud) {
-        lastOp = op;
-        await this.applyCrud(op);
+      for (let index = 0; index < ops.length; index += 1) {
+        failedOpIndex = index;
+        await this.applyCrud(ops[index]);
       }
       await transaction.complete();
     } catch (error) {
       const uploadError = toUploadError(error);
+      const failedOp = ops[failedOpIndex] ?? null;
       console.error('PowerSync upload error:', formatUploadError(error), {
-        table: lastOp?.table,
-        op: lastOp?.op,
-        id: lastOp?.id,
+        table: failedOp?.table,
+        op: failedOp?.op,
+        id: failedOp?.id,
       });
 
       if (isFatalUploadError(error)) {
         console.error(
-          'PowerSync upload error is not retryable — discarding transaction:',
-          lastOp,
+          'PowerSync upload error is not retryable — recording and completing transaction:',
+          failedOp,
         );
+        try {
+          await recordUploadTransactionFailures(
+            database,
+            ops,
+            failedOpIndex,
+            error,
+          );
+        } catch (recordError) {
+          console.error('Failed to record upload failures:', recordError);
+        }
         await transaction.complete();
         return;
       }
@@ -105,16 +119,30 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
       }
       case UpdateType.PATCH: {
         const { id, ...patch } = record;
-        const { error } = await supabase.from(table).update(patch).eq('id', id);
+        const { data, error } = await supabase
+          .from(table)
+          .update(patch)
+          .eq('id', id)
+          .select('id');
         if (error) {
           throw error;
+        }
+        if (!data?.length) {
+          throw uploadRowRejectedError('update');
         }
         break;
       }
       case UpdateType.DELETE: {
-        const { error } = await supabase.from(table).delete().eq('id', op.id);
+        const { data, error } = await supabase
+          .from(table)
+          .delete()
+          .eq('id', op.id)
+          .select('id');
         if (error) {
           throw error;
+        }
+        if (!data?.length) {
+          throw uploadRowRejectedError('delete');
         }
         break;
       }

@@ -2,16 +2,20 @@ import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapAnimal } from '@/lib/db/mappers';
 import { formatLifecycleStage } from '@/lib/ui/animal-labels';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function LivestockListScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();
+  const { isHand } = useFarmRole();
 
   const { data, isLoading: animalsLoading } = useQuery(
     activeFarm
@@ -43,18 +47,27 @@ export default function LivestockListScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <View className="px-4 py-3 flex-row gap-2">
-        <Button
-          title="Add Animal"
-          onPress={() => router.push('/(tabs)/livestock/add')}
-          className="flex-1"
-        />
-        <Button
-          title="Weigh Day"
-          variant="secondary"
-          onPress={() => router.push('/(tabs)/livestock/weight')}
-          className="flex-1"
-        />
+      {isHand ? (
+        <View className="px-4 pt-3">
+          <ReadOnlyFarmBanner />
+        </View>
+      ) : null}
+      <View className="px-4 py-3">
+        <FarmWriteGate>
+          <View className="flex-row gap-2">
+            <Button
+              title="Add Animal"
+              onPress={() => router.push('/(tabs)/livestock/add')}
+              className="flex-1"
+            />
+            <Button
+              title="Weigh Day"
+              variant="secondary"
+              onPress={() => router.push('/(tabs)/livestock/weight')}
+              className="flex-1"
+            />
+          </View>
+        </FarmWriteGate>
       </View>
 
       <FlatList

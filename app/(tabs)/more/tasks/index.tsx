@@ -2,16 +2,19 @@ import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapTask } from '@/lib/db/mappers';
 import { setTaskCompleted } from '@/lib/db/documents';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function TasksScreen() {
   const { activeFarm } = useFarm();
+  const { canWrite } = useFarmRole();
 
   const { data, isLoading } = useQuery(
     activeFarm
@@ -27,6 +30,9 @@ export default function TasksScreen() {
   );
 
   async function toggleTask(taskId: string, completed: boolean) {
+    if (!canWrite) {
+      return;
+    }
     await setTaskCompleted(taskId, !completed);
   }
 
@@ -41,10 +47,12 @@ export default function TasksScreen() {
   return (
     <View className="flex-1 bg-gray-50">
       <View className="px-4 py-3">
-        <Button
-          title="Add Task"
-          onPress={() => router.push('/(tabs)/more/tasks/add')}
-        />
+        <FarmWriteGate>
+          <Button
+            title="Add Task"
+            onPress={() => router.push('/(tabs)/more/tasks/add')}
+          />
+        </FarmWriteGate>
       </View>
 
       <FlatList

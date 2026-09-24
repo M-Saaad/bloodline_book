@@ -62,3 +62,26 @@ export function isDuplicateKeyError(error: unknown): boolean {
     (error as { code?: unknown }).code === '23505'
   );
 }
+
+export function getUploadErrorCode(error: unknown): string | null {
+  if (typeof error === 'object' && error !== null) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') {
+      return code;
+    }
+  }
+  return null;
+}
+
+/** Thrown when PostgREST returns zero rows for PATCH/DELETE (often RLS). */
+export function uploadRowRejectedError(
+  operation: 'update' | 'delete',
+): Record<string, string> {
+  return {
+    code: '42501',
+    message:
+      operation === 'update'
+        ? 'Update was rejected by the server.'
+        : 'Delete was rejected by the server.',
+  };
+}

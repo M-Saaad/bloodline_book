@@ -22,13 +22,9 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
       if (!isConfigured || !session) {
         connectedUserIdRef.current = null;
         try {
-          await disconnectAndClearPowerSync();
+          await disconnectPowerSync();
         } catch {
-          try {
-            await disconnectPowerSync();
-          } catch {
-            // ignore when not connected
-          }
+          // ignore when not connected
         }
         return;
       }

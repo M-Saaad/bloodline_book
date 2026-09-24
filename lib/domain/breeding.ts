@@ -3,7 +3,6 @@ import type { BreedingStatus } from '@/lib/types/breeding';
 export const BREEDING_STATUSES_OPEN_FOR_KIDDING: readonly BreedingStatus[] = [
   'bred',
   'confirmed',
-  'open',
 ];
 
 export function isBreedingOpenForKidding(status: BreedingStatus): boolean {

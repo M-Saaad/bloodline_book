@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -133,6 +134,7 @@ export default function AddKiddingScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <ScrollView
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4">
@@ -236,5 +238,6 @@ export default function AddKiddingScreen() {
         disabled={loading}
       />
     </ScrollView>
+    </HandWriteBlocked>
   );
 }

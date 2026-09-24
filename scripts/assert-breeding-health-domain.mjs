@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 function isBreedingOpenForKidding(status) {
-  return ['bred', 'confirmed', 'open'].includes(status);
+  return ['bred', 'confirmed'].includes(status);
 }
 
 function needsFamachaFollowUp(score) {
@@ -21,6 +21,7 @@ function withdrawalClearDate(recordDate, withdrawalDays) {
 }
 
 assert.equal(isBreedingOpenForKidding('bred'), true);
+assert.equal(isBreedingOpenForKidding('open'), false);
 assert.equal(isBreedingOpenForKidding('kidded'), false);
 assert.equal(needsFamachaFollowUp(3), false);
 assert.equal(needsFamachaFollowUp(4), true);

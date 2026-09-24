@@ -1,13 +1,10 @@
 import { Stack } from 'expo-router';
 
+import { stackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
+
 export default function BreedingLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: '#fdf4f3' },
-        headerTintColor: '#752c26',
-        headerTitleStyle: { fontWeight: '600' },
-      }}>
+    <Stack screenOptions={stackWithSyncBadge}>
       <Stack.Screen name="index" options={{ title: 'Breeding & Kidding' }} />
       <Stack.Screen name="add-breeding" options={{ title: 'Log Breeding' }} />
       <Stack.Screen name="add-kidding" options={{ title: 'Log Kidding' }} />

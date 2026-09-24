@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -80,6 +81,7 @@ export default function AddPastureScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
@@ -156,5 +158,6 @@ export default function AddPastureScreen() {
         disabled={loading}
       />
     </ScrollView>
+    </HandWriteBlocked>
   );
 }

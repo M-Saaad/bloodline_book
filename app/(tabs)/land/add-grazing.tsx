@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -92,6 +93,7 @@ export default function AddGrazingScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
@@ -143,5 +145,6 @@ export default function AddGrazingScreen() {
         disabled={loading || pastures.length === 0}
       />
     </ScrollView>
+    </HandWriteBlocked>
   );
 }

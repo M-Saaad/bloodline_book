@@ -3,15 +3,19 @@ import { router } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
+import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function DashboardScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();
+  const { isHand } = useFarmRole();
 
   const { data: herdStats, isLoading: statsLoading } = useQuery(
     activeFarm
@@ -64,6 +68,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
       <EnvironmentBadge />
+      {isHand ? <ReadOnlyFarmBanner /> : null}
       <Card>
         <Text className="text-xl font-bold text-gray-900 mb-1">
           {activeFarm.name}
@@ -86,15 +91,19 @@ export default function DashboardScreen() {
           Quick actions
         </Text>
         <View className="gap-2">
-          <Button
-            title="Add Animal"
-            onPress={() => router.push('/(tabs)/livestock/add')}
-          />
-          <Button
-            title="Weigh Day"
-            variant="secondary"
-            onPress={() => router.push('/(tabs)/livestock/weight')}
-          />
+          <FarmWriteGate>
+            <View className="gap-2">
+              <Button
+                title="Add Animal"
+                onPress={() => router.push('/(tabs)/livestock/add')}
+              />
+              <Button
+                title="Weigh Day"
+                variant="secondary"
+                onPress={() => router.push('/(tabs)/livestock/weight')}
+              />
+            </View>
+          </FarmWriteGate>
           <Button
             title="Land"
             variant="outline"
@@ -114,11 +123,13 @@ export default function DashboardScreen() {
             <Text className="text-gray-500 mb-3">
               No weigh sessions yet. Record your first batch on Weigh Day.
             </Text>
-            <Button
-              title="Start Weigh Day"
-              variant="outline"
-              onPress={() => router.push('/(tabs)/livestock/weight')}
-            />
+            <FarmWriteGate>
+              <Button
+                title="Start Weigh Day"
+                variant="outline"
+                onPress={() => router.push('/(tabs)/livestock/weight')}
+              />
+            </FarmWriteGate>
           </View>
         ) : (
           (recentSessions ?? []).map((row) => {

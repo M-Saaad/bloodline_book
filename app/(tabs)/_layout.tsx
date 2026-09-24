@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
 import { RequireAuth } from '@/components/RequireAuth';
+import { syncBadgeHeaderRight } from '@/components/SyncBadge';
 
 function TabIcon({ label }: { label: string }) {
   return <Text className="text-lg">{label}</Text>;
@@ -17,6 +18,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: '#fdf4f3' },
         headerTintColor: '#752c26',
         headerTitleStyle: { fontWeight: '600' },
+        headerRight: syncBadgeHeaderRight(),
       }}>
       <Tabs.Screen
         name="dashboard"
