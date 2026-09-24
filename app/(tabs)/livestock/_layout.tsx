@@ -10,6 +10,11 @@ export default function LivestockLayout() {
       <Stack.Screen name="weight" options={{ title: 'Weigh Day' }} />
       <Stack.Screen name="[id]" options={{ title: 'Animal' }} />
       <Stack.Screen name="edit/[id]" options={{ title: 'Edit Animal' }} />
+      <Stack.Screen name="weight-log/[id]" options={{ title: 'Edit Weight' }} />
+      <Stack.Screen
+        name="weigh-session/[id]"
+        options={{ title: 'Weigh Session' }}
+      />
     </Stack>
   );
 }

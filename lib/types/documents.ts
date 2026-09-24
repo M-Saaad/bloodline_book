@@ -13,6 +13,7 @@ export interface FarmDocument {
   storagePath: string | null;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface FarmTask {
@@ -32,4 +33,5 @@ export interface FarmTask {
   sourceId: string | null;
   completed: boolean;
   createdAt: string;
+  updatedAt: string;
 }

@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -91,7 +91,9 @@ export default function FinancesScreen() {
           />
         }
         renderItem={({ item }) => (
-          <View className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
+          <Pressable
+            onPress={() => router.push(`/(tabs)/finances/edit/${item.id}`)}
+            className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
             <View className="flex-row justify-between items-start mb-1">
               <Text className="text-lg font-semibold text-gray-900 capitalize">
                 {item.category}
@@ -114,7 +116,7 @@ export default function FinancesScreen() {
             {item.notes ? (
               <Text className="text-gray-500 text-sm mt-2">{item.notes}</Text>
             ) : null}
-          </View>
+          </Pressable>
         )}
       />
     </View>

@@ -90,6 +90,7 @@ export function mapWeighSession(row: Record<string, unknown>): WeighSession {
     weighPoint: row.weigh_point as WeighSession['weighPoint'],
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -102,6 +103,7 @@ export function mapWeightLog(row: Record<string, unknown>): WeightLog {
     weightValue: Number(row.weight_value),
     weightUnit: row.weight_unit as WeightLog['weightUnit'],
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -115,6 +117,7 @@ export function mapTransaction(row: Record<string, unknown>): Transaction {
     category: String(row.category),
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -140,6 +143,7 @@ export function mapDocument(row: Record<string, unknown>): FarmDocument {
       row.storage_path != null ? String(row.storage_path) : null,
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -155,6 +159,7 @@ export function mapTask(row: Record<string, unknown>): FarmTask {
     sourceId: row.source_id != null ? String(row.source_id) : null,
     completed: Boolean(row.completed),
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -174,6 +179,7 @@ export function mapHealthRecord(row: Record<string, unknown>): HealthRecord {
       row.withdrawal_days != null ? Number(row.withdrawal_days) : null,
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -220,6 +226,7 @@ export function mapGrazingRecord(row: Record<string, unknown>): GrazingRecord {
     endDate: row.end_date != null ? String(row.end_date) : null,
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 
@@ -234,6 +241,7 @@ export function mapFeedLog(row: Record<string, unknown>): FeedLog {
     pastureId: row.pasture_id != null ? String(row.pasture_id) : null,
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
   };
 }
 

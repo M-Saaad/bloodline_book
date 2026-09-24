@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { AnimalBreedFields } from '@/components/livestock/AnimalBreedFields';
 import { AnimalIdentityFields } from '@/components/livestock/AnimalIdentityFields';
 import { AnimalParentFields } from '@/components/livestock/AnimalParentFields';
+import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -15,12 +16,19 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
   createFarmBreed,
+  deleteAnimal,
   findAnimalByTagNumber,
   getAnimalById,
+  getAnimalDeleteInfo,
   getBreedsForFarm,
   getParentPickerAnimals,
   updateAnimal,
 } from '@/lib/db/animals';
+import {
+  animalDeleteBlockedMessage,
+  formatAnimalDeletePreview,
+  type AnimalDeleteBlocker,
+} from '@/lib/domain/animal-delete';
 import type { Animal, Breed } from '@/lib/types/animals';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -77,6 +85,10 @@ export default function EditAnimalScreen() {
   const [sireExternalName, setSireExternalName] = useState('');
   const [damAnimals, setDamAnimals] = useState<Animal[]>([]);
   const [sireAnimals, setSireAnimals] = useState<Animal[]>([]);
+  const [deleteBlockers, setDeleteBlockers] = useState<AnimalDeleteBlocker[]>(
+    [],
+  );
+  const [deletePreview, setDeletePreview] = useState('');
 
   useEffect(() => {
     if (!activeFarm || !id) {
@@ -128,6 +140,12 @@ export default function EditAnimalScreen() {
         setBreeds(farmBreeds);
         setDamAnimals(does);
         setSireAnimals(bucks);
+
+        const deleteInfo = await getAnimalDeleteInfo(id);
+        if (!cancelled) {
+          setDeleteBlockers(deleteInfo.blockers);
+          setDeletePreview(formatAnimalDeletePreview(deleteInfo));
+        }
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
@@ -396,6 +414,25 @@ export default function EditAnimalScreen() {
           onPress={handleSave}
           disabled={saving}
           className="mt-2"
+        />
+
+        <DeleteRecordButton
+          title="Delete goat"
+          confirmTitle="Delete this goat?"
+          confirmMessage={deletePreview}
+          disabled={deleteBlockers.length > 0}
+          disabledReason={
+            deleteBlockers.length > 0
+              ? animalDeleteBlockedMessage(deleteBlockers)
+              : undefined
+          }
+          onDelete={async () => {
+            if (!id) {
+              return;
+            }
+            await deleteAnimal(id);
+            router.replace('/(tabs)/livestock');
+          }}
         />
       </ScrollView>
     </HandWriteBlocked>

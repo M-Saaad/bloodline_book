@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,8 @@ import {
   mapBreedingEvent,
   mapKiddingEvent,
 } from '@/lib/db/mappers';
+import { ensureBreedingDueTask } from '@/lib/db/breeding';
+import { isBreedingOpenForKidding } from '@/lib/domain/breeding';
 import { ORDER_DUE_DATE_DESC } from '@/lib/sql/portableOrder';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -69,6 +71,22 @@ export default function BreedingScreen() {
   const kiddingEvents = (kiddingRows ?? []).map((row) =>
     mapKiddingEvent(row as Record<string, unknown>),
   );
+
+  const ensuredBreedingTasks = useRef(new Set<string>());
+
+  useEffect(() => {
+    for (const event of breedingEvents) {
+      if (
+        !event.dueDate ||
+        !isBreedingOpenForKidding(event.status) ||
+        ensuredBreedingTasks.current.has(event.id)
+      ) {
+        continue;
+      }
+      ensuredBreedingTasks.current.add(event.id);
+      void ensureBreedingDueTask(event.id);
+    }
+  }, [breedingEvents]);
 
   if (!activeFarm) {
     return null;
@@ -131,8 +149,11 @@ export default function BreedingScreen() {
             Breedings
           </Text>
           {breedingEvents.map((item) => (
-            <View
+            <Pressable
               key={item.id}
+              onPress={() =>
+                router.push(`/(tabs)/more/breeding/edit-breeding/${item.id}`)
+              }
               className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
               <View className="flex-row justify-between items-start">
                 <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
@@ -154,7 +175,7 @@ export default function BreedingScreen() {
                     : item.sireExternalName}
                 </Text>
               ) : null}
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}
@@ -165,8 +186,11 @@ export default function BreedingScreen() {
             Kiddings
           </Text>
           {kiddingEvents.map((item) => (
-            <View
+            <Pressable
               key={item.id}
+              onPress={() =>
+                router.push(`/(tabs)/more/breeding/edit-kidding/${item.id}`)
+              }
               className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
               <Text className="text-lg font-semibold text-gray-900">
                 {animalLabels.get(item.damId) ?? 'Dam'}
@@ -177,7 +201,7 @@ export default function BreedingScreen() {
                   ? ` · ${item.kidsSurviving} surviving`
                   : ''}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}

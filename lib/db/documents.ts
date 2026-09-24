@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 
 import { mapDocument, mapTask } from '@/lib/db/mappers';
+import { dbNow } from '@/lib/db/now';
 import { ORDER_TASKS_BY_DUE } from '@/lib/sql/portableOrder';
 import { powersync } from '@/lib/powersync/system';
 import type { FarmDocument, FarmTask } from '@/lib/types/documents';
@@ -27,12 +28,12 @@ export async function createDocument(
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.execute(
     `INSERT INTO documents (
-      id, farm_id, animal_id, type, title, storage_path, notes, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, farm_id, animal_id, type, title, storage_path, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       farmId,
@@ -41,6 +42,7 @@ export async function createDocument(
       input.title,
       null,
       input.notes ?? null,
+      now,
       now,
     ],
   );
@@ -69,12 +71,12 @@ export async function createTask(
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.execute(
     `INSERT INTO tasks (
-      id, farm_id, title, due_date, priority, source, source_id, completed, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     [
       id,
       farmId,
@@ -84,18 +86,53 @@ export async function createTask(
       input.source ?? 'manual',
       input.sourceId ?? null,
       now,
+      now,
     ],
   );
 
   return id;
 }
 
+export async function getTaskById(taskId: string): Promise<FarmTask | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM tasks WHERE id = ?',
+    [taskId],
+  );
+  return row ? mapTask(row) : null;
+}
+
+export async function updateTask(
+  taskId: string,
+  input: {
+    title: string;
+    dueDate?: string;
+    priority?: FarmTask['priority'];
+  },
+): Promise<void> {
+  const now = dbNow();
+  await powersync.execute(
+    `UPDATE tasks SET title = ?, due_date = ?, priority = ?, updated_at = ? WHERE id = ?`,
+    [
+      input.title,
+      input.dueDate ?? null,
+      input.priority ?? 'medium',
+      now,
+      taskId,
+    ],
+  );
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  await powersync.execute('DELETE FROM tasks WHERE id = ?', [taskId]);
+}
+
 export async function setTaskCompleted(
   taskId: string,
   completed: boolean,
 ): Promise<void> {
+  const now = dbNow();
   await powersync.execute(
-    'UPDATE tasks SET completed = ? WHERE id = ?',
-    [completed ? 1 : 0, taskId],
+    'UPDATE tasks SET completed = ?, updated_at = ? WHERE id = ?',
+    [completed ? 1 : 0, now, taskId],
   );
 }

@@ -7,4 +7,5 @@ export interface Transaction {
   category: string;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
 }

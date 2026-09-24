@@ -1,6 +1,13 @@
 import * as Crypto from 'expo-crypto';
 
+import type { Transaction } from '@powersync/common';
+
+import {
+  animalDeleteBlockedMessage,
+  type AnimalDeleteBlocker,
+} from '@/lib/domain/animal-delete';
 import { mapAnimal, mapBreed } from '@/lib/db/mappers';
+import { dbNow } from '@/lib/db/now';
 import { powersync } from '@/lib/powersync/system';
 import type { Animal, Breed } from '@/lib/types/animals';
 
@@ -140,7 +147,7 @@ export async function createAnimal(
   input: AnimalWriteInput & { sex: Animal['sex'] },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.execute(
     `INSERT INTO animals (
@@ -196,7 +203,7 @@ export async function updateAnimal(
   animalId: string,
   input: AnimalWriteInput,
 ): Promise<void> {
-  const now = new Date().toISOString();
+  const now = dbNow();
   const fields: string[] = [];
   const values: unknown[] = [];
 
@@ -269,4 +276,86 @@ export async function updateAnimal(
     `UPDATE animals SET ${fields.join(', ')} WHERE id = ?`,
     values,
   );
+}
+
+export type AnimalDeleteInfo = {
+  blockers: AnimalDeleteBlocker[];
+  weightCount: number;
+  healthCount: number;
+  grazingCount: number;
+};
+
+export async function getAnimalDeleteInfo(
+  animalId: string,
+): Promise<AnimalDeleteInfo> {
+  const breedingCount = await powersync.getOptional<{ count: number }>(
+    `SELECT COUNT(*) as count FROM breeding_events
+     WHERE dam_id = ? OR sire_id = ?`,
+    [animalId, animalId],
+  );
+  const kiddingCount = await powersync.getOptional<{ count: number }>(
+    `SELECT COUNT(*) as count FROM kidding_events WHERE dam_id = ?`,
+    [animalId],
+  );
+  const offspringCount = await powersync.getOptional<{ count: number }>(
+    `SELECT COUNT(*) as count FROM animals
+     WHERE dam_id = ? OR sire_id = ?`,
+    [animalId, animalId],
+  );
+
+  const blockers: AnimalDeleteBlocker[] = [];
+  if (Number(breedingCount?.count ?? 0) > 0) {
+    blockers.push('breeding');
+  }
+  if (Number(kiddingCount?.count ?? 0) > 0) {
+    blockers.push('kidding');
+  }
+  if (Number(offspringCount?.count ?? 0) > 0) {
+    blockers.push('offspring');
+  }
+
+  const weightCount = await powersync.getOptional<{ count: number }>(
+    'SELECT COUNT(*) as count FROM weight_logs WHERE animal_id = ?',
+    [animalId],
+  );
+  const healthCount = await powersync.getOptional<{ count: number }>(
+    'SELECT COUNT(*) as count FROM health_records WHERE animal_id = ?',
+    [animalId],
+  );
+  const grazingCount = await powersync.getOptional<{ count: number }>(
+    'SELECT COUNT(*) as count FROM grazing_records WHERE animal_id = ?',
+    [animalId],
+  );
+
+  return {
+    blockers,
+    weightCount: Number(weightCount?.count ?? 0),
+    healthCount: Number(healthCount?.count ?? 0),
+    grazingCount: Number(grazingCount?.count ?? 0),
+  };
+}
+
+export class AnimalDeleteBlockedError extends Error {
+  constructor(blockers: AnimalDeleteBlocker[]) {
+    super(animalDeleteBlockedMessage(blockers));
+    this.name = 'AnimalDeleteBlockedError';
+  }
+}
+
+export async function deleteAnimal(animalId: string): Promise<void> {
+  const info = await getAnimalDeleteInfo(animalId);
+  if (info.blockers.length > 0) {
+    throw new AnimalDeleteBlockedError(info.blockers);
+  }
+
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await tx.execute('DELETE FROM weight_logs WHERE animal_id = ?', [animalId]);
+    await tx.execute('DELETE FROM health_records WHERE animal_id = ?', [
+      animalId,
+    ]);
+    await tx.execute('DELETE FROM grazing_records WHERE animal_id = ?', [
+      animalId,
+    ]);
+    await tx.execute('DELETE FROM animals WHERE id = ?', [animalId]);
+  });
 }

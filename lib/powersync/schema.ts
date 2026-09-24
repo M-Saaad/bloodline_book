@@ -78,6 +78,7 @@ const weighSessions = new Table(
     weigh_point: column.text,
     notes: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   { indexes: { session_farm: ['farm_id'], session_date: ['date'] } },
 );
@@ -90,6 +91,7 @@ const weightLogs = new Table(
     weight_value: column.real,
     weight_unit: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   {
     indexes: {
@@ -108,6 +110,7 @@ const transactions = new Table(
     category: column.text,
     notes: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   { indexes: { transaction_farm: ['farm_id'], transaction_date: ['date'] } },
 );
@@ -132,6 +135,7 @@ const documents = new Table(
     storage_path: column.text,
     notes: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   { indexes: { document_farm: ['farm_id'] } },
 );
@@ -147,6 +151,7 @@ const tasks = new Table(
     source_id: column.text,
     completed: column.integer,
     created_at: column.text,
+    updated_at: column.text,
   },
   { indexes: { task_farm: ['farm_id'], task_due: ['due_date'] } },
 );
@@ -206,6 +211,7 @@ const healthRecords = new Table(
     withdrawal_days: column.integer,
     notes: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   {
     indexes: {
@@ -238,6 +244,7 @@ const grazingRecords = new Table(
     end_date: column.text,
     notes: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   {
     indexes: {
@@ -258,6 +265,7 @@ const feedLogs = new Table(
     pasture_id: column.text,
     notes: column.text,
     created_at: column.text,
+    updated_at: column.text,
   },
   { indexes: { feed_farm: ['farm_id'], feed_date: ['date'] } },
 );

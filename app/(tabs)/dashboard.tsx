@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { ScrollView, Text, View, Pressable } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
@@ -151,12 +151,15 @@ export default function DashboardScreen() {
               weigh_point: string;
             };
             return (
-              <View
+              <Pressable
                 key={session.id}
+                onPress={() =>
+                  router.push(`/(tabs)/livestock/weigh-session/${session.id}`)
+                }
                 className="flex-row justify-between py-2 border-b border-gray-100">
                 <Text className="text-gray-800">{session.date}</Text>
                 <Badge label={session.weigh_point.replace('_', ' ')} />
-              </View>
+              </Pressable>
             );
           })
         )}
