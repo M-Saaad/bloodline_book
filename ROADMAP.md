@@ -15,12 +15,12 @@ Written 24 Sep 2026 against `main` at `b0307cf` (Phase 4 merged). Phases **5–1
 | 4 | Breeding & health follow-ups | **Complete** | — | — | 2, 3 |
 | 5 | Nothing gets lost | **Complete** | Data-loss fixes, FAMACHA default, password reset | M | — |
 | 6 | Fix mistakes | **Complete** | Q10: edit and delete | L (can split 6a / 6b) | 5 |
-| 7 | Know every goat | **Next** | Q5: identity, parents, search | M | 6 |
-| 8 | Breeding the way it happens | Planned | Q3: due window, confirm / open | M | 5, 6 |
-| 9 | Kidding in one step | Planned | Q4: kids, birth weights, weaning | M | 7, 8 |
-| 10 | Health you can trust at sale time | Planned | Q8: meat/milk withdrawal, FAMACHA | M | 6, 7 |
-| 11 | The Today screen | Planned | Q2 | M | 8, 10 |
-| — | **Checkpoint: 30-day trial release** | Planned | Q10 | — | 5–11 |
+| 7 | Know every goat | **Complete** | Q5: identity, parents, search | M | 6 |
+| 8 | Breeding the way it happens | **Complete** | Q3: due window, confirm / open | M | 5, 6 |
+| 9 | Kidding in one step | **Complete** | Q4: kids, birth weights, weaning | M | 7, 8 |
+| 10 | Health you can trust at sale time | **Complete** | Q8: meat/milk withdrawal, FAMACHA | M | 6, 7 |
+| 11 | The Today screen | **Complete** | Q2 | M | 8, 10 |
+| — | **Checkpoint: 30-day trial release** | **Next** | Q10 | — | 5–11 |
 | 12 | Money tied to goats | Planned | Q7 | M | 7, 10 |
 | 13 | Herd work day | Planned | — | L | 10 |
 | 14 | Team that works on a real farm | Planned | Q9 | L | 5, 13 |
@@ -101,7 +101,7 @@ Give these to Cursor with every phase.
 
 1. Read `AGENTS.md` first (Expo v57 docs).
 2. Every new table or column needs all of:
-   - a new numbered file in `supabase/migrations/` (the next number is `0011`)
+   - a new numbered file in `supabase/migrations/` (the next number is `0016`)
    - `lib/powersync/schema.ts`
    - `powersync/sync-rules.yaml` **and** `powersync/sync-config.yaml` (keep them identical)
    - `lib/types/*` and `lib/db/mappers.ts`

@@ -19,7 +19,12 @@ import {
   type HerdSexFilter,
   type HerdStatusFilter,
 } from '@/lib/domain/animals';
+import { todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
+import {
+  activeWithdrawalsByAnimal,
+  withdrawalBadgeLabel,
+} from '@/lib/domain/health';
 import {
   formatAnimalStatus,
   formatLifecycleStage,
@@ -91,6 +96,61 @@ export default function LivestockListScreen() {
         : [];
 
   const { data, isLoading: animalsLoading } = useQuery(querySql, queryParams);
+
+  const { data: healthRows } = useQuery(
+    activeFarm
+      ? `SELECT animal_id, date, product_name, meat_withdrawal_days,
+                milk_withdrawal_days, withdrawal_days
+         FROM health_records WHERE farm_id = ?`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const withdrawalLabels = useMemo(() => {
+    const today = todayIso();
+    const badges = activeWithdrawalsByAnimal(
+      (healthRows ?? []).map((row) => {
+        const record = row as Record<string, unknown>;
+        return {
+          animalId: String(record.animal_id),
+          date: String(record.date),
+          productName:
+            record.product_name != null ? String(record.product_name) : null,
+          meatDays:
+            record.meat_withdrawal_days != null
+              ? Number(record.meat_withdrawal_days)
+              : null,
+          milkDays:
+            record.milk_withdrawal_days != null
+              ? Number(record.milk_withdrawal_days)
+              : null,
+          legacyDays:
+            record.withdrawal_days != null
+              ? Number(record.withdrawal_days)
+              : null,
+        };
+      }),
+      today,
+    );
+    const labels = new Map<string, string[]>();
+    for (const [animalId, badge] of badges) {
+      const lines: string[] = [];
+      if (badge.meat) {
+        lines.push(withdrawalBadgeLabel('meat', badge.meat.clearDate));
+      }
+      if (
+        badge.milk &&
+        activeFarm &&
+        (activeFarm.segment === 'dairy' || activeFarm.segment === 'both')
+      ) {
+        lines.push(withdrawalBadgeLabel('milk', badge.milk.clearDate));
+      }
+      if (lines.length > 0) {
+        labels.set(animalId, lines);
+      }
+    }
+    return labels;
+  }, [activeFarm, healthRows]);
 
   const animals = useMemo(() => {
     const mapped = (data ?? []).map((row) =>
@@ -208,14 +268,23 @@ export default function LivestockListScreen() {
           />
         }
         renderItem={({ item }) => (
-          <LivestockRow animal={item} />
+          <LivestockRow
+            animal={item}
+            withdrawalLines={withdrawalLabels.get(item.id) ?? []}
+          />
         )}
       />
     </View>
   );
 }
 
-function LivestockRow({ animal }: { animal: Animal }) {
+function LivestockRow({
+  animal,
+  withdrawalLines,
+}: {
+  animal: Animal;
+  withdrawalLines: string[];
+}) {
   return (
     <Pressable
       onPress={() => router.push(`/(tabs)/livestock/${animal.id}`)}
@@ -229,6 +298,11 @@ function LivestockRow({ animal }: { animal: Animal }) {
             {animal.sex} · {formatLifecycleStage(animal.lifecycleStage)} ·{' '}
             {formatAnimalAge(animal.dateOfBirth)}
           </Text>
+          {withdrawalLines.map((line) => (
+            <Text key={line} className="text-amber-800 text-sm mt-1">
+              {line}
+            </Text>
+          ))}
         </View>
         <Badge
           label={formatAnimalStatus(animal.status)}

@@ -5,16 +5,27 @@ import type { Transaction } from '@powersync/common';
 import { getAnimalById } from '@/lib/db/animals';
 import { dbNow } from '@/lib/db/now';
 import { mapBreedingEvent, mapKiddingEvent } from '@/lib/db/mappers';
+import { getFarmById } from '@/lib/db/farms';
 import {
-  expectedKiddingTaskTitle,
+  computeBreedingWindow,
   isBreedingOpenForKidding,
   kidAnimalDefaultName,
+  kiddingDueTaskTitle,
+  resolveBreedingWindow,
   targetRegisteredKidCount,
+  type DueWindow,
 } from '@/lib/domain/breeding';
-import { addDaysToIso, GOAT_GESTATION_DAYS } from '@/lib/dates';
+import { kidInheritsBreed, weaningTaskTitle } from '@/lib/domain/kidding';
+import { addDaysToIso } from '@/lib/dates';
 import { ORDER_DUE_DATE_DESC } from '@/lib/sql/portableOrder';
 import { powersync } from '@/lib/powersync/system';
-import type { BreedingEvent, BreedingStatus, KiddingEvent } from '@/lib/types/breeding';
+import type {
+  BreedingEvent,
+  BreedingStatus,
+  ConfirmMethod,
+  KiddingEase,
+  KiddingEvent,
+} from '@/lib/types/breeding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
 async function syncOpenBreedingDueTask(
@@ -22,17 +33,21 @@ async function syncOpenBreedingDueTask(
   farmId: string,
   breedingId: string,
   input: {
-    dueDate: string;
+    window: DueWindow;
     damLabel: string;
     status: BreedingStatus;
   },
 ): Promise<void> {
-  if (!isBreedingOpenForKidding(input.status) || !input.dueDate) {
+  if (!isBreedingOpenForKidding(input.status)) {
     return;
   }
 
   const now = dbNow();
-  const title = expectedKiddingTaskTitle(input.damLabel);
+  const title = kiddingDueTaskTitle(
+    input.damLabel,
+    input.window.windowStart,
+    input.window.windowEnd,
+  );
   const openTask = await tx.getOptional<{ id: string }>(
     `SELECT id FROM tasks
      WHERE source_id = ? AND source = 'breeding' AND completed = 0
@@ -43,7 +58,7 @@ async function syncOpenBreedingDueTask(
   if (openTask) {
     await tx.execute(
       'UPDATE tasks SET title = ?, due_date = ?, updated_at = ? WHERE id = ?',
-      [title, input.dueDate, now, openTask.id],
+      [title, input.window.windowStart, now, openTask.id],
     );
     return;
   }
@@ -53,8 +68,81 @@ async function syncOpenBreedingDueTask(
     `INSERT INTO tasks (
       id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
     ) VALUES (?, ?, ?, ?, 'high', 'breeding', ?, 0, ?, ?)`,
-    [id, farmId, title, input.dueDate, breedingId, now, now],
+    [id, farmId, title, input.window.windowStart, breedingId, now, now],
   );
+}
+
+async function markBreedingsOpenInTx(
+  tx: Transaction,
+  breedingIds: string[],
+): Promise<void> {
+  const now = dbNow();
+  for (const breedingId of breedingIds) {
+    await tx.execute(
+      `UPDATE breeding_events
+       SET status = 'open', updated_at = ?
+       WHERE id = ? AND status IN ('bred', 'confirmed')`,
+      [now, breedingId],
+    );
+    await tx.execute(
+      `UPDATE tasks
+       SET completed = 1, updated_at = ?
+       WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
+      [now, breedingId],
+    );
+  }
+}
+
+async function insertBreedingRow(
+  tx: Transaction,
+  farmId: string,
+  id: string,
+  input: {
+    damId: string;
+    sireId?: string;
+    sireExternalName?: string;
+    bredDate: string;
+    exposureEndDate?: string | null;
+    notes?: string;
+    status?: BreedingStatus;
+    window: DueWindow;
+    damLabel?: string;
+    scheduleDueTask?: boolean;
+  },
+): Promise<void> {
+  const now = dbNow();
+  const status = input.status ?? 'bred';
+  await tx.execute(
+    `INSERT INTO breeding_events (
+      id, farm_id, dam_id, sire_id, sire_external_name,
+      bred_date, exposure_end_date, due_date, due_window_start, due_window_end,
+      status, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      farmId,
+      input.damId,
+      input.sireId ?? null,
+      input.sireExternalName ?? null,
+      input.bredDate,
+      input.exposureEndDate ?? null,
+      input.window.dueDate,
+      input.window.windowStart,
+      input.window.windowEnd,
+      status,
+      input.notes ?? null,
+      now,
+      now,
+    ],
+  );
+
+  if (input.scheduleDueTask !== false && input.damLabel) {
+    await syncOpenBreedingDueTask(tx, farmId, id, {
+      window: input.window,
+      damLabel: input.damLabel,
+      status,
+    });
+  }
 }
 
 export async function createBreedingEvent(
@@ -64,79 +152,86 @@ export async function createBreedingEvent(
     sireId?: string;
     sireExternalName?: string;
     bredDate: string;
-    dueDate?: string;
+    exposureEndDate?: string | null;
+    gestationDays?: number;
     status?: BreedingStatus;
     notes?: string;
     damLabel?: string;
     scheduleDueTask?: boolean;
+    closeBreedingIds?: string[];
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = dbNow();
-  const dueDate =
-    input.dueDate ??
-    addDaysToIso(input.bredDate, GOAT_GESTATION_DAYS) ??
-    null;
-
-  const scheduleTask =
-    input.scheduleDueTask !== false && dueDate != null && input.damLabel;
-
-  if (scheduleTask) {
-    await powersync.writeTransaction(async (tx: Transaction) => {
-      await tx.execute(
-        `INSERT INTO breeding_events (
-          id, farm_id, dam_id, sire_id, sire_external_name,
-          bred_date, due_date, status, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          farmId,
-          input.damId,
-          input.sireId ?? null,
-          input.sireExternalName ?? null,
-          input.bredDate,
-          dueDate,
-          input.status ?? 'bred',
-          input.notes ?? null,
-          now,
-          now,
-        ],
-      );
-      await syncOpenBreedingDueTask(tx, farmId, id, {
-        dueDate,
-        damLabel: input.damLabel!,
-        status: input.status ?? 'bred',
-      });
-    });
-  } else {
-    await powersync.execute(
-      `INSERT INTO breeding_events (
-        id, farm_id, dam_id, sire_id, sire_external_name,
-        bred_date, due_date, status, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        farmId,
-        input.damId,
-        input.sireId ?? null,
-        input.sireExternalName ?? null,
-        input.bredDate,
-        dueDate,
-        input.status ?? 'bred',
-        input.notes ?? null,
-        now,
-        now,
-      ],
-    );
+  const window = computeBreedingWindow({
+    bredDate: input.bredDate,
+    exposureEndDate: input.exposureEndDate,
+    gestationDays: input.gestationDays ?? 150,
+  });
+  if (!window) {
+    throw new Error('Enter a valid breeding date.');
   }
 
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await markBreedingsOpenInTx(tx, input.closeBreedingIds ?? []);
+    await insertBreedingRow(tx, farmId, id, {
+      ...input,
+      window,
+    });
+  });
+
   return id;
+}
+
+export async function createExposureBreedings(
+  farmId: string,
+  input: {
+    damIds: string[];
+    sireId?: string;
+    sireExternalName?: string;
+    startDate: string;
+    endDate: string;
+    gestationDays?: number;
+    notes?: string;
+    damLabels: Record<string, string>;
+    closeBreedingIds?: string[];
+  },
+): Promise<string[]> {
+  const window = computeBreedingWindow({
+    bredDate: input.startDate,
+    exposureEndDate: input.endDate,
+    gestationDays: input.gestationDays ?? 150,
+  });
+  if (!window) {
+    throw new Error('Exposure end date must be on or after the start date.');
+  }
+
+  const ids = input.damIds.map(() => Crypto.randomUUID());
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await markBreedingsOpenInTx(tx, input.closeBreedingIds ?? []);
+    for (let i = 0; i < input.damIds.length; i++) {
+      const damId = input.damIds[i];
+      await insertBreedingRow(tx, farmId, ids[i], {
+        damId,
+        sireId: input.sireId,
+        sireExternalName: input.sireExternalName,
+        bredDate: input.startDate,
+        exposureEndDate: input.endDate,
+        notes: input.notes,
+        window,
+        damLabel: input.damLabels[damId] ?? 'Dam',
+        scheduleDueTask: true,
+      });
+    }
+  });
+  return ids;
 }
 
 export type KiddingKidDraft = {
   name?: string;
   tagNumber?: string;
   sex: 'male' | 'female';
+  outcome?: 'alive' | 'dead';
+  birthWeight?: number | null;
 };
 
 export async function createKiddingEvent(
@@ -150,19 +245,25 @@ export async function createKiddingEvent(
     kidsSurviving?: number;
     notes?: string;
     damLabel?: string;
+    kiddingEase?: KiddingEase | null;
+    breedingEventId?: string | null;
+    weaningDays?: number | null;
+    weightUnit?: 'lb' | 'kg';
     registerKids?: KiddingKidDraft[];
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
   const now = dbNow();
   const damLabel = input.damLabel ?? 'Dam';
+  const drafts = input.registerKids ?? [];
+  const aliveDrafts = drafts.filter((kid) => kid.outcome !== 'dead');
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
       `INSERT INTO kidding_events (
         id, farm_id, dam_id, sire_id, sire_external_name,
-        kid_date, kids_born, kids_surviving, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        kid_date, kids_born, kids_surviving, kidding_ease, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         farmId,
@@ -172,48 +273,75 @@ export async function createKiddingEvent(
         input.kidDate,
         input.kidsBorn,
         input.kidsSurviving ?? null,
+        input.kiddingEase ?? null,
         input.notes ?? null,
         now,
         now,
       ],
     );
 
-    const openBreeding = await tx.getOptional<Record<string, unknown>>(
-      `SELECT id, status FROM breeding_events
-       WHERE farm_id = ? AND dam_id = ? AND kidding_event_id IS NULL
-       ORDER BY bred_date DESC
-       LIMIT 1`,
-      [farmId, input.damId],
-    );
-
-    if (
-      openBreeding &&
-      isBreedingOpenForKidding(String(openBreeding.status) as BreedingStatus)
-    ) {
-      await tx.execute(
-        `UPDATE breeding_events
-         SET status = 'kidded', kidding_event_id = ?, updated_at = ?
-         WHERE id = ?`,
-        [id, now, String(openBreeding.id)],
+    if (input.breedingEventId) {
+      const breeding = await tx.getOptional<Record<string, unknown>>(
+        `SELECT id, status, dam_id FROM breeding_events WHERE id = ?`,
+        [input.breedingEventId],
       );
+      if (
+        breeding &&
+        String(breeding.dam_id) === input.damId &&
+        isBreedingOpenForKidding(String(breeding.status) as BreedingStatus)
+      ) {
+        await tx.execute(
+          `UPDATE breeding_events
+           SET status = 'kidded', kidding_event_id = ?, updated_at = ?
+           WHERE id = ?`,
+          [id, now, String(breeding.id)],
+        );
+        await tx.execute(
+          `UPDATE tasks
+           SET completed = 1, updated_at = ?
+           WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
+          [now, String(breeding.id)],
+        );
+      }
     }
 
-    const kids = input.registerKids ?? [];
-    for (let i = 0; i < kids.length; i++) {
-      const kid = kids[i];
+    const damRow = await tx.getOptional<{ breed_primary_id: string | null }>(
+      'SELECT breed_primary_id FROM animals WHERE id = ?',
+      [input.damId],
+    );
+    let sireBreed: string | null = null;
+    if (input.sireId) {
+      const sireRow = await tx.getOptional<{ breed_primary_id: string | null }>(
+        'SELECT breed_primary_id FROM animals WHERE id = ?',
+        [input.sireId],
+      );
+      sireBreed = sireRow?.breed_primary_id ?? null;
+    }
+    const breedId = kidInheritsBreed(
+      damRow?.breed_primary_id ?? null,
+      sireBreed,
+    );
+
+    const weighed: { animalId: string; weight: number }[] = [];
+    for (let i = 0; i < aliveDrafts.length; i++) {
+      const kid = aliveDrafts[i];
       const kidId = Crypto.randomUUID();
+      const name = kid.name?.trim()
+        ? kid.name.trim()
+        : kidAnimalDefaultName(damLabel, i + 1);
       await tx.execute(
         `INSERT INTO animals (
           id, farm_id, name, tag_number, sex, status, lifecycle_stage,
           purpose, breed_primary_id, date_of_birth, dam_id, sire_id,
           sire_external_name, litter_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 'active', 'kid', NULL, NULL, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, 'active', 'kid', NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           kidId,
           farmId,
-          kid.name ?? kidAnimalDefaultName(damLabel, i + 1),
-          kid.tagNumber ?? null,
+          name,
+          kid.tagNumber?.trim() ? kid.tagNumber.trim() : null,
           kid.sex,
+          breedId,
           input.kidDate,
           input.damId,
           input.sireId ?? null,
@@ -223,10 +351,119 @@ export async function createKiddingEvent(
           now,
         ],
       );
+      if (kid.birthWeight != null && kid.birthWeight > 0) {
+        weighed.push({ animalId: kidId, weight: kid.birthWeight });
+      }
+    }
+
+    if (weighed.length > 0) {
+      const sessionId = Crypto.randomUUID();
+      await tx.execute(
+        `INSERT INTO weigh_sessions (id, farm_id, date, weigh_point, notes, created_at, updated_at)
+         VALUES (?, ?, ?, 'birth', NULL, ?, ?)`,
+        [sessionId, farmId, input.kidDate, now, now],
+      );
+      for (const entry of weighed) {
+        await tx.execute(
+          `INSERT INTO weight_logs (
+            id, farm_id, weigh_session_id, animal_id, weight_value, weight_unit, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            Crypto.randomUUID(),
+            farmId,
+            sessionId,
+            entry.animalId,
+            entry.weight,
+            input.weightUnit ?? 'lb',
+            now,
+            now,
+          ],
+        );
+      }
+    }
+
+    const aliveCount = input.kidsSurviving ?? aliveDrafts.length;
+    if (
+      input.weaningDays != null &&
+      input.weaningDays > 0 &&
+      aliveCount > 0
+    ) {
+      const weanDue = addDaysToIso(input.kidDate, input.weaningDays);
+      if (weanDue) {
+        await tx.execute(
+          `INSERT INTO tasks (
+            id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, 'medium', 'weaning', ?, 0, ?, ?)`,
+          [
+            Crypto.randomUUID(),
+            farmId,
+            weaningTaskTitle(damLabel),
+            weanDue,
+            id,
+            now,
+            now,
+          ],
+        );
+      }
     }
   });
 
   return id;
+}
+
+export async function getOpenBreedingsForDam(
+  farmId: string,
+  damId: string,
+): Promise<BreedingEvent[]> {
+  const rows = await powersync.getAll<Record<string, unknown>>(
+    `SELECT * FROM breeding_events
+     WHERE farm_id = ? AND dam_id = ? AND status IN ('bred', 'confirmed')
+     ORDER BY bred_date DESC`,
+    [farmId, damId],
+  );
+  return rows.map(mapBreedingEvent);
+}
+
+export async function confirmBreeding(
+  breedingId: string,
+  input: { confirmedDate: string; method: ConfirmMethod },
+): Promise<void> {
+  const now = dbNow();
+  await powersync.execute(
+    `UPDATE breeding_events
+     SET status = 'confirmed', confirmed_date = ?, confirm_method = ?, updated_at = ?
+     WHERE id = ?`,
+    [input.confirmedDate, input.method, now, breedingId],
+  );
+}
+
+export async function markBreedingOpen(breedingId: string): Promise<void> {
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await markBreedingsOpenInTx(tx, [breedingId]);
+  });
+}
+
+export async function markBreedingLost(
+  breedingId: string,
+  note: string,
+): Promise<void> {
+  const existing = await getBreedingEventById(breedingId);
+  const notes = [existing?.notes?.trim(), note.trim()].filter(Boolean).join('\n');
+  const now = dbNow();
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await tx.execute(
+      `UPDATE breeding_events
+       SET status = 'lost', notes = ?, updated_at = ?
+       WHERE id = ?`,
+      [notes || null, now, breedingId],
+    );
+    await tx.execute(
+      `UPDATE tasks
+       SET completed = 1, updated_at = ?
+       WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
+      [now, breedingId],
+    );
+  });
 }
 
 export async function getBreedingEventsForFarm(
@@ -307,6 +544,8 @@ export async function updateBreedingEvent(
     sireId?: string;
     sireExternalName?: string;
     bredDate: string;
+    exposureEndDate?: string | null;
+    gestationDays?: number;
     notes?: string;
     damLabel?: string;
     status?: BreedingStatus;
@@ -315,8 +554,18 @@ export async function updateBreedingEvent(
   const existing = await getBreedingEventById(breedingId);
   const status = input.status ?? existing?.status ?? 'bred';
   const now = dbNow();
-  const dueDate =
-    addDaysToIso(input.bredDate, GOAT_GESTATION_DAYS) ?? null;
+  const exposureEndDate =
+    input.exposureEndDate !== undefined
+      ? input.exposureEndDate
+      : existing?.exposureEndDate;
+  const window = computeBreedingWindow({
+    bredDate: input.bredDate,
+    exposureEndDate,
+    gestationDays: input.gestationDays ?? 150,
+  });
+  if (!window) {
+    throw new Error('Enter a valid breeding date.');
+  }
   const damLabel = input.damLabel ?? 'Dam';
   const farmId = existing?.farmId;
 
@@ -324,23 +573,27 @@ export async function updateBreedingEvent(
     await tx.execute(
       `UPDATE breeding_events SET
         dam_id = ?, sire_id = ?, sire_external_name = ?,
-        bred_date = ?, due_date = ?, notes = ?, updated_at = ?
+        bred_date = ?, exposure_end_date = ?, due_date = ?,
+        due_window_start = ?, due_window_end = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
       [
         input.damId,
         input.sireId ?? null,
         input.sireExternalName ?? null,
         input.bredDate,
-        dueDate,
+        exposureEndDate ?? null,
+        window.dueDate,
+        window.windowStart,
+        window.windowEnd,
         input.notes ?? null,
         now,
         breedingId,
       ],
     );
 
-    if (farmId && dueDate) {
+    if (farmId) {
       await syncOpenBreedingDueTask(tx, farmId, breedingId, {
-        dueDate,
+        window,
         damLabel,
         status,
       });
@@ -351,7 +604,16 @@ export async function updateBreedingEvent(
 /** Creates or updates the open expected-kidding task when breeding is still active. */
 export async function ensureBreedingDueTask(breedingId: string): Promise<void> {
   const breeding = await getBreedingEventById(breedingId);
-  if (!breeding?.dueDate) {
+  if (!breeding) {
+    return;
+  }
+
+  const farm = await getFarmById(breeding.farmId);
+  const window = resolveBreedingWindow(
+    breeding,
+    farm?.gestationDays ?? 150,
+  );
+  if (!window) {
     return;
   }
 
@@ -360,7 +622,7 @@ export async function ensureBreedingDueTask(breedingId: string): Promise<void> {
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     await syncOpenBreedingDueTask(tx, breeding.farmId, breedingId, {
-      dueDate: breeding.dueDate!,
+      window,
       damLabel,
       status: breeding.status,
     });
@@ -519,6 +781,7 @@ export async function updateKiddingEvent(
     kidsSurviving?: number;
     sireId?: string;
     sireExternalName?: string;
+    kiddingEase?: KiddingEase | null;
     notes?: string;
   },
 ): Promise<void> {
@@ -535,7 +798,7 @@ export async function updateKiddingEvent(
     await tx.execute(
       `UPDATE kidding_events SET
         kid_date = ?, kids_born = ?, kids_surviving = ?,
-        sire_id = ?, sire_external_name = ?, notes = ?, updated_at = ?
+        sire_id = ?, sire_external_name = ?, kidding_ease = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
       [
         input.kidDate,
@@ -543,6 +806,9 @@ export async function updateKiddingEvent(
         input.kidsSurviving ?? null,
         input.sireId ?? null,
         input.sireExternalName ?? null,
+        input.kiddingEase !== undefined
+          ? input.kiddingEase
+          : kidding.kiddingEase,
         input.notes ?? null,
         now,
         kiddingId,
@@ -604,6 +870,11 @@ export async function deleteKiddingEvent(
       }
     }
 
+    await tx.execute(
+      `DELETE FROM tasks
+       WHERE source = 'weaning' AND source_id = ? AND completed = 0`,
+      [kiddingId],
+    );
     await tx.execute('DELETE FROM kidding_events WHERE id = ?', [kiddingId]);
 
     if (breeding) {

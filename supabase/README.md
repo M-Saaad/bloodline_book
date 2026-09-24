@@ -11,6 +11,11 @@ Run SQL files in numeric order:
 7. `0008_farm_invites.sql`
 8. `0009_documents_and_tasks.sql`
 9. `0010_pastures_and_feed.sql`
+10. `0011_updated_at.sql`
+11. `0012_animal_identity.sql`
+12. `0013_breeding_windows.sql`
+13. `0014_kidding_ease_weaning.sql`
+14. `0015_health_withdrawal_split.sql`
 
 ## PowerSync replication setup
 

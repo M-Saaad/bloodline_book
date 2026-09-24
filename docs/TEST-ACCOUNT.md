@@ -23,7 +23,7 @@ Sign in with email and password (no magic link). Email confirmation is disabled 
 - **Tasks:** Expected kidding, FAMACHA recheck, manual chore (one completed)
 - **Documents:** ADGA registration metadata (no file attached)
 
-After sign-in, open **More → Tasks**, **Breeding calendar** (Clover appears when her due date is within 120 days), and **Livestock** for the full herd.
+After sign-in, open **Today**, **More → Tasks** (Open / Done), **Breeding calendar** (every bred or confirmed doe, including Clover), and **Livestock** for the full herd.
 
 ## Refresh or recreate data
 

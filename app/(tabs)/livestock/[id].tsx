@@ -8,8 +8,17 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { mapAnimal, mapHealthRecord, mapKiddingEvent } from '@/lib/db/mappers';
-import { formatDisplayDate } from '@/lib/dates';
+import { mapAnimal, mapBreedingEvent, mapHealthRecord, mapKiddingEvent } from '@/lib/db/mappers';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
+import {
+  formatDueWindowPhrase,
+  resolveBreedingWindow,
+} from '@/lib/domain/breeding';
+import { litterSummaryLabel } from '@/lib/domain/kidding';
+import {
+  activeWithdrawalsByAnimal,
+  withdrawalBadgeLabel,
+} from '@/lib/domain/health';
 import { formatHealthRecordKind } from '@/lib/ui/health-labels';
 import {
   animalDisplayLabel,
@@ -92,6 +101,44 @@ export default function AnimalDetailScreen() {
     sireId ? [sireId] : [],
   );
 
+  const { data: breedingRows } = useQuery(
+    id && animalRows?.[0]?.sex === 'female'
+      ? `SELECT b.*, s.name AS sire_name, s.tag_number AS sire_tag
+         FROM breeding_events b
+         LEFT JOIN animals s ON s.id = b.sire_id
+         WHERE b.dam_id = ?
+         ORDER BY b.bred_date DESC`
+      : 'SELECT 1 WHERE 0',
+    id && animalRows?.[0]?.sex === 'female' ? [id] : [],
+  );
+
+  const litterId = animalRows?.[0]?.litter_id as string | undefined;
+
+  const { data: litterKiddingRows } = useQuery(
+    litterId
+      ? 'SELECT * FROM kidding_events WHERE id = ?'
+      : 'SELECT 1 WHERE 0',
+    litterId ? [litterId] : [],
+  );
+
+  const { data: siblingRows } = useQuery(
+    litterId
+      ? `SELECT id, name, tag_number FROM animals
+         WHERE litter_id = ? AND id != ?
+         ORDER BY created_at ASC`
+      : 'SELECT 1 WHERE 0',
+    litterId && id ? [litterId, id] : [],
+  );
+
+  const { data: withdrawalRows } = useQuery(
+    id
+      ? `SELECT animal_id, date, product_name, meat_withdrawal_days,
+                milk_withdrawal_days, withdrawal_days
+         FROM health_records WHERE animal_id = ?`
+      : 'SELECT 1 WHERE 0',
+    id ? [id] : [],
+  );
+
   const { data: kiddingRows } = useQuery(
     id && animalRows?.[0]?.sex === 'female'
       ? `SELECT * FROM kidding_events
@@ -128,6 +175,34 @@ export default function AnimalDetailScreen() {
     breedRows?.[0]?.name != null ? String(breedRows[0].name) : null;
   const displayName = animal.name ?? animal.tagNumber ?? 'Unnamed';
   const weights = weightRows ?? [];
+  const birthWeight = weights.find(
+    (row) => String((row as { weigh_point?: string }).weigh_point) === 'birth',
+  ) as { weight_value?: number; weight_unit?: string } | undefined;
+  const withdrawal = activeWithdrawalsByAnimal(
+    (withdrawalRows ?? []).map((row) => {
+      const record = row as Record<string, unknown>;
+      return {
+        animalId: String(record.animal_id),
+        date: String(record.date),
+        productName:
+          record.product_name != null ? String(record.product_name) : null,
+        meatDays:
+          record.meat_withdrawal_days != null
+            ? Number(record.meat_withdrawal_days)
+            : null,
+        milkDays:
+          record.milk_withdrawal_days != null
+            ? Number(record.milk_withdrawal_days)
+            : null,
+        legacyDays:
+          record.withdrawal_days != null ? Number(record.withdrawal_days) : null,
+      };
+    }),
+    todayIso(),
+  ).get(animal.id);
+  const litterKidding = litterKiddingRows?.[0]
+    ? mapKiddingEvent(litterKiddingRows[0] as Record<string, unknown>)
+    : null;
 
   return (
     <ScrollView
@@ -146,6 +221,17 @@ export default function AnimalDetailScreen() {
             tone={statusBadgeTone(animal.status)}
           />
         </View>
+        {withdrawal?.meat ? (
+          <Text className="text-amber-800 mb-2">
+            {withdrawalBadgeLabel('meat', withdrawal.meat.clearDate)}
+          </Text>
+        ) : null}
+        {withdrawal?.milk &&
+        (activeFarm.segment === 'dairy' || activeFarm.segment === 'both') ? (
+          <Text className="text-amber-800 mb-2">
+            {withdrawalBadgeLabel('milk', withdrawal.milk.clearDate)}
+          </Text>
+        ) : null}
 
         <View className="gap-2">
           <DetailRow label="Breed" value={breedName ?? 'Not set'} />
@@ -274,6 +360,80 @@ export default function AnimalDetailScreen() {
                 </Text>
                 <Text className="text-gray-500 text-sm capitalize">
                   {kid.sex} · {formatLifecycleStage(kid.lifecycleStage)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </Card>
+      ) : null}
+
+      {litterKidding ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">Litter</Text>
+          <Text className="text-gray-800">
+            {litterSummaryLabel(
+              litterKidding.kidsBorn,
+              litterKidding.kidsSurviving ?? litterKidding.kidsBorn,
+            )}
+          </Text>
+          {birthWeight?.weight_value != null ? (
+            <Text className="text-gray-600 mt-1">
+              Birth weight {birthWeight.weight_value} {birthWeight.weight_unit}
+            </Text>
+          ) : null}
+          {(siblingRows ?? []).map((row) => {
+            const sibling = row as {
+              id: string;
+              name: string | null;
+              tag_number: string | null;
+            };
+            return (
+              <Pressable
+                key={sibling.id}
+                onPress={() => router.push(`/(tabs)/livestock/${sibling.id}`)}
+                className="py-2 border-b border-gray-100">
+                <Text className="text-bloodline-700 font-medium">
+                  {sibling.name?.trim() ||
+                    (sibling.tag_number ? `#${sibling.tag_number}` : 'Litter mate')}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </Card>
+      ) : null}
+
+      {animal.sex === 'female' && (breedingRows ?? []).length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-3">
+            Breeding history
+          </Text>
+          {(breedingRows ?? []).map((row) => {
+            const record = row as Record<string, unknown>;
+            const breeding = mapBreedingEvent(record);
+            const window = resolveBreedingWindow(
+              breeding,
+              activeFarm.gestationDays,
+            );
+            const sire = breeding.sireId
+              ? String(record.sire_name ?? record.sire_tag ?? 'On-farm sire')
+              : breeding.sireExternalName;
+            return (
+              <Pressable
+                key={breeding.id}
+                onPress={() =>
+                  router.push(
+                    `/(tabs)/more/breeding/edit-breeding/${breeding.id}`,
+                  )
+                }
+                className="py-2 border-b border-gray-100">
+                <Text className="text-gray-900 font-medium capitalize">
+                  {formatDisplayDate(breeding.bredDate)} · {breeding.status}
+                </Text>
+                <Text className="text-gray-600 text-sm mt-1">
+                  {sire ? `Buck ${sire}` : 'Buck not recorded'}
+                  {window
+                    ? ` · ${formatDueWindowPhrase(window.windowStart, window.windowEnd)}`
+                    : ''}
                 </Text>
               </Pressable>
             );

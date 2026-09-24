@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -17,9 +17,34 @@ export default function SettingsScreen() {
     activeFarm?.weightUnit ?? 'lb',
   );
   const [currency, setCurrency] = useState(activeFarm?.currency ?? 'USD');
+  const [gestationDays, setGestationDays] = useState(
+    String(activeFarm?.gestationDays ?? 150),
+  );
+  const [weaningDays, setWeaningDays] = useState(
+    activeFarm?.weaningDays != null ? String(activeFarm.weaningDays) : '',
+  );
+  const [famachaRecheckDays, setFamachaRecheckDays] = useState(
+    String(activeFarm?.famachaRecheckDays ?? 14),
+  );
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const hydratedFarmId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeFarm || hydratedFarmId.current === activeFarm.id) {
+      return;
+    }
+    hydratedFarmId.current = activeFarm.id;
+    setName(activeFarm.name);
+    setWeightUnit(activeFarm.weightUnit);
+    setCurrency(activeFarm.currency);
+    setGestationDays(String(activeFarm.gestationDays ?? 150));
+    setWeaningDays(
+      activeFarm.weaningDays != null ? String(activeFarm.weaningDays) : '',
+    );
+    setFamachaRecheckDays(String(activeFarm.famachaRecheckDays ?? 14));
+  }, [activeFarm]);
 
   async function handleSave() {
     if (!activeFarm) {
@@ -34,12 +59,34 @@ export default function SettingsScreen() {
       return;
     }
 
+    const gestation = Number.parseInt(gestationDays, 10);
+    if (!Number.isFinite(gestation) || gestation <= 0) {
+      setErrorMessage('Enter gestation days as a positive number.');
+      return;
+    }
+    const recheck = Number.parseInt(famachaRecheckDays, 10);
+    if (!Number.isFinite(recheck) || recheck <= 0) {
+      setErrorMessage('Enter FAMACHA recheck days as a positive number.');
+      return;
+    }
+    let weaning: number | null = null;
+    if (weaningDays.trim()) {
+      weaning = Number.parseInt(weaningDays, 10);
+      if (!Number.isFinite(weaning) || weaning <= 0) {
+        setErrorMessage('Enter weaning days as a positive number, or leave it blank to turn weaning reminders off.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await updateFarmSettings(activeFarm.id, {
         name: name.trim(),
         weightUnit,
         currency: currency.trim().toUpperCase(),
+        gestationDays: gestation,
+        weaningDays: weaning,
+        famachaRecheckDays: recheck,
       });
       await refreshFarms();
       setSuccessMessage('Settings saved.');
@@ -94,6 +141,26 @@ export default function SettingsScreen() {
           </Pressable>
         ))}
       </View>
+
+      <Input
+        label="Gestation (days)"
+        value={gestationDays}
+        onChangeText={setGestationDays}
+        keyboardType="numeric"
+      />
+      <Input
+        label="Wean at (days)"
+        value={weaningDays}
+        onChangeText={setWeaningDays}
+        keyboardType="numeric"
+        placeholder="Blank turns weaning reminders off"
+      />
+      <Input
+        label="FAMACHA recheck (days)"
+        value={famachaRecheckDays}
+        onChangeText={setFamachaRecheckDays}
+        keyboardType="numeric"
+      />
 
       <Text className="text-sm text-gray-500 mb-4 capitalize">
         Segment: {activeFarm.segment} (read-only)

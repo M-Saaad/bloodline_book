@@ -12,6 +12,9 @@ import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
+import { getActiveMeatWithdrawal } from '@/lib/db/health';
+import { meatSaleWarning } from '@/lib/domain/health';
+import { confirmAction } from '@/lib/ui/confirm';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
@@ -77,6 +80,7 @@ export default function EditAnimalScreen() {
   const [lifecycleStage, setLifecycleStage] =
     useState<Animal['lifecycleStage']>('kid');
   const [status, setStatus] = useState<Animal['status']>('active');
+  const [originalStatus, setOriginalStatus] = useState<Animal['status']>('active');
   const [notes, setNotes] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [outDate, setOutDate] = useState('');
@@ -131,6 +135,7 @@ export default function EditAnimalScreen() {
         );
         setLifecycleStage(animal.lifecycleStage);
         setStatus(animal.status);
+        setOriginalStatus(animal.status);
         setNotes(animal.notes ?? '');
         setDateOfBirth(animal.dateOfBirth ?? '');
         setOutDate(animal.outDate ?? todayIso());
@@ -219,6 +224,26 @@ export default function EditAnimalScreen() {
       ) {
         setErrorMessage('Enter a breed percentage between 0 and 100.');
         return;
+      }
+    }
+
+    const leavingToSale =
+      (status === 'sold' || status === 'slaughtered') && status !== originalStatus;
+    if (leavingToSale) {
+      const withdrawal = await getActiveMeatWithdrawal(id, todayIso());
+      if (withdrawal) {
+        const proceed = await confirmAction(
+          'Meat withdrawal',
+          meatSaleWarning(
+            name.trim() || tagNumber.trim() || 'This goat',
+            withdrawal.clearDate,
+            withdrawal.productName,
+          ),
+          'Continue',
+        );
+        if (!proceed) {
+          return;
+        }
       }
     }
 

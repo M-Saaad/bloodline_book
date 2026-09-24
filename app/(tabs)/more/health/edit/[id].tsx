@@ -5,20 +5,28 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
+import {
+  parseWithdrawalDays,
+  TreatmentFields,
+} from '@/components/health/TreatmentFields';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { mapAnimal } from '@/lib/db/mappers';
+import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
 import {
   deleteHealthRecord,
   getHealthRecordById,
   updateHealthRecord,
 } from '@/lib/db/health';
-import { healthKindSupportsWithdrawal } from '@/lib/domain/health';
-import type { HealthRecordKind } from '@/lib/types/health';
+import {
+  healthKindSupportsWithdrawal,
+  rememberedProducts,
+  showsMilkWithdrawal,
+} from '@/lib/domain/health';
+import type { HealthRecordKind, TreatmentRoute } from '@/lib/types/health';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
@@ -46,7 +54,10 @@ export default function EditHealthRecordScreen() {
   const [famachaScore, setFamachaScore] = useState<number | null>(null);
   const [productName, setProductName] = useState('');
   const [dosage, setDosage] = useState('');
-  const [withdrawalDays, setWithdrawalDays] = useState('');
+  const [route, setRoute] = useState<TreatmentRoute | null>(null);
+  const [lotNumber, setLotNumber] = useState('');
+  const [meatDays, setMeatDays] = useState('');
+  const [milkDays, setMilkDays] = useState('');
   const [notes, setNotes] = useState('');
 
   const { data: animalRows } = useQuery(
@@ -61,6 +72,34 @@ export default function EditHealthRecordScreen() {
   const animals = useMemo(
     () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
     [animalRows],
+  );
+
+  const { data: productRows } = useQuery(
+    activeFarm
+      ? `SELECT * FROM health_records
+         WHERE farm_id = ? AND product_name IS NOT NULL AND product_name != ''
+         ORDER BY date DESC`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const remembered = useMemo(
+    () =>
+      rememberedProducts(
+        (productRows ?? []).map((row) => {
+          const record = mapHealthRecord(row as Record<string, unknown>);
+          return {
+            productName: record.productName,
+            dosage: record.dosage,
+            route: record.route,
+            meatDays: record.meatWithdrawalDays,
+            milkDays: record.milkWithdrawalDays,
+            legacyDays: record.withdrawalDays,
+            date: record.date,
+          };
+        }),
+      ),
+    [productRows],
   );
 
   useEffect(() => {
@@ -83,9 +122,13 @@ export default function EditHealthRecordScreen() {
         setFamachaScore(record.famachaScore);
         setProductName(record.productName ?? '');
         setDosage(record.dosage ?? '');
-        setWithdrawalDays(
-          record.withdrawalDays != null ? String(record.withdrawalDays) : '',
-        );
+        setRoute(record.route);
+        setLotNumber(record.lotNumber ?? '');
+        const meat =
+          record.meatWithdrawalDays ?? record.withdrawalDays;
+        const milk = record.milkWithdrawalDays ?? record.withdrawalDays;
+        setMeatDays(meat != null ? String(meat) : '');
+        setMilkDays(milk != null ? String(milk) : '');
         setNotes(record.notes ?? '');
       } catch (error) {
         if (!cancelled) {
@@ -120,17 +163,18 @@ export default function EditHealthRecordScreen() {
       return;
     }
 
-    let parsedWithdrawal: number | undefined;
-    if (withdrawalDays.trim() && healthKindSupportsWithdrawal(kind)) {
-      parsedWithdrawal = Number.parseInt(withdrawalDays, 10);
-      if (Number.isNaN(parsedWithdrawal) || parsedWithdrawal < 0) {
-        setErrorMessage('Enter a valid withdrawal period in days.');
-        return;
-      }
+    const meat = parseWithdrawalDays(meatDays);
+    const milk = parseWithdrawalDays(
+      showsMilkWithdrawal(activeFarm.segment) ? milkDays : '',
+    );
+    if (!meat.ok || !milk.ok) {
+      setErrorMessage('Enter a valid withdrawal period in days.');
+      return;
     }
 
     const animal = animals.find((item) => item.id === animalId);
     const animalLabel = animal ? animalDisplayLabel(animal) : 'Animal';
+    const supports = healthKindSupportsWithdrawal(kind);
 
     setSaving(true);
     try {
@@ -141,9 +185,13 @@ export default function EditHealthRecordScreen() {
         famachaScore: kind === 'famacha' ? (famachaScore ?? undefined) : undefined,
         productName: productName.trim() || undefined,
         dosage: dosage.trim() || undefined,
-        withdrawalDays: parsedWithdrawal,
+        route,
+        lotNumber: lotNumber.trim() || null,
+        meatWithdrawalDays: supports ? meat.value : null,
+        milkWithdrawalDays: supports ? milk.value : null,
         notes: notes.trim() || undefined,
         animalLabel,
+        famachaRecheckDays: activeFarm.famachaRecheckDays,
       });
       router.back();
     } catch (error) {
@@ -230,20 +278,35 @@ export default function EditHealthRecordScreen() {
           </>
         ) : null}
 
-        <Input
-          label="Product / medication"
-          value={productName}
-          onChangeText={setProductName}
+        <TreatmentFields
+          segment={activeFarm.segment}
+          showWithdrawal={healthKindSupportsWithdrawal(kind)}
+          famachaScore={kind === 'famacha' ? famachaScore : null}
+          productName={productName}
+          onProductName={setProductName}
+          dosage={dosage}
+          onDosage={setDosage}
+          route={route}
+          onRoute={setRoute}
+          lotNumber={lotNumber}
+          onLotNumber={setLotNumber}
+          meatDays={meatDays}
+          onMeatDays={setMeatDays}
+          milkDays={milkDays}
+          onMilkDays={setMilkDays}
+          remembered={remembered}
+          onPickProduct={(product) => {
+            setProductName(product.productName);
+            setDosage(product.dosage ?? '');
+            setRoute(product.route);
+            setMeatDays(product.meatDays != null ? String(product.meatDays) : '');
+            if (showsMilkWithdrawal(activeFarm.segment)) {
+              setMilkDays(
+                product.milkDays != null ? String(product.milkDays) : '',
+              );
+            }
+          }}
         />
-        <Input label="Dosage" value={dosage} onChangeText={setDosage} />
-        {healthKindSupportsWithdrawal(kind) ? (
-          <Input
-            label="Withdrawal period (days)"
-            value={withdrawalDays}
-            onChangeText={setWithdrawalDays}
-            keyboardType="numeric"
-          />
-        ) : null}
         <Input label="Notes" value={notes} onChangeText={setNotes} />
 
         <Button

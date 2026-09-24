@@ -10,6 +10,10 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import {
+  formatDueWindowPhrase,
+  resolveBreedingWindow,
+} from '@/lib/domain/breeding';
+import {
   mapAnimal,
   mapBreedingEvent,
   mapKiddingEvent,
@@ -162,10 +166,18 @@ export default function BreedingScreen() {
                 <Badge label={item.status} tone="default" />
               </View>
               <Text className="text-gray-600 text-sm mt-1">
-                Bred {formatDisplayDate(item.bredDate)}
-                {item.dueDate
-                  ? ` · Due ${formatDisplayDate(item.dueDate)}`
-                  : ''}
+                {item.exposureEndDate
+                  ? `Exposed ${formatDisplayDate(item.bredDate)}–${formatDisplayDate(item.exposureEndDate)}`
+                  : `Bred ${formatDisplayDate(item.bredDate)}`}
+                {(() => {
+                  const window = resolveBreedingWindow(
+                    item,
+                    activeFarm.gestationDays,
+                  );
+                  return window
+                    ? ` · ${formatDueWindowPhrase(window.windowStart, window.windowEnd)}`
+                    : '';
+                })()}
               </Text>
               {item.sireId || item.sireExternalName ? (
                 <Text className="text-gray-600 text-sm mt-1">
