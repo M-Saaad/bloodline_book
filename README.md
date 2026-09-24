@@ -25,11 +25,24 @@ Multi-tenant SaaS for US goat operations — herd records, health, breeding, wei
 
 - **Land** — pastures, grazing occupancy, and feed logs (migration 0010)
 
-## Phase 4 (current)
+## Phase 4 (complete)
 
 - **Breeding follow-ups** — kidding links open breedings, optional kid registration (`litter_id`), breeding calendar, due-date tasks
 - **Health follow-ups** — FAMACHA 4–5 and withdrawal tasks; health timeline on animal detail
 - **Web SQL** — portable `ORDER BY` (no `NULLS LAST`) for PowerSync web SQLite
+
+## Roadmap (Phases 5–16)
+
+Build order, acceptance criteria, and migration numbers for everything after Phase 4 live in **[ROADMAP.md](ROADMAP.md)** (written against `main` at Phase 4 merge).
+
+| Milestone | Phases | Focus |
+|---|---|---|
+| **Next** | **5** | Data-loss fixes, sync badge, password reset, FAMACHA default |
+| 30-day trial release | 5–11 + checkpoint | Edit/delete, identity, breeding windows, kidding, withdrawal/FAMACHA, Today screen |
+| Post-pilot | 12–15 | Finances per goat, Work Day, team roles, document attachments |
+| Gated | 16 | Dairy / milk records (only when farms ask) |
+
+Give Cursor **one phase section at a time** from `ROADMAP.md`, plus the file’s “Rules for every phase” block.
 
 ## Setup
 
@@ -75,4 +88,4 @@ See [docs/environments.md](docs/environments.md) for branch → database mapping
 
 ## Project structure
 
-See the build specification in the repository issue/PR for the full schema, build order, and Phase 1+ scope.
+See [ROADMAP.md](ROADMAP.md) for Phases 5–16 (schema changes, build order, and “Done when” checks).
