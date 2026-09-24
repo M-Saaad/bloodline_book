@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
@@ -29,6 +29,22 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const hydratedFarmId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeFarm || hydratedFarmId.current === activeFarm.id) {
+      return;
+    }
+    hydratedFarmId.current = activeFarm.id;
+    setName(activeFarm.name);
+    setWeightUnit(activeFarm.weightUnit);
+    setCurrency(activeFarm.currency);
+    setGestationDays(String(activeFarm.gestationDays ?? 150));
+    setWeaningDays(
+      activeFarm.weaningDays != null ? String(activeFarm.weaningDays) : '',
+    );
+    setFamachaRecheckDays(String(activeFarm.famachaRecheckDays ?? 14));
+  }, [activeFarm]);
 
   async function handleSave() {
     if (!activeFarm) {

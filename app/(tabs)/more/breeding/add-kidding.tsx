@@ -69,6 +69,15 @@ export default function AddKiddingScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  useEffect(() => {
+    if (typeof params.damId === 'string' && params.damId) {
+      setDamId(params.damId);
+    }
+    if (typeof params.breedingId === 'string' && params.breedingId) {
+      setBreedingId(params.breedingId);
+    }
+  }, [params.damId, params.breedingId]);
+
   const { data: animalRows } = useQuery(
     activeFarm
       ? `SELECT * FROM animals

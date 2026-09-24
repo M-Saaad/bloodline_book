@@ -11,6 +11,7 @@ import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
+import { getAnimalById } from '@/lib/db/animals';
 import {
   createBreedingEvent,
   createExposureBreedings,
@@ -84,7 +85,8 @@ export default function AddBreedingScreen() {
         continue;
       }
       const dam = females.find((animal) => animal.id === id);
-      const label = dam ? animalDisplayLabel(dam) : 'This doe';
+      const loaded = dam ?? (await getAnimalById(id));
+      const label = loaded ? animalDisplayLabel(loaded) : 'This doe';
       lines.push(
         `${label} is recorded as bred on ${formatDisplayDate(open[0].bredDate)}.`,
       );
