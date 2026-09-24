@@ -1,30 +1,44 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
-import {
-  addDaysToIso,
-  GOAT_GESTATION_DAYS,
-} from '@/lib/dates';
+import { todayIso } from '@/lib/dates';
 import {
   BreedingLinkedToKiddingError,
+  confirmBreeding,
   deleteBreedingEvent,
   ensureBreedingDueTask,
   getBreedingEventById,
+  markBreedingLost,
+  markBreedingOpen,
   updateBreedingEvent,
 } from '@/lib/db/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
+import {
+  computeBreedingWindow,
+  formatDueWindowPhrase,
+  isBreedingOpenForKidding,
+} from '@/lib/domain/breeding';
+import type { ConfirmMethod } from '@/lib/types/breeding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
+
+const METHODS: { value: ConfirmMethod; label: string }[] = [
+  { value: 'ultrasound', label: 'Ultrasound' },
+  { value: 'blood_test', label: 'Blood test' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function EditBreedingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,12 +46,21 @@ export default function EditBreedingScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [status, setStatus] = useState<string>('bred');
   const [linkedKidding, setLinkedKidding] = useState(false);
+  const [exposureEnd, setExposureEnd] = useState<string | null>(null);
   const [damId, setDamId] = useState<string | null>(null);
   const [sireId, setSireId] = useState<string | null>(null);
   const [sireExternalName, setSireExternalName] = useState('');
   const [bredDate, setBredDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmedDate, setConfirmedDate] = useState(todayIso());
+  const [confirmMethod, setConfirmMethod] = useState<ConfirmMethod | null>(
+    null,
+  );
+  const [showLost, setShowLost] = useState(false);
+  const [lostNote, setLostNote] = useState('');
 
   const { data: animalRows } = useQuery(
     activeFarm
@@ -59,7 +82,16 @@ export default function EditBreedingScreen() {
     [animals],
   );
 
-  const estimatedDue = addDaysToIso(bredDate, GOAT_GESTATION_DAYS);
+  const gestationDays = activeFarm?.gestationDays ?? 150;
+  const window = bredDate
+    ? computeBreedingWindow({
+        bredDate,
+        exposureEndDate: exposureEnd,
+        gestationDays,
+      })
+    : null;
+  const canChangeOutcome =
+    isBreedingOpenForKidding(status as 'bred') && !linkedKidding;
 
   useEffect(() => {
     if (!id) {
@@ -79,8 +111,12 @@ export default function EditBreedingScreen() {
         setSireId(event.sireId);
         setSireExternalName(event.sireExternalName ?? '');
         setBredDate(event.bredDate);
+        setExposureEnd(event.exposureEndDate);
         setNotes(event.notes ?? '');
+        setStatus(event.status);
         setLinkedKidding(event.kiddingEventId != null);
+        setConfirmedDate(event.confirmedDate ?? todayIso());
+        setConfirmMethod(event.confirmMethod);
         await ensureBreedingDueTask(id);
       } catch (error) {
         if (!cancelled) {
@@ -107,8 +143,6 @@ export default function EditBreedingScreen() {
       return;
     }
     const dam = females.find((animal) => animal.id === damId);
-    const damLabel = dam ? animalDisplayLabel(dam) : 'Dam';
-
     setSaving(true);
     setErrorMessage('');
     try {
@@ -117,13 +151,89 @@ export default function EditBreedingScreen() {
         sireId: sireId ?? undefined,
         sireExternalName: sireExternalName.trim() || undefined,
         bredDate,
+        exposureEndDate: exposureEnd,
+        gestationDays,
         notes: notes.trim() || undefined,
-        damLabel,
+        damLabel: dam ? animalDisplayLabel(dam) : 'Dam',
       });
       router.back();
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Could not save breeding.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleConfirm() {
+    if (!id || !confirmMethod) {
+      setErrorMessage('Pick how pregnancy was confirmed.');
+      return;
+    }
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await confirmBreeding(id, {
+        confirmedDate,
+        method: confirmMethod,
+      });
+      setStatus('confirmed');
+      setShowConfirm(false);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not confirm breeding.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleOpen() {
+    if (!id) {
+      return;
+    }
+    const confirmed = await confirmAction(
+      'Mark open?',
+      'She leaves the kidding calendar and the kidding task is closed.',
+      'Mark open',
+    );
+    if (!confirmed) {
+      return;
+    }
+    setSaving(true);
+    try {
+      await markBreedingOpen(id);
+      setStatus('open');
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not update breeding.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleLost() {
+    if (!id) {
+      return;
+    }
+    if (!lostNote.trim()) {
+      setErrorMessage('Add a note for the loss.');
+      return;
+    }
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await markBreedingLost(id, lostNote.trim());
+      setStatus('lost');
+      setNotes((current) =>
+        [current.trim(), lostNote.trim()].filter(Boolean).join('\n'),
+      );
+      setShowLost(false);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Could not update breeding.',
       );
     } finally {
       setSaving(false);
@@ -140,10 +250,93 @@ export default function EditBreedingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4">
+      <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
         <FormMessage message={errorMessage} tone="error" />
+        <View className="flex-row items-center gap-2 mb-3">
+          <Badge label={status} />
+          {window ? (
+            <Text className="text-sm text-gray-600 flex-1">
+              {formatDueWindowPhrase(window.windowStart, window.windowEnd)}
+            </Text>
+          ) : null}
+        </View>
+
+        {canChangeOutcome ? (
+          <View className="gap-2 mb-4">
+            <Button
+              title="Confirm pregnant"
+              variant="secondary"
+              onPress={() => {
+                setShowConfirm((value) => !value);
+                setShowLost(false);
+              }}
+            />
+            {showConfirm ? (
+              <View className="bg-white border border-gray-200 rounded-xl p-3">
+                <DateField
+                  label="Confirmed date"
+                  value={confirmedDate}
+                  onChange={setConfirmedDate}
+                />
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  Method
+                </Text>
+                <View className="flex-row flex-wrap gap-2 mb-3">
+                  {METHODS.map((method) => (
+                    <Pressable
+                      key={method.value}
+                      onPress={() => setConfirmMethod(method.value)}
+                      className={`rounded-full border px-3 py-1.5 ${
+                        confirmMethod === method.value
+                          ? 'border-bloodline-600 bg-bloodline-50'
+                          : 'border-gray-300 bg-white'
+                      }`}>
+                      <Text className="text-sm text-gray-800">{method.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Button
+                  title={saving ? 'Saving…' : 'Save confirmation'}
+                  onPress={handleConfirm}
+                  disabled={saving}
+                />
+              </View>
+            ) : null}
+            <Button title="Mark open (not pregnant)" variant="outline" onPress={handleOpen} />
+            <Button
+              title="Mark lost"
+              variant="outline"
+              onPress={() => {
+                setShowLost((value) => !value);
+                setShowConfirm(false);
+              }}
+            />
+            {showLost ? (
+              <View className="bg-white border border-gray-200 rounded-xl p-3">
+                <Input
+                  label="What happened?"
+                  value={lostNote}
+                  onChangeText={setLostNote}
+                  placeholder="Abortion or resorption"
+                />
+                <Button
+                  title={saving ? 'Saving…' : 'Save loss'}
+                  onPress={handleLost}
+                  disabled={saving}
+                />
+              </View>
+            ) : null}
+            <Button
+              title="Log kidding"
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/more/breeding/add-kidding',
+                  params: { damId: damId ?? '', breedingId: id },
+                })
+              }
+            />
+          </View>
+        ) : null}
 
         <AnimalSelectField
           label="Dam"
@@ -162,23 +355,27 @@ export default function EditBreedingScreen() {
           value={sireExternalName}
           onChangeText={setSireExternalName}
         />
-        <DateField label="Bred date" value={bredDate} onChange={setBredDate} />
-        {estimatedDue ? (
-          <Text className="text-sm text-gray-600 mb-4">
-            Estimated due: {estimatedDue}
-          </Text>
+        <DateField
+          label={exposureEnd ? 'Exposure start' : 'Bred date'}
+          value={bredDate}
+          onChange={setBredDate}
+        />
+        {exposureEnd != null ? (
+          <DateField
+            label="Exposure end"
+            value={exposureEnd}
+            onChange={setExposureEnd}
+          />
         ) : null}
         <Input label="Notes" value={notes} onChangeText={setNotes} />
-
         <Button
           title={saving ? 'Saving…' : 'Save Changes'}
           onPress={handleSave}
           disabled={saving}
         />
-
         <DeleteRecordButton
           confirmTitle="Delete breeding?"
-          confirmMessage="The open expected kidding task will be removed."
+          confirmMessage="The open kidding task will be removed."
           disabled={linkedKidding}
           disabledReason={
             linkedKidding

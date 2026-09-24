@@ -1,5 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
@@ -7,14 +8,17 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { todayIso } from '@/lib/dates';
 import { mapTask } from '@/lib/db/mappers';
 import { setTaskCompleted } from '@/lib/db/documents';
+import { hideOldCompletedTask } from '@/lib/domain/today';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function TasksScreen() {
   const { activeFarm } = useFarm();
   const { canWrite } = useFarmRole();
+  const [tab, setTab] = useState<'open' | 'done'>('open');
 
   const { data, isLoading } = useQuery(
     activeFarm
@@ -25,9 +29,20 @@ export default function TasksScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const tasks = (data ?? []).map((row) =>
-    mapTask(row as Record<string, unknown>),
-  );
+  const tasks = useMemo(() => {
+    const today = todayIso();
+    return (data ?? [])
+      .map((row) => mapTask(row as Record<string, unknown>))
+      .filter((task) => {
+        if (tab === 'open') {
+          return !task.completed;
+        }
+        return (
+          task.completed &&
+          !hideOldCompletedTask(task.completed, task.updatedAt, today)
+        );
+      });
+  }, [data, tab]);
 
   async function toggleTask(taskId: string, completed: boolean) {
     if (!canWrite) {
@@ -46,7 +61,26 @@ export default function TasksScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <View className="px-4 py-3">
+      <View className="px-4 py-3 gap-3">
+        <View className="flex-row gap-2">
+          {(['open', 'done'] as const).map((value) => (
+            <Pressable
+              key={value}
+              onPress={() => setTab(value)}
+              className={`flex-1 rounded-full border py-2 items-center ${
+                tab === value
+                  ? 'border-bloodline-600 bg-bloodline-50'
+                  : 'border-gray-300 bg-white'
+              }`}>
+              <Text
+                className={`text-sm font-medium capitalize ${
+                  tab === value ? 'text-bloodline-700' : 'text-gray-700'
+                }`}>
+                {value}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         <FarmWriteGate>
           <Button
             title="Add Task"

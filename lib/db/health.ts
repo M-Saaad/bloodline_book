@@ -4,65 +4,66 @@ import type { Transaction } from '@powersync/common';
 
 import { dbNow } from '@/lib/db/now';
 import {
+  closeOlderFamachaRechecks,
   deleteOpenTasksForHealthRecord,
   syncOpenTasksForHealthRecord,
 } from '@/lib/db/health-task-sync';
 import { mapHealthRecord } from '@/lib/db/mappers';
 import {
-  famachaFollowUpTaskTitle,
+  activeWithdrawalsByAnimal,
+  dewormTaskTitle,
   healthKindSupportsWithdrawal,
-  needsFamachaFollowUp,
-  withdrawalClearDate,
-  withdrawalTaskTitle,
+  type WithdrawalBadge,
 } from '@/lib/domain/health';
-import { addDaysToIso } from '@/lib/dates';
 import { powersync } from '@/lib/powersync/system';
-import type { HealthRecord, HealthRecordKind } from '@/lib/types/health';
+import type {
+  HealthRecord,
+  HealthRecordKind,
+  TreatmentRoute,
+} from '@/lib/types/health';
 
-async function insertHealthTask(
-  tx: Transaction,
-  farmId: string,
-  input: {
-    title: string;
-    dueDate: string;
-    priority: 'low' | 'medium' | 'high';
-    source: 'health' | 'famacha_check';
-    sourceId: string;
-  },
-): Promise<void> {
-  const id = Crypto.randomUUID();
-  const now = dbNow();
-  await tx.execute(
-    `INSERT INTO tasks (
-      id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-    [
-      id,
-      farmId,
-      input.title,
-      input.dueDate,
-      input.priority,
-      input.source,
-      input.sourceId,
-      now,
-      now,
-    ],
-  );
+export type HealthRecordWrite = {
+  animalId: string;
+  date: string;
+  kind: HealthRecordKind;
+  famachaScore?: number;
+  productName?: string;
+  dosage?: string;
+  withdrawalDays?: number;
+  meatWithdrawalDays?: number | null;
+  milkWithdrawalDays?: number | null;
+  route?: TreatmentRoute | null;
+  lotNumber?: string | null;
+  notes?: string;
+  animalLabel?: string;
+  famachaRecheckDays?: number;
+};
+
+function resolveWithdrawal(input: HealthRecordWrite): {
+  meat: number | null;
+  milk: number | null;
+  legacy: number | null;
+} {
+  if (!healthKindSupportsWithdrawal(input.kind)) {
+    return { meat: null, milk: null, legacy: null };
+  }
+
+  const hasSplit =
+    input.meatWithdrawalDays !== undefined ||
+    input.milkWithdrawalDays !== undefined;
+  if (hasSplit) {
+    const meat = input.meatWithdrawalDays ?? null;
+    const milk = input.milkWithdrawalDays ?? null;
+    return { meat, milk, legacy: meat };
+  }
+
+  const legacy = input.withdrawalDays ?? null;
+  return { meat: legacy, milk: legacy, legacy };
 }
 
 export async function createHealthRecord(
   farmId: string,
-  input: {
-    animalId: string;
-    date: string;
-    kind: HealthRecordKind;
-    famachaScore?: number;
-    productName?: string;
-    dosage?: string;
-    withdrawalDays?: number;
-    notes?: string;
-    animalLabel?: string;
-  },
+  input: HealthRecordWrite,
 ): Promise<string> {
   const id = Crypto.randomUUID();
   const now = dbNow();
@@ -70,30 +71,17 @@ export async function createHealthRecord(
 
   const famachaScore =
     input.kind === 'famacha' ? (input.famachaScore ?? null) : null;
-  const withdrawalDays =
-    healthKindSupportsWithdrawal(input.kind) && input.withdrawalDays != null
-      ? input.withdrawalDays
-      : null;
+  const withdrawal = resolveWithdrawal(input);
+  const route = input.route ?? null;
+  const lotNumber = input.lotNumber?.trim() ? input.lotNumber.trim() : null;
 
-  const scheduleFamacha =
-    input.kind === 'famacha' &&
-    famachaScore != null &&
-    needsFamachaFollowUp(famachaScore);
-  const famachaDue = scheduleFamacha
-    ? addDaysToIso(input.date, 7) ?? input.date
-    : null;
-
-  const withdrawalDue =
-    withdrawalDays != null
-      ? withdrawalClearDate(input.date, withdrawalDays)
-      : null;
-
-  const runInsert = async (tx: Transaction) => {
+  await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
       `INSERT INTO health_records (
         id, farm_id, animal_id, date, kind, famacha_score,
-        product_name, dosage, withdrawal_days, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        product_name, dosage, withdrawal_days, meat_withdrawal_days,
+        milk_withdrawal_days, route, lot_number, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         farmId,
@@ -103,37 +91,95 @@ export async function createHealthRecord(
         famachaScore,
         input.productName ?? null,
         input.dosage ?? null,
-        withdrawalDays,
+        withdrawal.legacy,
+        withdrawal.meat,
+        withdrawal.milk,
+        route,
+        lotNumber,
         input.notes ?? null,
         now,
         now,
       ],
     );
 
-    if (scheduleFamacha && famachaDue) {
-      await insertHealthTask(tx, farmId, {
-        title: famachaFollowUpTaskTitle(animalLabel),
-        dueDate: famachaDue,
-        priority: famachaScore! >= 5 ? 'high' : 'medium',
-        source: 'famacha_check',
-        sourceId: id,
-      });
+    if (input.kind === 'famacha') {
+      await closeOlderFamachaRechecks(tx, input.animalId, id);
     }
 
-    if (withdrawalDue) {
-      await insertHealthTask(tx, farmId, {
-        title: withdrawalTaskTitle(animalLabel, input.productName ?? null),
-        dueDate: withdrawalDue,
-        priority: 'high',
-        source: 'health',
-        sourceId: id,
-      });
-    }
-  };
-
-  await powersync.writeTransaction(runInsert);
+    await syncOpenTasksForHealthRecord(tx, farmId, id, {
+      animalId: input.animalId,
+      date: input.date,
+      kind: input.kind,
+      famachaScore,
+      productName: input.productName ?? null,
+      meatWithdrawalDays: withdrawal.meat,
+      milkWithdrawalDays: withdrawal.milk,
+      animalLabel,
+      famachaRecheckDays: input.famachaRecheckDays,
+    });
+  });
 
   return id;
+}
+
+export async function createDewormFollowUpTask(
+  farmId: string,
+  input: {
+    healthRecordId: string;
+    animalLabel: string;
+    famachaScore: number;
+    dueDate: string;
+  },
+): Promise<void> {
+  const id = Crypto.randomUUID();
+  const now = dbNow();
+  await powersync.execute(
+    `INSERT INTO tasks (
+      id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 'high', 'deworm', ?, 0, ?, ?)`,
+    [
+      id,
+      farmId,
+      dewormTaskTitle(input.animalLabel, input.famachaScore),
+      input.dueDate,
+      input.healthRecordId,
+      now,
+      now,
+    ],
+  );
+}
+
+export async function getActiveMeatWithdrawal(
+  animalId: string,
+  today: string,
+): Promise<WithdrawalBadge | null> {
+  const rows = await powersync.getAll<Record<string, unknown>>(
+    `SELECT animal_id, date, product_name, meat_withdrawal_days,
+            milk_withdrawal_days, withdrawal_days
+     FROM health_records
+     WHERE animal_id = ?`,
+    [animalId],
+  );
+  const badges = activeWithdrawalsByAnimal(
+    rows.map((row) => ({
+      animalId: String(row.animal_id),
+      date: String(row.date),
+      productName:
+        row.product_name != null ? String(row.product_name) : null,
+      meatDays:
+        row.meat_withdrawal_days != null
+          ? Number(row.meat_withdrawal_days)
+          : null,
+      milkDays:
+        row.milk_withdrawal_days != null
+          ? Number(row.milk_withdrawal_days)
+          : null,
+      legacyDays:
+        row.withdrawal_days != null ? Number(row.withdrawal_days) : null,
+    })),
+    today,
+  );
+  return badges.get(animalId)?.meat ?? null;
 }
 
 export async function getHealthRecordsForFarm(
@@ -173,33 +219,24 @@ export async function getHealthRecordById(
 export async function updateHealthRecord(
   recordId: string,
   farmId: string,
-  input: {
-    animalId: string;
-    date: string;
-    kind: HealthRecordKind;
-    famachaScore?: number;
-    productName?: string;
-    dosage?: string;
-    withdrawalDays?: number;
-    notes?: string;
-    animalLabel?: string;
-  },
+  input: HealthRecordWrite,
 ): Promise<void> {
   const now = dbNow();
   const animalLabel = input.animalLabel ?? 'Animal';
 
   const famachaScore =
     input.kind === 'famacha' ? (input.famachaScore ?? null) : null;
-  const withdrawalDays =
-    healthKindSupportsWithdrawal(input.kind) && input.withdrawalDays != null
-      ? input.withdrawalDays
-      : null;
+  const withdrawal = resolveWithdrawal(input);
+  const route = input.route ?? null;
+  const lotNumber = input.lotNumber?.trim() ? input.lotNumber.trim() : null;
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
       `UPDATE health_records SET
         animal_id = ?, date = ?, kind = ?, famacha_score = ?,
-        product_name = ?, dosage = ?, withdrawal_days = ?, notes = ?, updated_at = ?
+        product_name = ?, dosage = ?, withdrawal_days = ?,
+        meat_withdrawal_days = ?, milk_withdrawal_days = ?,
+        route = ?, lot_number = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
       [
         input.animalId,
@@ -208,12 +245,20 @@ export async function updateHealthRecord(
         famachaScore,
         input.productName ?? null,
         input.dosage ?? null,
-        withdrawalDays,
+        withdrawal.legacy,
+        withdrawal.meat,
+        withdrawal.milk,
+        route,
+        lotNumber,
         input.notes ?? null,
         now,
         recordId,
       ],
     );
+
+    if (input.kind === 'famacha') {
+      await closeOlderFamachaRechecks(tx, input.animalId, recordId);
+    }
 
     await syncOpenTasksForHealthRecord(tx, farmId, recordId, {
       animalId: input.animalId,
@@ -221,8 +266,10 @@ export async function updateHealthRecord(
       kind: input.kind,
       famachaScore,
       productName: input.productName ?? null,
-      withdrawalDays,
+      meatWithdrawalDays: withdrawal.meat,
+      milkWithdrawalDays: withdrawal.milk,
       animalLabel,
+      famachaRecheckDays: input.famachaRecheckDays,
     });
   });
 }

@@ -1,38 +1,32 @@
 import { useQuery } from '@powersync/react';
+import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { addDaysToIso, formatDisplayDate, todayIso } from '@/lib/dates';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapAnimal, mapBreedingEvent } from '@/lib/db/mappers';
+import {
+  formatDueWindowPhrase,
+  resolveBreedingWindow,
+} from '@/lib/domain/breeding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
-
-const CALENDAR_WINDOW_DAYS = 120;
 
 export default function BreedingCalendarScreen() {
   const { activeFarm } = useFarm();
   const today = todayIso();
-  const windowEnd = addDaysToIso(today, CALENDAR_WINDOW_DAYS) ?? today;
 
-  const {
-    data: breedingRows,
-    isLoading,
-    error,
-  } = useQuery(
+  const { data: breedingRows, isLoading, error } = useQuery(
     activeFarm
       ? `SELECT * FROM breeding_events
-         WHERE farm_id = ?
-           AND due_date IS NOT NULL
-           AND due_date >= ?
-           AND due_date <= ?
-           AND status IN ('bred', 'confirmed', 'open')
-         ORDER BY due_date ASC, bred_date DESC`
+         WHERE farm_id = ? AND status IN ('bred', 'confirmed')
+         ORDER BY COALESCE(due_window_start, due_date, bred_date) ASC`
       : 'SELECT 1 WHERE 0',
-    activeFarm ? [activeFarm.id, today, windowEnd] : [],
+    activeFarm ? [activeFarm.id] : [],
   );
 
   const { data: animalRows } = useQuery(
@@ -51,27 +45,38 @@ export default function BreedingCalendarScreen() {
     return map;
   }, [animalRows]);
 
-  const events = useMemo(
-    () =>
-      (breedingRows ?? []).map((row) =>
-        mapBreedingEvent(row as Record<string, unknown>),
-      ),
-    [breedingRows],
-  );
+  const gestationDays = activeFarm?.gestationDays ?? 150;
+
+  const events = useMemo(() => {
+    return (breedingRows ?? [])
+      .map((row) => mapBreedingEvent(row as Record<string, unknown>))
+      .map((event) => ({
+        event,
+        window: resolveBreedingWindow(event, gestationDays),
+      }))
+      .filter(
+        (
+          item,
+        ): item is {
+          event: (typeof item)['event'];
+          window: NonNullable<(typeof item)['window']>;
+        } => item.window != null,
+      );
+  }, [breedingRows, gestationDays]);
+
+  const pastDue = events.filter((item) => item.window.windowEnd < today);
+  const upcoming = events.filter((item) => item.window.windowEnd >= today);
 
   const grouped = useMemo(() => {
-    const byMonth = new Map<string, typeof events>();
-    for (const event of events) {
-      if (!event.dueDate) {
-        continue;
-      }
-      const monthKey = event.dueDate.slice(0, 7);
+    const byMonth = new Map<string, typeof upcoming>();
+    for (const item of upcoming) {
+      const monthKey = item.window.windowStart.slice(0, 7);
       const list = byMonth.get(monthKey) ?? [];
-      list.push(event);
+      list.push(item);
       byMonth.set(monthKey, list);
     }
     return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [events]);
+  }, [upcoming]);
 
   if (!activeFarm) {
     return null;
@@ -100,10 +105,39 @@ export default function BreedingCalendarScreen() {
     return (
       <View className="flex-1 bg-gray-50">
         <EmptyState
-          title="No upcoming due dates"
-          description={`Open breedings with due dates in the next ${CALENDAR_WINDOW_DAYS} days will appear here. Log a breeding to get started.`}
+          title="No open breedings"
+          description="Bred and confirmed does show here until they kid, are marked open, or are marked lost."
         />
       </View>
+    );
+  }
+
+  function CardRow({
+    item,
+  }: {
+    item: (typeof events)[number];
+  }) {
+    return (
+      <Pressable
+        onPress={() =>
+          router.push(`/(tabs)/more/breeding/edit-breeding/${item.event.id}`)
+        }
+        className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
+        <View className="flex-row justify-between items-start">
+          <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
+            {animalLabels.get(item.event.damId) ?? 'Dam'}
+          </Text>
+          <Badge label={item.event.status} />
+        </View>
+        <Text className="text-gray-600 text-sm mt-1">
+          {formatDueWindowPhrase(item.window.windowStart, item.window.windowEnd)}
+        </Text>
+        <Text className="text-gray-500 text-sm mt-1">
+          {item.event.exposureEndDate
+            ? `Exposed ${formatDisplayDate(item.event.bredDate)}–${formatDisplayDate(item.event.exposureEndDate)}`
+            : `Bred ${formatDisplayDate(item.event.bredDate)}`}
+        </Text>
+      </Pressable>
     );
   }
 
@@ -111,9 +145,16 @@ export default function BreedingCalendarScreen() {
     <ScrollView
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4 pb-8 gap-4">
-      <Text className="text-sm text-gray-600">
-        Expected kiddings through {formatDisplayDate(windowEnd)}
-      </Text>
+      {pastDue.length > 0 ? (
+        <View>
+          <Text className="text-sm font-semibold text-amber-800 uppercase mb-2">
+            Past due — check these does
+          </Text>
+          {pastDue.map((item) => (
+            <CardRow key={item.event.id} item={item} />
+          ))}
+        </View>
+      ) : null}
 
       {grouped.map(([monthKey, monthEvents]) => {
         const [year, month] = monthKey.split('-').map(Number);
@@ -126,23 +167,8 @@ export default function BreedingCalendarScreen() {
             <Text className="text-sm font-semibold text-gray-500 uppercase mb-2">
               {monthLabel}
             </Text>
-            {monthEvents.map((event) => (
-              <View
-                key={event.id}
-                className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-                <View className="flex-row justify-between items-start">
-                  <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
-                    {animalLabels.get(event.damId) ?? 'Dam'}
-                  </Text>
-                  <Badge label={event.status} />
-                </View>
-                <Text className="text-gray-600 text-sm mt-1">
-                  Due {formatDisplayDate(event.dueDate!)}
-                </Text>
-                <Text className="text-gray-500 text-sm mt-1">
-                  Bred {formatDisplayDate(event.bredDate)}
-                </Text>
-              </View>
+            {monthEvents.map((item) => (
+              <CardRow key={item.event.id} item={item} />
             ))}
           </View>
         );

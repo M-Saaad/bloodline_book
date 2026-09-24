@@ -20,6 +20,7 @@ export async function createWeighSessionWithLogs(
     notes?: string;
     weightUnit: 'lb' | 'kg';
     entries: WeighDayEntry[];
+    markWeaned?: boolean;
   },
 ): Promise<string> {
   const sessionId = Crypto.randomUUID();
@@ -57,6 +58,29 @@ export async function createWeighSessionWithLogs(
           now,
         ],
       );
+
+      if (input.markWeaned && input.weighPoint === 'weaning') {
+        const animal = await tx.getOptional<{
+          lifecycle_stage: string;
+          litter_id: string | null;
+        }>(
+          'SELECT lifecycle_stage, litter_id FROM animals WHERE id = ?',
+          [entry.animalId],
+        );
+        if (animal?.lifecycle_stage === 'kid') {
+          await tx.execute(
+            `UPDATE animals SET lifecycle_stage = 'weaned', updated_at = ? WHERE id = ?`,
+            [now, entry.animalId],
+          );
+          if (animal.litter_id) {
+            await tx.execute(
+              `UPDATE tasks SET completed = 1, updated_at = ?
+               WHERE source = 'weaning' AND source_id = ? AND completed = 0`,
+              [now, animal.litter_id],
+            );
+          }
+        }
+      }
     }
   });
 

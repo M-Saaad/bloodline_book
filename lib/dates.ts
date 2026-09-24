@@ -49,3 +49,15 @@ export function formatDisplayDate(iso: string): string {
     day: 'numeric',
   });
 }
+
+/** US short date without a year, e.g. "Feb 14". */
+export function formatMonthDay(iso: string): string {
+  const parsed = parseIsoDate(iso);
+  if (!parsed) {
+    return iso;
+  }
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  });
+}

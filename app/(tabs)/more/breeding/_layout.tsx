@@ -8,10 +8,11 @@ export default function BreedingLayout() {
       <Stack.Screen name="index" options={{ title: 'Breeding & Kidding' }} />
       <Stack.Screen name="add-breeding" options={{ title: 'Log Breeding' }} />
       <Stack.Screen name="add-kidding" options={{ title: 'Log Kidding' }} />
+      <Stack.Screen name="kidding/[id]" options={{ title: 'Litter' }} />
       <Stack.Screen name="calendar" options={{ title: 'Breeding Calendar' }} />
       <Stack.Screen
         name="edit-breeding/[id]"
-        options={{ title: 'Edit Breeding' }}
+        options={{ title: 'Breeding' }}
       />
       <Stack.Screen
         name="edit-kidding/[id]"

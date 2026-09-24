@@ -1,5 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
@@ -11,17 +12,62 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarmRole } from '@/hooks/useFarmRole';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
+import { setTaskCompleted } from '@/lib/db/documents';
+import { mapAnimal, mapBreedingEvent, mapHealthRecord, mapTask } from '@/lib/db/mappers';
+import {
+  formatDueWindowPhrase,
+  kiddingSoonCategory,
+  resolveBreedingWindow,
+} from '@/lib/domain/breeding';
+import {
+  activeWithdrawalsByAnimal,
+  famachaHerdFlag,
+  famachaHerdFlagMessage,
+  withdrawalBadgeLabel,
+} from '@/lib/domain/health';
+import { partitionOpenTasks } from '@/lib/domain/today';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function DashboardScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();
-  const { isHand } = useFarmRole();
+  const { isHand, canWrite } = useFarmRole();
+  const [weekOpen, setWeekOpen] = useState(false);
+  const today = todayIso();
 
-  const { data: herdStats, isLoading: statsLoading } = useQuery(
+  const { data: animalRows, isLoading: animalsLoading } = useQuery(
     activeFarm
-      ? `SELECT status, lifecycle_stage, COUNT(*) as count
-         FROM animals WHERE farm_id = ?
-         GROUP BY status, lifecycle_stage`
+      ? 'SELECT * FROM animals WHERE farm_id = ?'
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: taskRows, isLoading: tasksLoading } = useQuery(
+    activeFarm
+      ? `SELECT * FROM tasks WHERE farm_id = ? AND completed = 0`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: healthRows } = useQuery(
+    activeFarm
+      ? `SELECT * FROM health_records WHERE farm_id = ?`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: breedingRows } = useQuery(
+    activeFarm
+      ? `SELECT * FROM breeding_events
+         WHERE farm_id = ? AND status IN ('bred', 'confirmed')`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: kiddingRows } = useQuery(
+    activeFarm
+      ? `SELECT kids_born, kid_date FROM kidding_events WHERE farm_id = ?`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );
@@ -34,6 +80,82 @@ export default function DashboardScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
+  const animals = useMemo(
+    () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
+    [animalRows],
+  );
+  const labels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const animal of animals) {
+      map.set(animal.id, animalDisplayLabel(animal));
+    }
+    return map;
+  }, [animals]);
+
+  const tasks = useMemo(
+    () => (taskRows ?? []).map((row) => mapTask(row as Record<string, unknown>)),
+    [taskRows],
+  );
+  const partitioned = useMemo(
+    () => partitionOpenTasks(tasks, today),
+    [tasks, today],
+  );
+
+  const health = useMemo(
+    () =>
+      (healthRows ?? []).map((row) => mapHealthRecord(row as Record<string, unknown>)),
+    [healthRows],
+  );
+  const withdrawals = useMemo(
+    () =>
+      activeWithdrawalsByAnimal(
+        health.map((record) => ({
+          animalId: record.animalId,
+          date: record.date,
+          productName: record.productName,
+          meatDays: record.meatWithdrawalDays,
+          milkDays: record.milkWithdrawalDays,
+          legacyDays: record.withdrawalDays,
+        })),
+        today,
+      ),
+    [health, today],
+  );
+  const herdFlag = useMemo(
+    () =>
+      famachaHerdFlag(
+        health
+          .filter((record) => record.kind === 'famacha' && record.famachaScore != null)
+          .map((record) => ({
+            animalId: record.animalId,
+            date: record.date,
+            score: record.famachaScore ?? 0,
+          })),
+        today,
+      ),
+    [health, today],
+  );
+
+  const kiddingSoon = useMemo(() => {
+    const gestation = activeFarm?.gestationDays ?? 150;
+    return (breedingRows ?? [])
+      .map((row) => mapBreedingEvent(row as Record<string, unknown>))
+      .map((event) => ({
+        event,
+        window: resolveBreedingWindow(event, gestation),
+      }))
+      .filter((item) => item.window != null)
+      .map((item) => ({
+        ...item,
+        category: kiddingSoonCategory(
+          item.window!.windowStart,
+          item.window!.windowEnd,
+          today,
+        ),
+      }))
+      .filter((item) => item.category != null);
+  }, [activeFarm?.gestationDays, breedingRows, today]);
+
   if (farmLoading) {
     return <LoadingState message="Loading farm…" />;
   }
@@ -43,70 +165,76 @@ export default function DashboardScreen() {
       <View className="flex-1 bg-gray-50">
         <EmptyState
           title="No farm selected"
-          description="Create or select a farm to see your dashboard."
+          description="Create or select a farm to see what needs doing."
         />
       </View>
     );
   }
 
-  const isDataLoading = statsLoading || sessionsLoading;
+  const loading = animalsLoading || tasksLoading || sessionsLoading;
+  const activeCount = animals.filter((animal) => animal.status === 'active').length;
+  const doesBred = new Set(
+    (breedingRows ?? []).map((row) => String((row as { dam_id: string }).dam_id)),
+  ).size;
+  const year = today.slice(0, 4);
+  const kidsBornThisYear = (kiddingRows ?? []).reduce((sum, row) => {
+    const kidDate = String((row as { kid_date: string }).kid_date ?? '');
+    if (!kidDate.startsWith(year)) {
+      return sum;
+    }
+    return sum + Number((row as { kids_born: number }).kids_born ?? 0);
+  }, 0);
 
-  const totalAnimals =
-    herdStats?.reduce(
-      (sum, row) => sum + Number((row as { count: number }).count),
-      0,
-    ) ?? 0;
+  const withdrawalRows = [...withdrawals.entries()].flatMap(([animalId, badge]) => {
+    const rows: {
+      key: string;
+      animalId: string;
+      label: string;
+    }[] = [];
+    if (badge.meat) {
+      rows.push({
+        key: `${animalId}-meat`,
+        animalId,
+        label: withdrawalBadgeLabel('meat', badge.meat.clearDate),
+      });
+    }
+    if (
+      badge.milk &&
+      (activeFarm.segment === 'dairy' || activeFarm.segment === 'both')
+    ) {
+      rows.push({
+        key: `${animalId}-milk`,
+        animalId,
+        label: withdrawalBadgeLabel('milk', badge.milk.clearDate),
+      });
+    }
+    return rows;
+  });
 
-  const activeCount =
-    herdStats
-      ?.filter((row) => (row as { status: string }).status === 'active')
-      .reduce(
-        (sum, row) => sum + Number((row as { count: number }).count),
-        0,
-      ) ?? 0;
+  async function tickTask(taskId: string) {
+    if (!canWrite) {
+      return;
+    }
+    await setTaskCompleted(taskId, true);
+  }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
+    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4 pb-8">
       <EnvironmentBadge />
       {isHand ? <ReadOnlyFarmBanner /> : null}
-      <Card>
-        <Text className="text-xl font-bold text-gray-900 mb-1">
-          {activeFarm.name}
-        </Text>
-        <View className="flex-row gap-2 mb-3">
-          <Badge label={activeFarm.segment} />
-          <Badge label={activeFarm.weightUnit} tone="success" />
-        </View>
-        {isDataLoading ? (
-          <Text className="text-gray-500">Loading herd stats…</Text>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              router.push({
-                pathname: '/(tabs)/livestock',
-                params: { status: 'all' },
-              })
-            }>
-            <Text className="text-gray-600">
-              {activeCount} active ·{' '}
-              <Text className="text-bloodline-700 font-medium">
-                {totalAnimals} total on record
-              </Text>
-            </Text>
-          </Pressable>
-        )}
-      </Card>
+      <Text className="text-2xl font-bold text-gray-900">{activeFarm.name}</Text>
+      <Text className="text-gray-500 -mt-2">Today · {formatDisplayDate(today)}</Text>
 
-      <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
-          Quick actions
-        </Text>
-        <View className="gap-2">
+      {animals.length === 0 && !loading ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">Start here</Text>
+          <Text className="text-gray-600 mb-3">
+            Add your goats, then run your first Weigh Day.
+          </Text>
           <FarmWriteGate>
             <View className="gap-2">
               <Button
-                title="Add Animal"
+                title="Add goat"
                 onPress={() => router.push('/(tabs)/livestock/add')}
               />
               <Button
@@ -116,33 +244,158 @@ export default function DashboardScreen() {
               />
             </View>
           </FarmWriteGate>
-          <Button
-            title="Land"
-            variant="outline"
-            onPress={() => router.push('/(tabs)/land')}
-          />
-        </View>
+        </Card>
+      ) : null}
+
+      {partitioned.dueNow.length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">
+            Overdue and due today
+          </Text>
+          {partitioned.dueNow.map((task) => (
+            <TaskRow
+              key={task.id}
+              title={task.title}
+              detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
+              onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
+              onTick={() => tickTask(task.id)}
+            />
+          ))}
+        </Card>
+      ) : null}
+
+      {withdrawalRows.length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">In withdrawal</Text>
+          {withdrawalRows.map((row) => (
+            <Pressable
+              key={row.key}
+              onPress={() => router.push(`/(tabs)/livestock/${row.animalId}`)}
+              className="py-2 border-b border-gray-100">
+              <Text className="text-gray-900 font-medium">
+                {labels.get(row.animalId) ?? 'Goat'}
+              </Text>
+              <Text className="text-amber-800 text-sm mt-1">{row.label}</Text>
+            </Pressable>
+          ))}
+        </Card>
+      ) : null}
+
+      {kiddingSoon.length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">Kidding soon</Text>
+          {kiddingSoon.map((item) => (
+            <Pressable
+              key={item.event.id}
+              onPress={() =>
+                router.push(`/(tabs)/more/breeding/edit-breeding/${item.event.id}`)
+              }
+              className="py-2 border-b border-gray-100">
+              <Text className="text-gray-900 font-medium">
+                {labels.get(item.event.damId) ?? 'Doe'}
+              </Text>
+              <Text className="text-gray-600 text-sm mt-1">
+                {item.category === 'past_due' ? 'Past due · ' : ''}
+                {item.window
+                  ? formatDueWindowPhrase(item.window.windowStart, item.window.windowEnd)
+                  : ''}
+              </Text>
+            </Pressable>
+          ))}
+        </Card>
+      ) : null}
+
+      {partitioned.famachaSoon.length > 0 || herdFlag ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">FAMACHA</Text>
+          {herdFlag ? (
+            <Text className="text-amber-800 mb-2">
+              {famachaHerdFlagMessage(herdFlag.high, herdFlag.scored)}
+            </Text>
+          ) : null}
+          {partitioned.famachaSoon.map((task) => (
+            <TaskRow
+              key={task.id}
+              title={task.title}
+              detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
+              onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
+              onTick={() => tickTask(task.id)}
+            />
+          ))}
+        </Card>
+      ) : null}
+
+      {partitioned.comingWeek.length > 0 ? (
+        <Card>
+          <Pressable onPress={() => setWeekOpen((value) => !value)}>
+            <Text className="text-lg font-semibold text-gray-900">
+              Coming this week ({partitioned.comingWeek.length})
+              {weekOpen ? '' : ' · show'}
+            </Text>
+          </Pressable>
+          {weekOpen
+            ? partitioned.comingWeek.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  title={task.title}
+                  detail={task.dueDate ? formatDisplayDate(task.dueDate) : ''}
+                  onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
+                  onTick={() => tickTask(task.id)}
+                />
+              ))
+            : null}
+        </Card>
+      ) : null}
+
+      <Card>
+        <Text className="text-lg font-semibold text-gray-900 mb-3">Quick actions</Text>
+        <FarmWriteGate>
+          <View className="gap-2">
+            <Button
+              title="Weigh Day"
+              onPress={() => router.push('/(tabs)/livestock/weight')}
+            />
+            <Button
+              title="Log health"
+              variant="secondary"
+              onPress={() => router.push('/(tabs)/more/health/add')}
+            />
+            <Button
+              title="Log kidding"
+              variant="outline"
+              onPress={() => router.push('/(tabs)/more/breeding/add-kidding')}
+            />
+            <Button
+              title="Add goat"
+              variant="outline"
+              onPress={() => router.push('/(tabs)/livestock/add')}
+            />
+          </View>
+        </FarmWriteGate>
+      </Card>
+
+      <Card>
+        <Text className="text-lg font-semibold text-gray-900 mb-2">Herd</Text>
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: '/(tabs)/livestock',
+              params: { status: 'all' },
+            })
+          }>
+          <Text className="text-gray-700">
+            {activeCount} active goats · {doesBred} does bred · {kidsBornThisYear}{' '}
+            kids born this year
+          </Text>
+        </Pressable>
       </Card>
 
       <Card>
         <Text className="text-lg font-semibold text-gray-900 mb-3">
           Recent weigh sessions
         </Text>
-        {sessionsLoading ? (
-          <Text className="text-gray-500">Loading sessions…</Text>
-        ) : (recentSessions ?? []).length === 0 ? (
-          <View>
-            <Text className="text-gray-500 mb-3">
-              No weigh sessions yet. Record your first batch on Weigh Day.
-            </Text>
-            <FarmWriteGate>
-              <Button
-                title="Start Weigh Day"
-                variant="outline"
-                onPress={() => router.push('/(tabs)/livestock/weight')}
-              />
-            </FarmWriteGate>
-          </View>
+        {(recentSessions ?? []).length === 0 ? (
+          <Text className="text-gray-500">No weigh sessions yet.</Text>
         ) : (
           (recentSessions ?? []).map((row) => {
             const session = row as {
@@ -165,5 +418,31 @@ export default function DashboardScreen() {
         )}
       </Card>
     </ScrollView>
+  );
+}
+
+function TaskRow({
+  title,
+  detail,
+  onOpen,
+  onTick,
+}: {
+  title: string;
+  detail: string;
+  onOpen: () => void;
+  onTick: () => void;
+}) {
+  return (
+    <View className="flex-row items-start py-2 border-b border-gray-100">
+      <Pressable
+        onPress={onTick}
+        accessibilityLabel="Complete task"
+        className="w-7 h-7 rounded-full border-2 border-gray-400 mr-3 mt-0.5"
+      />
+      <Pressable onPress={onOpen} className="flex-1">
+        <Text className="text-gray-900 font-medium">{title}</Text>
+        {detail ? <Text className="text-gray-500 text-sm mt-1">{detail}</Text> : null}
+      </Pressable>
+    </View>
   );
 }

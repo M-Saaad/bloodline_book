@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -19,6 +19,7 @@ import {
 } from '@/lib/db/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
 import { validateKiddingCounts } from '@/lib/domain/breeding';
+import type { KiddingEase } from '@/lib/types/breeding';
 import { kiddingDeleteKidsPrompt } from '@/lib/domain/kidding-delete';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
@@ -35,6 +36,7 @@ export default function EditKiddingScreen() {
   const [kidsBorn, setKidsBorn] = useState('1');
   const [kidsSurviving, setKidsSurviving] = useState('');
   const [notes, setNotes] = useState('');
+  const [kiddingEase, setKiddingEase] = useState<KiddingEase | null>(null);
 
   const { data: animalRows } = useQuery(
     activeFarm
@@ -85,6 +87,7 @@ export default function EditKiddingScreen() {
           event.kidsSurviving != null ? String(event.kidsSurviving) : '',
         );
         setNotes(event.notes ?? '');
+        setKiddingEase(event.kiddingEase);
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
@@ -128,6 +131,7 @@ export default function EditKiddingScreen() {
         kidsSurviving: surviving,
         sireId: sireId ?? undefined,
         sireExternalName: sireExternalName.trim() || undefined,
+        kiddingEase,
         notes: notes.trim() || undefined,
       });
       router.back();
@@ -174,6 +178,27 @@ export default function EditKiddingScreen() {
         <FormMessage message={errorMessage} tone="error" />
 
         <DateField label="Kid date" value={kidDate} onChange={setKidDate} />
+        <Text className="text-sm font-medium text-gray-700 mb-2">Kidding ease</Text>
+        <View className="flex-row gap-2 mb-4">
+          {(
+            [
+              ['unassisted', 'Unassisted'],
+              ['assisted', 'Assisted'],
+              ['vet', 'Vet'],
+            ] as const
+          ).map(([value, label]) => (
+            <Pressable
+              key={value}
+              onPress={() => setKiddingEase(value)}
+              className={`flex-1 rounded-xl border py-2 items-center ${
+                kiddingEase === value
+                  ? 'border-bloodline-600 bg-bloodline-50'
+                  : 'border-gray-300 bg-white'
+              }`}>
+              <Text className="text-sm text-gray-800">{label}</Text>
+            </Pressable>
+          ))}
+        </View>
         <Input
           label="Kids born"
           value={kidsBorn}

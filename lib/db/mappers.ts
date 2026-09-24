@@ -15,6 +15,18 @@ export function mapFarm(row: Record<string, unknown>): Farm {
     segment: row.segment as Farm['segment'],
     currency: String(row.currency ?? 'USD'),
     weightUnit: (row.weight_unit as Farm['weightUnit']) ?? 'lb',
+    gestationDays:
+      row.gestation_days != null ? Number(row.gestation_days) : 150,
+    weaningDays:
+      row.weaning_days === undefined
+        ? 90
+        : row.weaning_days != null
+          ? Number(row.weaning_days)
+          : null,
+    famachaRecheckDays:
+      row.famacha_recheck_days != null
+        ? Number(row.famacha_recheck_days)
+        : 14,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -177,6 +189,16 @@ export function mapHealthRecord(row: Record<string, unknown>): HealthRecord {
     dosage: row.dosage != null ? String(row.dosage) : null,
     withdrawalDays:
       row.withdrawal_days != null ? Number(row.withdrawal_days) : null,
+    meatWithdrawalDays:
+      row.meat_withdrawal_days != null
+        ? Number(row.meat_withdrawal_days)
+        : null,
+    milkWithdrawalDays:
+      row.milk_withdrawal_days != null
+        ? Number(row.milk_withdrawal_days)
+        : null,
+    route: (row.route as HealthRecord['route']) ?? null,
+    lotNumber: row.lot_number != null ? String(row.lot_number) : null,
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at ?? row.created_at),
@@ -192,8 +214,17 @@ export function mapBreedingEvent(row: Record<string, unknown>): BreedingEvent {
     sireExternalName:
       row.sire_external_name != null ? String(row.sire_external_name) : null,
     bredDate: String(row.bred_date),
+    exposureEndDate:
+      row.exposure_end_date != null ? String(row.exposure_end_date) : null,
     dueDate: row.due_date != null ? String(row.due_date) : null,
+    dueWindowStart:
+      row.due_window_start != null ? String(row.due_window_start) : null,
+    dueWindowEnd:
+      row.due_window_end != null ? String(row.due_window_end) : null,
     status: row.status as BreedingEvent['status'],
+    confirmedDate:
+      row.confirmed_date != null ? String(row.confirmed_date) : null,
+    confirmMethod: (row.confirm_method as BreedingEvent['confirmMethod']) ?? null,
     kiddingEventId:
       row.kidding_event_id != null ? String(row.kidding_event_id) : null,
     notes: row.notes != null ? String(row.notes) : null,
@@ -257,6 +288,7 @@ export function mapKiddingEvent(row: Record<string, unknown>): KiddingEvent {
     kidsBorn: Number(row.kids_born),
     kidsSurviving:
       row.kids_surviving != null ? Number(row.kids_surviving) : null,
+    kiddingEase: (row.kidding_ease as KiddingEvent['kiddingEase']) ?? null,
     notes: row.notes != null ? String(row.notes) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),

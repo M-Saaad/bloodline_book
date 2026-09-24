@@ -4,6 +4,9 @@ export interface Farm {
   segment: 'dairy' | 'meat' | 'both';
   currency: string;
   weightUnit: 'lb' | 'kg';
+  gestationDays: number;
+  weaningDays: number | null;
+  famachaRecheckDays: number;
   createdAt: string;
   updatedAt: string;
 }

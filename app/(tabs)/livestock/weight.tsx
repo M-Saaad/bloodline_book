@@ -37,6 +37,7 @@ export default function WeighDayScreen() {
   const [weighPoint, setWeighPoint] =
     useState<WeighSession['weighPoint']>('ad_hoc');
   const [weights, setWeights] = useState<Record<string, string>>({});
+  const [markWeaned, setMarkWeaned] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -97,6 +98,7 @@ export default function WeighDayScreen() {
         weighPoint,
         weightUnit: activeFarm.weightUnit,
         entries,
+        markWeaned: weighPoint === 'weaning' && markWeaned,
       });
       setSuccessMessage(
         `Recorded ${entries.length} weight${entries.length === 1 ? '' : 's'} in one transaction.`,
@@ -156,6 +158,20 @@ export default function WeighDayScreen() {
             </Pressable>
           ))}
         </View>
+        {weighPoint === 'weaning' ? (
+          <Pressable
+            onPress={() => setMarkWeaned((value) => !value)}
+            className="flex-row items-center gap-2 mt-3">
+            <View
+              className={`w-5 h-5 rounded border ${
+                markWeaned
+                  ? 'bg-bloodline-600 border-bloodline-600'
+                  : 'border-gray-400 bg-white'
+              }`}
+            />
+            <Text className="text-gray-800">Also mark these kids as weaned</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View className="px-4 pt-3">

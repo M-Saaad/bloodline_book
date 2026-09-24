@@ -76,8 +76,11 @@ export async function createFarm(input: {
   const now = new Date().toISOString();
 
   await powersync.execute(
-    `INSERT INTO farms (id, name, segment, currency, weight_unit, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO farms (
+      id, name, segment, currency, weight_unit,
+      gestation_days, weaning_days, famacha_recheck_days,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 150, 90, 14, ?, ?)`,
     [
       id,
       input.name,
@@ -106,6 +109,9 @@ export async function updateFarmSettings(
     name?: string;
     weightUnit?: Farm['weightUnit'];
     currency?: string;
+    gestationDays?: number;
+    weaningDays?: number | null;
+    famachaRecheckDays?: number;
   },
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -123,6 +129,18 @@ export async function updateFarmSettings(
   if (input.currency !== undefined) {
     fields.push('currency = ?');
     values.push(input.currency);
+  }
+  if (input.gestationDays !== undefined) {
+    fields.push('gestation_days = ?');
+    values.push(input.gestationDays);
+  }
+  if (input.weaningDays !== undefined) {
+    fields.push('weaning_days = ?');
+    values.push(input.weaningDays);
+  }
+  if (input.famachaRecheckDays !== undefined) {
+    fields.push('famacha_recheck_days = ?');
+    values.push(input.famachaRecheckDays);
   }
 
   if (fields.length === 0) {

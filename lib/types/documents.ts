@@ -29,7 +29,10 @@ export interface FarmTask {
     | 'breeding'
     | 'weaning'
     | 'weigh_day'
-    | 'famacha_check';
+    | 'famacha_check'
+    | 'meat_withdrawal'
+    | 'milk_withdrawal'
+    | 'deworm';
   sourceId: string | null;
   completed: boolean;
   createdAt: string;
