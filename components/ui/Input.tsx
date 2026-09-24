@@ -5,6 +5,7 @@ interface InputProps {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  hint?: string;
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'decimal-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
@@ -15,6 +16,7 @@ export function Input({
   value,
   onChangeText,
   placeholder,
+  hint,
   secureTextEntry,
   keyboardType = 'default',
   autoCapitalize = 'sentences',
@@ -32,6 +34,9 @@ export function Input({
         className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white text-gray-900"
         placeholderTextColor="#9ca3af"
       />
+      {hint ? (
+        <Text className="text-xs text-gray-500 mt-1">{hint}</Text>
+      ) : null}
     </View>
   );
 }

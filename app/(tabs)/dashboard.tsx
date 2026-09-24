@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View, Pressable } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
@@ -80,9 +80,21 @@ export default function DashboardScreen() {
         {isDataLoading ? (
           <Text className="text-gray-500">Loading herd stats…</Text>
         ) : (
-          <Text className="text-gray-600">
-            {activeCount} active · {totalAnimals} total on record
-          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/livestock',
+                params: { status: 'all' },
+              })
+            }>
+            <Text className="text-gray-600">
+              {activeCount} active ·{' '}
+              <Text className="text-bloodline-700 font-medium">
+                {totalAnimals} total on record
+              </Text>
+            </Text>
+          </Pressable>
         )}
       </Card>
 

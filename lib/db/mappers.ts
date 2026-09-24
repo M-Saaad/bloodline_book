@@ -45,6 +45,8 @@ export function mapAnimal(row: Record<string, unknown>): Animal {
     farmId: String(row.farm_id),
     name: row.name != null ? String(row.name) : null,
     tagNumber: row.tag_number != null ? String(row.tag_number) : null,
+    officialId:
+      row.official_id != null ? String(row.official_id) : null,
     photoStoragePath:
       row.photo_storage_path != null ? String(row.photo_storage_path) : null,
     breedPrimaryId:

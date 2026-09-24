@@ -10,6 +10,7 @@ export interface Animal {
   farmId: string;
   name: string | null;
   tagNumber: string | null;
+  officialId: string | null;
   photoStoragePath: string | null;
   breedPrimaryId: string | null;
   breedPercentage: number | null;
