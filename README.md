@@ -24,7 +24,15 @@ All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADM
 ```bash
 cp .env.development.example .env   # or .env.production.example for prod
 npm install
-npm run web:dev   # or npm run ios:dev / npm run android:dev
+npm run web   # or npm run ios / npm run android
 ```
 
 See [docs/environments.md](docs/environments.md) for branch → database mapping (same app, different Supabase/PowerSync per branch).
+
+## Product review
+
+User-facing inventory of what the app does today, what it does not, and questions for an outside expert: [docs/PRODUCT-REVIEW.md](docs/PRODUCT-REVIEW.md).
+
+Every path from sign-in through FAMACHA scoring and kidding, including branches and chained stories: [docs/USER-FLOWS.md](docs/USER-FLOWS.md).
+
+Demo login with sample herd data: [docs/TEST-ACCOUNT.md](docs/TEST-ACCOUNT.md) (`npm run seed:demo`).
