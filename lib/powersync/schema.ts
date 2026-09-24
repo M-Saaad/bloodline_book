@@ -38,6 +38,7 @@ const animals = new Table(
     farm_id: column.text,
     name: column.text,
     tag_number: column.text,
+    official_id: column.text,
     photo_storage_path: column.text,
     breed_primary_id: column.text,
     breed_percentage: column.real,
@@ -65,6 +66,7 @@ const animals = new Table(
     indexes: {
       animal_farm: ['farm_id'],
       animal_status: ['farm_id', 'status'],
+      animal_farm_tag: ['farm_id', 'tag_number'],
     },
   },
 );

@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
+import { mapAnimal, mapHealthRecord, mapKiddingEvent } from '@/lib/db/mappers';
 import { formatDisplayDate } from '@/lib/dates';
 import { formatHealthRecordKind } from '@/lib/ui/health-labels';
 import {
+  animalDisplayLabel,
   formatAnimalStatus,
   formatLifecycleStage,
+  formatRegistrationBody,
   statusBadgeTone,
 } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -68,6 +70,37 @@ export default function AnimalDetailScreen() {
     id ? [id] : [],
   );
 
+  const { data: offspringRows } = useQuery(
+    id
+      ? `SELECT * FROM animals
+         WHERE dam_id = ? OR sire_id = ?
+         ORDER BY COALESCE(date_of_birth, created_at) DESC, created_at DESC`
+      : 'SELECT 1 WHERE 0',
+    id ? [id, id] : [],
+  );
+
+  const damId = animalRows?.[0]?.dam_id as string | undefined;
+  const sireId = animalRows?.[0]?.sire_id as string | undefined;
+
+  const { data: damRows } = useQuery(
+    damId ? 'SELECT id, name, tag_number FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
+    damId ? [damId] : [],
+  );
+
+  const { data: sireRows } = useQuery(
+    sireId ? 'SELECT id, name, tag_number FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
+    sireId ? [sireId] : [],
+  );
+
+  const { data: kiddingRows } = useQuery(
+    id && animalRows?.[0]?.sex === 'female'
+      ? `SELECT * FROM kidding_events
+         WHERE dam_id = ?
+         ORDER BY kid_date DESC`
+      : 'SELECT 1 WHERE 0',
+    id && animalRows?.[0]?.sex === 'female' ? [id] : [],
+  );
+
   if (!activeFarm || !id) {
     return null;
   }
@@ -116,6 +149,12 @@ export default function AnimalDetailScreen() {
 
         <View className="gap-2">
           <DetailRow label="Breed" value={breedName ?? 'Not set'} />
+          {animal.breedPercentage != null ? (
+            <DetailRow
+              label="Breed %"
+              value={`${animal.breedPercentage}%`}
+            />
+          ) : null}
           <DetailRow label="Sex" value={animal.sex} capitalize />
           <DetailRow
             label="Lifecycle"
@@ -144,6 +183,130 @@ export default function AnimalDetailScreen() {
           ) : null}
         </View>
       </Card>
+
+      <Card>
+        <Text className="text-lg font-semibold text-gray-900 mb-3">Identity</Text>
+        <View className="gap-2">
+          {animal.tagNumber ? (
+            <DetailRow label="Tag" value={animal.tagNumber} />
+          ) : null}
+          {animal.officialId ? (
+            <DetailRow label="Official ID" value={animal.officialId} />
+          ) : null}
+          {animal.registrationBody ? (
+            <DetailRow
+              label="Registry"
+              value={`${formatRegistrationBody(animal.registrationBody) ?? ''}${
+                animal.registrationNumber
+                  ? ` · ${animal.registrationNumber}`
+                  : ''
+              }`}
+            />
+          ) : animal.registrationNumber ? (
+            <DetailRow
+              label="Registration number"
+              value={animal.registrationNumber}
+            />
+          ) : null}
+          {animal.tattoo ? (
+            <DetailRow label="Tattoo" value={animal.tattoo} />
+          ) : null}
+          {!animal.tagNumber &&
+          !animal.officialId &&
+          !animal.registrationBody &&
+          !animal.registrationNumber &&
+          !animal.tattoo ? (
+            <Text className="text-gray-500">No identity details recorded yet.</Text>
+          ) : null}
+        </View>
+      </Card>
+
+      <Card>
+        <Text className="text-lg font-semibold text-gray-900 mb-3">Parents</Text>
+        <View className="gap-2">
+          {damRows?.[0] ? (
+            <ParentLink
+              label="Dam"
+              animalId={String(damRows[0].id)}
+              name={String(damRows[0].name ?? '')}
+              tagNumber={
+                damRows[0].tag_number != null
+                  ? String(damRows[0].tag_number)
+                  : null
+              }
+            />
+          ) : (
+            <DetailRow label="Dam" value="Not set" />
+          )}
+          {sireRows?.[0] ? (
+            <ParentLink
+              label="Sire"
+              animalId={String(sireRows[0].id)}
+              name={String(sireRows[0].name ?? '')}
+              tagNumber={
+                sireRows[0].tag_number != null
+                  ? String(sireRows[0].tag_number)
+                  : null
+              }
+            />
+          ) : animal.sireExternalName ? (
+            <DetailRow label="Sire" value={animal.sireExternalName} />
+          ) : (
+            <DetailRow label="Sire" value="Not set" />
+          )}
+        </View>
+      </Card>
+
+      {(offspringRows ?? []).length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-3">
+            Offspring
+          </Text>
+          {(offspringRows ?? []).map((row) => {
+            const kid = mapAnimal(row as Record<string, unknown>);
+            return (
+              <Pressable
+                key={kid.id}
+                onPress={() => router.push(`/(tabs)/livestock/${kid.id}`)}
+                className="py-2 border-b border-gray-100">
+                <Text className="text-gray-900 font-medium">
+                  {animalDisplayLabel(kid)}
+                </Text>
+                <Text className="text-gray-500 text-sm capitalize">
+                  {kid.sex} · {formatLifecycleStage(kid.lifecycleStage)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </Card>
+      ) : null}
+
+      {animal.sex === 'female' && (kiddingRows ?? []).length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-3">
+            Kidding history
+          </Text>
+          {(kiddingRows ?? []).map((row) => {
+            const kidding = mapKiddingEvent(row as Record<string, unknown>);
+            const surviving =
+              kidding.kidsSurviving != null
+                ? kidding.kidsSurviving
+                : kidding.kidsBorn;
+            return (
+              <View
+                key={kidding.id}
+                className="py-2 border-b border-gray-100">
+                <Text className="text-gray-900 font-medium">
+                  {formatDisplayDate(kidding.kidDate)}
+                </Text>
+                <Text className="text-gray-600 text-sm mt-1">
+                  {kidding.kidsBorn} born · {surviving} alive
+                </Text>
+              </View>
+            );
+          })}
+        </Card>
+      ) : null}
 
       <FarmWriteGate>
         <Button
@@ -266,6 +429,33 @@ function DetailRow({
       <Text className={`text-gray-900 font-medium ${capitalize ? 'capitalize' : ''}`}>
         {value}
       </Text>
+    </View>
+  );
+}
+
+function ParentLink({
+  label,
+  animalId,
+  name,
+  tagNumber,
+}: {
+  label: string;
+  animalId: string;
+  name: string;
+  tagNumber: string | null;
+}) {
+  const display = name.trim()
+    ? name
+    : tagNumber
+      ? `#${tagNumber}`
+      : 'View animal';
+
+  return (
+    <View className="flex-row justify-between items-center">
+      <Text className="text-gray-500">{label}</Text>
+      <Pressable onPress={() => router.push(`/(tabs)/livestock/${animalId}`)}>
+        <Text className="text-bloodline-700 font-medium">{display}</Text>
+      </Pressable>
     </View>
   );
 }

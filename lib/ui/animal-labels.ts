@@ -25,6 +25,28 @@ export function formatAnimalStatus(status: Animal['status']): string {
   }
 }
 
+export function formatRegistrationBody(
+  body: Animal['registrationBody'],
+): string | null {
+  if (!body) {
+    return null;
+  }
+  switch (body) {
+    case 'adga':
+      return 'ADGA';
+    case 'abga':
+      return 'ABGA';
+    case 'usbga':
+      return 'USBGA';
+    case 'other':
+      return 'Other';
+    default: {
+      const _exhaustive: never = body;
+      return _exhaustive;
+    }
+  }
+}
+
 export function statusBadgeTone(
   status: Animal['status'],
 ): 'default' | 'success' | 'warning' | 'danger' {
