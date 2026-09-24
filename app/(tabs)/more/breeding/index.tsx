@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
@@ -14,6 +14,8 @@ import {
   mapBreedingEvent,
   mapKiddingEvent,
 } from '@/lib/db/mappers';
+import { ensureBreedingDueTask } from '@/lib/db/breeding';
+import { isBreedingOpenForKidding } from '@/lib/domain/breeding';
 import { ORDER_DUE_DATE_DESC } from '@/lib/sql/portableOrder';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -69,6 +71,22 @@ export default function BreedingScreen() {
   const kiddingEvents = (kiddingRows ?? []).map((row) =>
     mapKiddingEvent(row as Record<string, unknown>),
   );
+
+  const ensuredBreedingTasks = useRef(new Set<string>());
+
+  useEffect(() => {
+    for (const event of breedingEvents) {
+      if (
+        !event.dueDate ||
+        !isBreedingOpenForKidding(event.status) ||
+        ensuredBreedingTasks.current.has(event.id)
+      ) {
+        continue;
+      }
+      ensuredBreedingTasks.current.add(event.id);
+      void ensureBreedingDueTask(event.id);
+    }
+  }, [breedingEvents]);
 
   if (!activeFarm) {
     return null;

@@ -11,6 +11,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { createKiddingEvent, type KiddingKidDraft } from '@/lib/db/breeding';
+import { validateKiddingCounts } from '@/lib/domain/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -88,19 +89,14 @@ export default function AddKiddingScreen() {
     }
 
     const born = Number.parseInt(kidsBorn, 10);
-    if (Number.isNaN(born) || born < 0) {
-      setErrorMessage('Enter a valid number of kids born.');
-      return;
-    }
-
     let surviving: number | undefined;
     if (kidsSurviving.trim()) {
-      const parsed = Number.parseInt(kidsSurviving, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        setErrorMessage('Enter a valid surviving count.');
-        return;
-      }
-      surviving = parsed;
+      surviving = Number.parseInt(kidsSurviving, 10);
+    }
+    const countError = validateKiddingCounts(born, surviving);
+    if (countError) {
+      setErrorMessage(countError);
+      return;
     }
 
     const dam = females.find((animal) => animal.id === damId);

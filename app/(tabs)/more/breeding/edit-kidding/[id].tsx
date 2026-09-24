@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, Text } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -18,6 +18,7 @@ import {
   updateKiddingEvent,
 } from '@/lib/db/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
+import { validateKiddingCounts } from '@/lib/domain/breeding';
 import { kiddingDeleteKidsPrompt } from '@/lib/domain/kidding-delete';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
@@ -49,6 +50,17 @@ export default function EditKiddingScreen() {
   const males = useMemo(
     () => animals.filter((animal) => animal.sex === 'male'),
     [animals],
+  );
+
+  const { data: litterKidRows } = useQuery(
+    id
+      ? 'SELECT COUNT(*) as count FROM animals WHERE litter_id = ?'
+      : 'SELECT 1 WHERE 0',
+    id ? [id] : [],
+  );
+
+  const registeredKidCount = Number(
+    (litterKidRows?.[0] as { count?: number } | undefined)?.count ?? 0,
   );
 
   useEffect(() => {
@@ -97,18 +109,14 @@ export default function EditKiddingScreen() {
       return;
     }
     const born = Number.parseInt(kidsBorn, 10);
-    if (Number.isNaN(born) || born < 0) {
-      setErrorMessage('Enter a valid number of kids born.');
-      return;
-    }
     let surviving: number | undefined;
     if (kidsSurviving.trim()) {
-      const parsed = Number.parseInt(kidsSurviving, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        setErrorMessage('Enter a valid surviving count.');
-        return;
-      }
-      surviving = parsed;
+      surviving = Number.parseInt(kidsSurviving, 10);
+    }
+    const countError = validateKiddingCounts(born, surviving);
+    if (countError) {
+      setErrorMessage(countError);
+      return;
     }
 
     setSaving(true);
@@ -177,7 +185,17 @@ export default function EditKiddingScreen() {
           value={kidsSurviving}
           onChangeText={setKidsSurviving}
           keyboardType="numeric"
+          placeholder="Optional — defaults to kids born"
         />
+        {registeredKidCount > 0 ? (
+          <Text className="text-gray-600 text-sm mb-4">
+            {registeredKidCount} kid{registeredKidCount === 1 ? '' : 's'}{' '}
+            registered in Livestock for this kidding. Saving updates that count
+            to match surviving (or kids born if surviving is blank), and updates
+            their birth date and sire. Kids with weight or health records are
+            not removed automatically.
+          </Text>
+        ) : null}
         <AnimalSelectField
           label="Sire (on farm)"
           animals={males}

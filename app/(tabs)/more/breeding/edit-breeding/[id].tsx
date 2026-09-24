@@ -18,6 +18,7 @@ import {
 import {
   BreedingLinkedToKiddingError,
   deleteBreedingEvent,
+  ensureBreedingDueTask,
   getBreedingEventById,
   updateBreedingEvent,
 } from '@/lib/db/breeding';
@@ -80,6 +81,7 @@ export default function EditBreedingScreen() {
         setBredDate(event.bredDate);
         setNotes(event.notes ?? '');
         setLinkedKidding(event.kiddingEventId != null);
+        await ensureBreedingDueTask(id);
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
