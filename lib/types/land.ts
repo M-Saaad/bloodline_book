@@ -31,6 +31,7 @@ export interface GrazingRecord {
   endDate: string | null;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface FeedLog {
@@ -43,4 +44,5 @@ export interface FeedLog {
   pastureId: string | null;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
 }

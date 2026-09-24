@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -10,10 +11,17 @@ import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { LoadingState } from '@/components/ui/LoadingState';
 import {
+  deleteAnimal,
   getAnimalById,
+  getAnimalDeleteInfo,
   getBreedsForFarm,
   updateAnimal,
 } from '@/lib/db/animals';
+import {
+  animalDeleteBlockedMessage,
+  formatAnimalDeletePreview,
+  type AnimalDeleteBlocker,
+} from '@/lib/domain/animal-delete';
 import type { Animal, Breed } from '@/lib/types/animals';
 import { useFarm } from '@/providers/FarmProvider';
 
@@ -55,6 +63,10 @@ export default function EditAnimalScreen() {
   const [notes, setNotes] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [outDate, setOutDate] = useState('');
+  const [deleteBlockers, setDeleteBlockers] = useState<AnimalDeleteBlocker[]>(
+    [],
+  );
+  const [deletePreview, setDeletePreview] = useState('');
 
   useEffect(() => {
     if (!activeFarm || !id) {
@@ -92,6 +104,12 @@ export default function EditAnimalScreen() {
         setDateOfBirth(animal.dateOfBirth ?? '');
         setOutDate(animal.outDate ?? todayIso());
         setBreeds(farmBreeds);
+
+        const deleteInfo = await getAnimalDeleteInfo(id);
+        if (!cancelled) {
+          setDeleteBlockers(deleteInfo.blockers);
+          setDeletePreview(formatAnimalDeletePreview(deleteInfo));
+        }
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
@@ -298,6 +316,25 @@ export default function EditAnimalScreen() {
         onPress={handleSave}
         disabled={saving}
         className="mt-2"
+      />
+
+      <DeleteRecordButton
+        title="Delete goat"
+        confirmTitle="Delete this goat?"
+        confirmMessage={deletePreview}
+        disabled={deleteBlockers.length > 0}
+        disabledReason={
+          deleteBlockers.length > 0
+            ? animalDeleteBlockedMessage(deleteBlockers)
+            : undefined
+        }
+        onDelete={async () => {
+          if (!id) {
+            return;
+          }
+          await deleteAnimal(id);
+          router.replace('/(tabs)/livestock');
+        }}
       />
     </ScrollView>
     </HandWriteBlocked>

@@ -19,4 +19,5 @@ export type HealthRecord = {
   withdrawalDays: number | null;
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
 };

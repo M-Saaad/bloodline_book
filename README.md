@@ -2,14 +2,14 @@
 
 Multi-tenant SaaS for US goat operations — herd records, health, breeding, weight/performance, and finances with offline-capable data entry via PowerSync.
 
-All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADMAP.md)** (phases 0–16). **Current:** Phase 5 complete — **next:** [Phase 6 — Fix mistakes](ROADMAP.md#phase-6--fix-mistakes).
+All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADMAP.md)** (phases 0–16). **Current:** Phase 6 complete — **next:** [Phase 7 — Know every goat](ROADMAP.md#phase-7--know-every-goat-q5).
 
 ## Setup
 
 ### 1. Supabase
 
 1. Create a [Supabase](https://supabase.com) project.
-2. Run migrations in order from `supabase/migrations/` (through `0010` on `main`; later phases add `0011+` — see [ROADMAP.md](ROADMAP.md)).
+2. Run migrations in order from `supabase/migrations/` (through `0011` on `main`; later phases add `0012+` — see [ROADMAP.md](ROADMAP.md)).
 3. Create a PowerSync replication role and publication (see [PowerSync + Supabase guide](https://docs.powersync.com/integration-guides/supabase-+-powersync)).
 4. Disable email confirmation for local dev (Authentication → Providers → Email).
 

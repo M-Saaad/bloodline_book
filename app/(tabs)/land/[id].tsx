@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -175,6 +175,13 @@ export default function PastureDetailScreen() {
 
       <View className="gap-2">
         <Button
+          title="Edit pasture details"
+          variant="outline"
+          onPress={() =>
+            router.push(`/(tabs)/land/edit-pasture/${pasture.id}`)
+          }
+        />
+        <Button
           title="Move animals here"
           onPress={() =>
             router.push({
@@ -236,8 +243,11 @@ export default function PastureDetailScreen() {
           <Text className="text-gray-500">No completed rotations yet.</Text>
         ) : (
           historyRecords.slice(0, 12).map((record) => (
-            <View
+            <Pressable
               key={record.id}
+              onPress={() =>
+                router.push(`/(tabs)/land/edit-grazing/${record.id}`)
+              }
               className="flex-row justify-between py-2 border-b border-gray-100">
               <Text className="text-gray-800 flex-1 pr-2">
                 {animalsById.get(record.animalId) ?? 'Unknown animal'}
@@ -246,7 +256,7 @@ export default function PastureDetailScreen() {
                 {formatDisplayDate(record.startDate)} –{' '}
                 {record.endDate ? formatDisplayDate(record.endDate) : 'open'}
               </Text>
-            </View>
+            </Pressable>
           ))
         )}
       </Card>
@@ -257,8 +267,11 @@ export default function PastureDetailScreen() {
           <Text className="text-gray-500">No feed logs tied to this pasture.</Text>
         ) : (
           feedLogs.map((item) => (
-            <View
+            <Pressable
               key={item.id}
+              onPress={() =>
+                router.push(`/(tabs)/land/edit-feed/${item.id}`)
+              }
               className="flex-row justify-between py-2 border-b border-gray-100">
               <View>
                 <Text className="text-gray-900 font-medium">{item.feedType}</Text>
@@ -271,7 +284,7 @@ export default function PastureDetailScreen() {
                   ? `${item.quantity} ${item.unit}`
                   : item.unit}
               </Text>
-            </View>
+            </Pressable>
           ))
         )}
       </Card>

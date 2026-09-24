@@ -12,6 +12,7 @@ export interface WeighSession {
     | 'ad_hoc';
   notes: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface WeightLog {
@@ -22,4 +23,5 @@ export interface WeightLog {
   weightValue: number;
   weightUnit: 'lb' | 'kg';
   createdAt: string;
+  updatedAt: string;
 }

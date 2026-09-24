@@ -68,13 +68,29 @@ export default function TasksScreen() {
           />
         }
         renderItem={({ item }) => (
-          <Pressable
-            onPress={() => toggleTask(item.id, item.completed)}
-            className={`border rounded-xl p-4 mb-2 ${
+          <View
+            className={`flex-row items-start border rounded-xl p-4 mb-2 ${
               item.completed
                 ? 'bg-gray-100 border-gray-200 opacity-70'
                 : 'bg-white border-gray-200'
             }`}>
+            <Pressable
+              onPress={() => toggleTask(item.id, item.completed)}
+              accessibilityLabel={
+                item.completed ? 'Mark task incomplete' : 'Complete task'
+              }
+              className={`w-7 h-7 rounded-full border-2 mr-3 mt-0.5 items-center justify-center ${
+                item.completed
+                  ? 'border-green-600 bg-green-600'
+                  : 'border-gray-400 bg-white'
+              }`}>
+              {item.completed ? (
+                <Text className="text-white text-xs font-bold">✓</Text>
+              ) : null}
+            </Pressable>
+            <Pressable
+              onPress={() => router.push(`/(tabs)/more/tasks/${item.id}`)}
+              className="flex-1">
             <View className="flex-row justify-between items-start">
               <View className="flex-1 pr-3">
                 <Text
@@ -96,7 +112,8 @@ export default function TasksScreen() {
                 tone={item.priority === 'high' ? 'danger' : 'default'}
               />
             </View>
-          </Pressable>
+            </Pressable>
+          </View>
         )}
       />
     </View>

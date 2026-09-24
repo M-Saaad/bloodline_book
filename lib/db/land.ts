@@ -7,6 +7,7 @@ import {
   pastureStatusAfterLastMoveOut,
   pastureStatusAfterMoveIn,
 } from '@/lib/domain/land';
+import { dbNow } from '@/lib/db/now';
 import { powersync } from '@/lib/powersync/system';
 import type {
   FeedLog,
@@ -28,7 +29,7 @@ export async function createPasture(
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.execute(
     `INSERT INTO pastures (
@@ -54,7 +55,7 @@ export async function updatePastureStatus(
   pastureId: string,
   status: PastureStatus,
 ): Promise<void> {
-  const now = new Date().toISOString();
+  const now = dbNow();
   await powersync.execute(
     'UPDATE pastures SET status = ?, updated_at = ? WHERE id = ?',
     [status, now, pastureId],
@@ -84,7 +85,7 @@ export async function moveAnimalsToPasture(
     return;
   }
 
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     const previousPastureIds = new Set<string>();
@@ -101,8 +102,8 @@ export async function moveAnimalsToPasture(
         const previousPastureId = String(row.pasture_id);
         previousPastureIds.add(previousPastureId);
         await tx.execute(
-          'UPDATE grazing_records SET end_date = ? WHERE id = ?',
-          [input.startDate, openId],
+          'UPDATE grazing_records SET end_date = ?, updated_at = ? WHERE id = ?',
+          [input.startDate, now, openId],
         );
       }
 
@@ -116,8 +117,8 @@ export async function moveAnimalsToPasture(
       const recordId = Crypto.randomUUID();
       await tx.execute(
         `INSERT INTO grazing_records (
-          id, farm_id, pasture_id, animal_id, start_date, end_date, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)`,
+          id, farm_id, pasture_id, animal_id, start_date, end_date, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)`,
         [
           recordId,
           farmId,
@@ -125,6 +126,7 @@ export async function moveAnimalsToPasture(
           animalId,
           input.startDate,
           input.notes ?? null,
+          now,
           now,
         ],
       );
@@ -163,7 +165,7 @@ export async function endGrazingRecords(
     return;
   }
 
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     const pastureIds = new Set<string>();
@@ -177,8 +179,8 @@ export async function endGrazingRecords(
       }
       pastureIds.add(String(row.pasture_id));
       await tx.execute(
-        'UPDATE grazing_records SET end_date = ? WHERE id = ? AND end_date IS NULL',
-        [endDate, recordId],
+        'UPDATE grazing_records SET end_date = ?, updated_at = ? WHERE id = ? AND end_date IS NULL',
+        [endDate, now, recordId],
       );
     }
 
@@ -233,12 +235,12 @@ export async function createFeedLog(
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.execute(
     `INSERT INTO feed_logs (
-      id, farm_id, date, feed_type, quantity, unit, pasture_id, notes, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, farm_id, date, feed_type, quantity, unit, pasture_id, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       farmId,
@@ -249,10 +251,110 @@ export async function createFeedLog(
       input.pastureId ?? null,
       input.notes ?? null,
       now,
+      now,
     ],
   );
 
   return id;
+}
+
+export async function getPastureById(
+  pastureId: string,
+): Promise<Pasture | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM pastures WHERE id = ?',
+    [pastureId],
+  );
+  return row ? mapPasture(row) : null;
+}
+
+export async function updatePasture(
+  pastureId: string,
+  input: {
+    name: string;
+    acres?: number;
+    forageType: ForageType;
+    notes?: string;
+  },
+): Promise<void> {
+  const now = dbNow();
+  await powersync.execute(
+    `UPDATE pastures SET
+      name = ?, acres = ?, forage_type = ?, notes = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.name,
+      input.acres ?? null,
+      input.forageType,
+      input.notes ?? null,
+      now,
+      pastureId,
+    ],
+  );
+}
+
+export async function getFeedLogById(
+  feedLogId: string,
+): Promise<FeedLog | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM feed_logs WHERE id = ?',
+    [feedLogId],
+  );
+  return row ? mapFeedLog(row) : null;
+}
+
+export async function updateFeedLog(
+  feedLogId: string,
+  input: {
+    date: string;
+    feedType: string;
+    quantity?: number;
+    unit: FeedUnit;
+    pastureId?: string;
+    notes?: string;
+  },
+): Promise<void> {
+  const now = dbNow();
+  await powersync.execute(
+    `UPDATE feed_logs SET
+      date = ?, feed_type = ?, quantity = ?, unit = ?, pasture_id = ?, notes = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.date,
+      input.feedType,
+      input.quantity ?? null,
+      input.unit,
+      input.pastureId ?? null,
+      input.notes ?? null,
+      now,
+      feedLogId,
+    ],
+  );
+}
+
+export async function deleteFeedLog(feedLogId: string): Promise<void> {
+  await powersync.execute('DELETE FROM feed_logs WHERE id = ?', [feedLogId]);
+}
+
+export async function getGrazingRecordById(
+  recordId: string,
+): Promise<GrazingRecord | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM grazing_records WHERE id = ?',
+    [recordId],
+  );
+  return row ? mapGrazingRecord(row) : null;
+}
+
+export async function updateGrazingRecordDates(
+  recordId: string,
+  input: { startDate: string; endDate: string | null },
+): Promise<void> {
+  const now = dbNow();
+  await powersync.execute(
+    `UPDATE grazing_records SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?`,
+    [input.startDate, input.endDate, now, recordId],
+  );
 }
 
 export async function getFeedLogsForFarm(farmId: string): Promise<FeedLog[]> {

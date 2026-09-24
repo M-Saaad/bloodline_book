@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Badge } from '@/components/ui/Badge';
@@ -177,8 +177,11 @@ export default function AnimalDetailScreen() {
           (healthRows ?? []).map((row) => {
             const record = mapHealthRecord(row as Record<string, unknown>);
             return (
-              <View
+              <Pressable
                 key={record.id}
+                onPress={() =>
+                  router.push(`/(tabs)/more/health/edit/${record.id}`)
+                }
                 className="py-2 border-b border-gray-100">
                 <View className="flex-row justify-between items-start">
                   <Text className="text-gray-800 font-medium">
@@ -198,7 +201,7 @@ export default function AnimalDetailScreen() {
                     {record.productName}
                   </Text>
                 ) : null}
-              </View>
+              </Pressable>
             );
           })
         )}
@@ -224,8 +227,11 @@ export default function AnimalDetailScreen() {
               weight_unit: string;
             };
             return (
-              <View
+              <Pressable
                 key={entry.id}
+                onPress={() =>
+                  router.push(`/(tabs)/livestock/weight-log/${entry.id}`)
+                }
                 className="flex-row justify-between items-center py-2 border-b border-gray-100">
                 <View>
                   <Text className="text-gray-800 font-medium">{entry.date}</Text>
@@ -236,7 +242,7 @@ export default function AnimalDetailScreen() {
                 <Text className="text-gray-900 font-semibold">
                   {entry.weight_value} {entry.weight_unit}
                 </Text>
-              </View>
+              </Pressable>
             );
           })
         )}

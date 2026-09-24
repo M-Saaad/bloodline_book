@@ -2,6 +2,11 @@ import * as Crypto from 'expo-crypto';
 
 import type { Transaction } from '@powersync/common';
 
+import { dbNow } from '@/lib/db/now';
+import {
+  deleteOpenTasksForHealthRecord,
+  syncOpenTasksForHealthRecord,
+} from '@/lib/db/health-task-sync';
 import { mapHealthRecord } from '@/lib/db/mappers';
 import {
   famachaFollowUpTaskTitle,
@@ -26,11 +31,11 @@ async function insertHealthTask(
   },
 ): Promise<void> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
   await tx.execute(
     `INSERT INTO tasks (
-      id, farm_id, title, due_date, priority, source, source_id, completed, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
     [
       id,
       farmId,
@@ -39,6 +44,7 @@ async function insertHealthTask(
       input.priority,
       input.source,
       input.sourceId,
+      now,
       now,
     ],
   );
@@ -59,7 +65,7 @@ export async function createHealthRecord(
   },
 ): Promise<string> {
   const id = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
   const animalLabel = input.animalLabel ?? 'Animal';
 
   const famachaScore =
@@ -86,8 +92,8 @@ export async function createHealthRecord(
     await tx.execute(
       `INSERT INTO health_records (
         id, farm_id, animal_id, date, kind, famacha_score,
-        product_name, dosage, withdrawal_days, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        product_name, dosage, withdrawal_days, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         farmId,
@@ -99,6 +105,7 @@ export async function createHealthRecord(
         input.dosage ?? null,
         withdrawalDays,
         input.notes ?? null,
+        now,
         now,
       ],
     );
@@ -151,4 +158,78 @@ export async function getHealthRecordsForAnimal(
     [animalId],
   );
   return rows.map(mapHealthRecord);
+}
+
+export async function getHealthRecordById(
+  recordId: string,
+): Promise<HealthRecord | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM health_records WHERE id = ?',
+    [recordId],
+  );
+  return row ? mapHealthRecord(row) : null;
+}
+
+export async function updateHealthRecord(
+  recordId: string,
+  farmId: string,
+  input: {
+    animalId: string;
+    date: string;
+    kind: HealthRecordKind;
+    famachaScore?: number;
+    productName?: string;
+    dosage?: string;
+    withdrawalDays?: number;
+    notes?: string;
+    animalLabel?: string;
+  },
+): Promise<void> {
+  const now = dbNow();
+  const animalLabel = input.animalLabel ?? 'Animal';
+
+  const famachaScore =
+    input.kind === 'famacha' ? (input.famachaScore ?? null) : null;
+  const withdrawalDays =
+    healthKindSupportsWithdrawal(input.kind) && input.withdrawalDays != null
+      ? input.withdrawalDays
+      : null;
+
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await tx.execute(
+      `UPDATE health_records SET
+        animal_id = ?, date = ?, kind = ?, famacha_score = ?,
+        product_name = ?, dosage = ?, withdrawal_days = ?, notes = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        input.animalId,
+        input.date,
+        input.kind,
+        famachaScore,
+        input.productName ?? null,
+        input.dosage ?? null,
+        withdrawalDays,
+        input.notes ?? null,
+        now,
+        recordId,
+      ],
+    );
+
+    await syncOpenTasksForHealthRecord(tx, farmId, recordId, {
+      animalId: input.animalId,
+      date: input.date,
+      kind: input.kind,
+      famachaScore,
+      productName: input.productName ?? null,
+      withdrawalDays,
+      animalLabel,
+    });
+  });
+}
+
+export async function deleteHealthRecord(recordId: string): Promise<void> {
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await deleteOpenTasksForHealthRecord(tx, recordId);
+    await tx.execute('DELETE FROM health_records WHERE id = ?', [recordId]);
+  });
 }

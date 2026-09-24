@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -131,8 +131,11 @@ export default function BreedingScreen() {
             Breedings
           </Text>
           {breedingEvents.map((item) => (
-            <View
+            <Pressable
               key={item.id}
+              onPress={() =>
+                router.push(`/(tabs)/more/breeding/edit-breeding/${item.id}`)
+              }
               className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
               <View className="flex-row justify-between items-start">
                 <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
@@ -154,7 +157,7 @@ export default function BreedingScreen() {
                     : item.sireExternalName}
                 </Text>
               ) : null}
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}
@@ -165,8 +168,11 @@ export default function BreedingScreen() {
             Kiddings
           </Text>
           {kiddingEvents.map((item) => (
-            <View
+            <Pressable
               key={item.id}
+              onPress={() =>
+                router.push(`/(tabs)/more/breeding/edit-kidding/${item.id}`)
+              }
               className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
               <Text className="text-lg font-semibold text-gray-900">
                 {animalLabels.get(item.damId) ?? 'Dam'}
@@ -177,7 +183,7 @@ export default function BreedingScreen() {
                   ? ` · ${item.kidsSurviving} surviving`
                   : ''}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       ) : null}

@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto';
 import type { Transaction } from '@powersync/common';
 
 import { mapWeighSession, mapWeightLog } from '@/lib/db/mappers';
+import { dbNow } from '@/lib/db/now';
 import { powersync } from '@/lib/powersync/system';
 import type { WeighSession, WeightLog } from '@/lib/types/weight';
 
@@ -22,18 +23,19 @@ export async function createWeighSessionWithLogs(
   },
 ): Promise<string> {
   const sessionId = Crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
-      `INSERT INTO weigh_sessions (id, farm_id, date, weigh_point, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO weigh_sessions (id, farm_id, date, weigh_point, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         sessionId,
         farmId,
         input.date,
         input.weighPoint,
         input.notes ?? null,
+        now,
         now,
       ],
     );
@@ -42,8 +44,8 @@ export async function createWeighSessionWithLogs(
       const logId = Crypto.randomUUID();
       await tx.execute(
         `INSERT INTO weight_logs (
-          id, farm_id, weigh_session_id, animal_id, weight_value, weight_unit, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          id, farm_id, weigh_session_id, animal_id, weight_value, weight_unit, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           logId,
           farmId,
@@ -52,12 +54,76 @@ export async function createWeighSessionWithLogs(
           entry.weightValue,
           input.weightUnit,
           now,
+          now,
         ],
       );
     }
   });
 
   return sessionId;
+}
+
+export async function getWeighSessionById(
+  sessionId: string,
+): Promise<WeighSession | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM weigh_sessions WHERE id = ?',
+    [sessionId],
+  );
+  return row ? mapWeighSession(row) : null;
+}
+
+export async function getWeightLogById(
+  logId: string,
+): Promise<WeightLog | null> {
+  const row = await powersync.getOptional<Record<string, unknown>>(
+    'SELECT * FROM weight_logs WHERE id = ?',
+    [logId],
+  );
+  return row ? mapWeightLog(row) : null;
+}
+
+export async function updateWeightLog(
+  logId: string,
+  weightValue: number,
+): Promise<void> {
+  const now = dbNow();
+  await powersync.execute(
+    'UPDATE weight_logs SET weight_value = ?, updated_at = ? WHERE id = ?',
+    [weightValue, now, logId],
+  );
+}
+
+export async function deleteWeightLog(logId: string): Promise<void> {
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    const row = await tx.getOptional<Record<string, unknown>>(
+      'SELECT weigh_session_id FROM weight_logs WHERE id = ?',
+      [logId],
+    );
+    if (!row) {
+      return;
+    }
+    const sessionId = String(row.weigh_session_id);
+    await tx.execute('DELETE FROM weight_logs WHERE id = ?', [logId]);
+
+    const remaining = await tx.getOptional<{ count: number }>(
+      'SELECT COUNT(*) as count FROM weight_logs WHERE weigh_session_id = ?',
+      [sessionId],
+    );
+    if (Number(remaining?.count ?? 0) === 0) {
+      await tx.execute('DELETE FROM weigh_sessions WHERE id = ?', [sessionId]);
+    }
+  });
+}
+
+export async function deleteWeighSession(sessionId: string): Promise<void> {
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await tx.execute(
+      'DELETE FROM weight_logs WHERE weigh_session_id = ?',
+      [sessionId],
+    );
+    await tx.execute('DELETE FROM weigh_sessions WHERE id = ?', [sessionId]);
+  });
 }
 
 export async function getRecentWeighSessions(
