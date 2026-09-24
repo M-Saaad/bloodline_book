@@ -18,6 +18,7 @@ import {
   updateKiddingEvent,
 } from '@/lib/db/breeding';
 import { mapAnimal } from '@/lib/db/mappers';
+import { validateKiddingCounts } from '@/lib/domain/breeding';
 import { kiddingDeleteKidsPrompt } from '@/lib/domain/kidding-delete';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
@@ -97,18 +98,14 @@ export default function EditKiddingScreen() {
       return;
     }
     const born = Number.parseInt(kidsBorn, 10);
-    if (Number.isNaN(born) || born < 0) {
-      setErrorMessage('Enter a valid number of kids born.');
-      return;
-    }
     let surviving: number | undefined;
     if (kidsSurviving.trim()) {
-      const parsed = Number.parseInt(kidsSurviving, 10);
-      if (Number.isNaN(parsed) || parsed < 0) {
-        setErrorMessage('Enter a valid surviving count.');
-        return;
-      }
-      surviving = parsed;
+      surviving = Number.parseInt(kidsSurviving, 10);
+    }
+    const countError = validateKiddingCounts(born, surviving);
+    if (countError) {
+      setErrorMessage(countError);
+      return;
     }
 
     setSaving(true);

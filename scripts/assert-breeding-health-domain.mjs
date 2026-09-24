@@ -27,4 +27,24 @@ assert.equal(needsFamachaFollowUp(3), false);
 assert.equal(needsFamachaFollowUp(4), true);
 assert.equal(withdrawalClearDate('2026-01-01', 14), '2026-01-15');
 assert.equal(withdrawalClearDate('2026-01-01', 0), null);
+
+function validateKiddingCounts(kidsBorn, kidsSurviving) {
+  if (!Number.isFinite(kidsBorn) || kidsBorn < 0) {
+    return 'Enter a valid number of kids born.';
+  }
+  if (kidsSurviving == null) {
+    return null;
+  }
+  if (!Number.isFinite(kidsSurviving) || kidsSurviving < 0) {
+    return 'Enter a valid surviving count.';
+  }
+  if (kidsSurviving > kidsBorn) {
+    return 'Kids surviving cannot be more than kids born.';
+  }
+  return null;
+}
+
+assert.match(validateKiddingCounts(3, 4) ?? '', /cannot be more/);
+assert.equal(validateKiddingCounts(3, 3), null);
+
 console.log('assert-breeding-health-domain: ok');

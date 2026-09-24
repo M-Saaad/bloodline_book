@@ -3,6 +3,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import {
+  Modal,
   Platform,
   Pressable,
   Text,
@@ -47,6 +48,10 @@ export function DateField({
   const [showPicker, setShowPicker] = useState(false);
   const pickerDate = parseIsoDate(value) ?? parseIsoDate(todayIso())!;
 
+  function closePicker() {
+    setShowPicker(false);
+  }
+
   function handleNativeChange(event: DateTimePickerEvent, selected?: Date) {
     if (Platform.OS === 'android') {
       setShowPicker(false);
@@ -60,6 +65,7 @@ export function DateField({
   }
 
   const displayValue = value ? formatDisplayDate(value) : '';
+  const useModalPicker = Platform.OS === 'ios' || Platform.OS === 'web';
 
   return (
     <View className="mb-4">
@@ -75,40 +81,70 @@ export function DateField({
         ) : null}
       </View>
 
-      {Platform.OS === 'web' ? (
-        <TextInput
-          value={value}
-          onChangeText={onChange}
-          placeholder={placeholder}
-          className={fieldClassName}
-          placeholderTextColor="#9ca3af"
-          {...({ type: 'date' } as WebDateInputProps)}
+      <Pressable
+        onPress={() => setShowPicker(true)}
+        accessibilityRole="button"
+        className={fieldClassName}>
+        <Text
+          className={`text-base ${value ? 'text-gray-900' : 'text-gray-400'}`}>
+          {displayValue || placeholder}
+        </Text>
+      </Pressable>
+
+      {Platform.OS === 'android' && showPicker ? (
+        <DateTimePicker
+          value={pickerDate}
+          mode="date"
+          display="calendar"
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+          onChange={handleNativeChange}
         />
-      ) : (
-        <>
+      ) : null}
+
+      {useModalPicker ? (
+        <Modal
+          visible={showPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={closePicker}>
           <Pressable
-            onPress={() => setShowPicker(true)}
-            accessibilityRole="button"
-            className={fieldClassName}>
-            <Text
-              className={`text-base ${
-                value ? 'text-gray-900' : 'text-gray-400'
-              }`}>
-              {displayValue || placeholder}
-            </Text>
+            className="flex-1 bg-black/40 justify-center px-6"
+            onPress={closePicker}>
+            <Pressable
+              className="bg-white rounded-2xl p-4 shadow-lg max-w-md w-full self-center"
+              onPress={(event) => event.stopPropagation()}>
+              <Text className="text-base font-semibold text-gray-900 mb-3">
+                {label}
+              </Text>
+              {Platform.OS === 'web' ? (
+                <TextInput
+                  value={value}
+                  onChangeText={onChange}
+                  className={fieldClassName}
+                  placeholderTextColor="#9ca3af"
+                  {...({ type: 'date' } as WebDateInputProps)}
+                />
+              ) : (
+                <DateTimePicker
+                  value={pickerDate}
+                  mode="date"
+                  display="inline"
+                  minimumDate={minimumDate}
+                  maximumDate={maximumDate}
+                  onChange={handleNativeChange}
+                  style={{ alignSelf: 'stretch' }}
+                />
+              )}
+              <Pressable
+                onPress={closePicker}
+                className="mt-4 bg-bloodline-600 rounded-xl py-3 items-center">
+                <Text className="text-white font-semibold">Done</Text>
+              </Pressable>
+            </Pressable>
           </Pressable>
-          {showPicker ? (
-            <DateTimePicker
-              value={pickerDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              minimumDate={minimumDate}
-              maximumDate={maximumDate}
-              onChange={handleNativeChange}
-            />
-          ) : null}
-        </>
-      )}
+        </Modal>
+      ) : null}
     </View>
   );
 }

@@ -19,3 +19,22 @@ export function kidAnimalDefaultName(
 ): string {
   return `${damLabel} kid ${index}`;
 }
+
+export function validateKiddingCounts(
+  kidsBorn: number,
+  kidsSurviving?: number,
+): string | null {
+  if (!Number.isFinite(kidsBorn) || kidsBorn < 0) {
+    return 'Enter a valid number of kids born.';
+  }
+  if (kidsSurviving == null) {
+    return null;
+  }
+  if (!Number.isFinite(kidsSurviving) || kidsSurviving < 0) {
+    return 'Enter a valid surviving count.';
+  }
+  if (kidsSurviving > kidsBorn) {
+    return 'Kids surviving cannot be more than kids born.';
+  }
+  return null;
+}
