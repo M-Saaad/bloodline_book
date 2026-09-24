@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 
 import type { Transaction } from '@powersync/common';
 
+import { getAnimalById } from '@/lib/db/animals';
 import { dbNow } from '@/lib/db/now';
 import { mapBreedingEvent, mapKiddingEvent } from '@/lib/db/mappers';
 import {
@@ -13,21 +14,45 @@ import { addDaysToIso, GOAT_GESTATION_DAYS } from '@/lib/dates';
 import { ORDER_DUE_DATE_DESC } from '@/lib/sql/portableOrder';
 import { powersync } from '@/lib/powersync/system';
 import type { BreedingEvent, BreedingStatus, KiddingEvent } from '@/lib/types/breeding';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
-async function insertBreedingDueTask(
+async function syncOpenBreedingDueTask(
   tx: Transaction,
   farmId: string,
   breedingId: string,
-  dueDate: string,
-  damLabel: string,
+  input: {
+    dueDate: string;
+    damLabel: string;
+    status: BreedingStatus;
+  },
 ): Promise<void> {
-  const id = Crypto.randomUUID();
+  if (!isBreedingOpenForKidding(input.status) || !input.dueDate) {
+    return;
+  }
+
   const now = dbNow();
+  const title = expectedKiddingTaskTitle(input.damLabel);
+  const openTask = await tx.getOptional<{ id: string }>(
+    `SELECT id FROM tasks
+     WHERE source_id = ? AND source = 'breeding' AND completed = 0
+     LIMIT 1`,
+    [breedingId],
+  );
+
+  if (openTask) {
+    await tx.execute(
+      'UPDATE tasks SET title = ?, due_date = ?, updated_at = ? WHERE id = ?',
+      [title, input.dueDate, now, openTask.id],
+    );
+    return;
+  }
+
+  const id = Crypto.randomUUID();
   await tx.execute(
     `INSERT INTO tasks (
       id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
     ) VALUES (?, ?, ?, ?, 'high', 'breeding', ?, 0, ?, ?)`,
-    [id, farmId, expectedKiddingTaskTitle(damLabel), dueDate, breedingId, now, now],
+    [id, farmId, title, input.dueDate, breedingId, now, now],
   );
 }
 
@@ -76,13 +101,11 @@ export async function createBreedingEvent(
           now,
         ],
       );
-      await insertBreedingDueTask(
-        tx,
-        farmId,
-        id,
+      await syncOpenBreedingDueTask(tx, farmId, id, {
         dueDate,
-        input.damLabel!,
-      );
+        damLabel: input.damLabel!,
+        status: input.status ?? 'bred',
+      });
     });
   } else {
     await powersync.execute(
@@ -285,12 +308,16 @@ export async function updateBreedingEvent(
     bredDate: string;
     notes?: string;
     damLabel?: string;
+    status?: BreedingStatus;
   },
 ): Promise<void> {
+  const existing = await getBreedingEventById(breedingId);
+  const status = input.status ?? existing?.status ?? 'bred';
   const now = dbNow();
   const dueDate =
     addDaysToIso(input.bredDate, GOAT_GESTATION_DAYS) ?? null;
   const damLabel = input.damLabel ?? 'Dam';
+  const farmId = existing?.farmId;
 
   await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
@@ -310,21 +337,32 @@ export async function updateBreedingEvent(
       ],
     );
 
-    if (dueDate) {
-      const openTask = await tx.getOptional<{ id: string }>(
-        `SELECT id FROM tasks
-         WHERE source_id = ? AND source = 'breeding' AND completed = 0
-         LIMIT 1`,
-        [breedingId],
-      );
-      const title = expectedKiddingTaskTitle(damLabel);
-      if (openTask) {
-        await tx.execute(
-          'UPDATE tasks SET title = ?, due_date = ?, updated_at = ? WHERE id = ?',
-          [title, dueDate, now, openTask.id],
-        );
-      }
+    if (farmId && dueDate) {
+      await syncOpenBreedingDueTask(tx, farmId, breedingId, {
+        dueDate,
+        damLabel,
+        status,
+      });
     }
+  });
+}
+
+/** Creates or updates the open expected-kidding task when breeding is still active. */
+export async function ensureBreedingDueTask(breedingId: string): Promise<void> {
+  const breeding = await getBreedingEventById(breedingId);
+  if (!breeding?.dueDate) {
+    return;
+  }
+
+  const dam = await getAnimalById(breeding.damId);
+  const damLabel = dam ? animalDisplayLabel(dam) : 'Dam';
+
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await syncOpenBreedingDueTask(tx, breeding.farmId, breedingId, {
+      dueDate: breeding.dueDate!,
+      damLabel,
+      status: breeding.status,
+    });
   });
 }
 
