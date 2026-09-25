@@ -164,12 +164,15 @@ const parts = partitionOpenTasks(
     { id: '3', dueDate: '2026-09-26', source: 'famacha_check', completed: false },
     { id: '4', dueDate: '2026-09-28', source: 'manual', completed: false },
     { id: '5', dueDate: '2026-10-20', source: 'manual', completed: false },
+    { id: '6', dueDate: null, source: 'manual', completed: false },
+    { id: '7', dueDate: null, source: 'manual', completed: true },
   ],
   '2026-09-24',
 );
 assert.deepEqual(parts.dueNow.map((task) => task.id), ['1']);
 assert.deepEqual(parts.famachaSoon.map((task) => task.id), ['2', '3']);
 assert.deepEqual(parts.comingWeek.map((task) => task.id), ['4']);
+assert.deepEqual(parts.undated.map((task) => task.id), ['6']);
 assert.equal(hideOldCompletedTask(true, '2026-08-01T00:00:00.000Z', '2026-09-24'), true);
 assert.equal(hideOldCompletedTask(true, '2026-09-20T00:00:00.000Z', '2026-09-24'), false);
 

@@ -16,6 +16,7 @@ import {
   type WithdrawalBadge,
 } from '@/lib/domain/health';
 import { powersync } from '@/lib/powersync/system';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import type {
   HealthRecord,
   HealthRecordKind,
@@ -133,6 +134,24 @@ export async function createDewormFollowUpTask(
 ): Promise<void> {
   const id = Crypto.randomUUID();
   const now = dbNow();
+  const goat = await powersync.getOptional<{
+    id: string;
+    name: string | null;
+    tag_number: string | null;
+  }>(
+    `SELECT a.id, a.name, a.tag_number
+     FROM health_records h
+     JOIN animals a ON a.id = h.animal_id
+     WHERE h.id = ?`,
+    [input.healthRecordId],
+  );
+  const animalLabel = goat
+    ? animalDisplayLabel({
+        id: String(goat.id),
+        name: goat.name,
+        tagNumber: goat.tag_number,
+      })
+    : input.animalLabel;
   await powersync.execute(
     `INSERT INTO tasks (
       id, farm_id, title, due_date, priority, source, source_id, completed, created_at, updated_at
@@ -140,7 +159,7 @@ export async function createDewormFollowUpTask(
     [
       id,
       farmId,
-      dewormTaskTitle(input.animalLabel, input.famachaScore),
+      dewormTaskTitle(animalLabel, input.famachaScore),
       input.dueDate,
       input.healthRecordId,
       now,

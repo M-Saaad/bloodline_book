@@ -24,6 +24,7 @@ import {
   activeWithdrawalsByAnimal,
   famachaHerdFlag,
   famachaHerdFlagMessage,
+  taskTitleWithGoatName,
   withdrawalBadgeLabel,
 } from '@/lib/domain/health';
 import { partitionOpenTasks } from '@/lib/domain/today';
@@ -106,6 +107,24 @@ export default function DashboardScreen() {
       (healthRows ?? []).map((row) => mapHealthRecord(row as Record<string, unknown>)),
     [healthRows],
   );
+  const goatNameByHealthId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const record of health) {
+      const label = labels.get(record.animalId);
+      if (label) {
+        map.set(record.id, label);
+      }
+    }
+    return map;
+  }, [health, labels]);
+
+  function shownTaskTitle(task: { title: string; sourceId: string | null }) {
+    return taskTitleWithGoatName(
+      task.title,
+      task.sourceId ? goatNameByHealthId.get(task.sourceId) : null,
+    );
+  }
+
   const withdrawals = useMemo(
     () =>
       activeWithdrawalsByAnimal(
@@ -255,8 +274,23 @@ export default function DashboardScreen() {
           {partitioned.dueNow.map((task) => (
             <TaskRow
               key={task.id}
-              title={task.title}
+              title={shownTaskTitle(task)}
               detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
+              onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
+              onTick={() => tickTask(task.id)}
+            />
+          ))}
+        </Card>
+      ) : null}
+
+      {partitioned.undated.length > 0 ? (
+        <Card>
+          <Text className="text-lg font-semibold text-gray-900 mb-2">No date</Text>
+          {partitioned.undated.map((task) => (
+            <TaskRow
+              key={task.id}
+              title={shownTaskTitle(task)}
+              detail="No due date"
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
               onTick={() => tickTask(task.id)}
             />
@@ -316,7 +350,7 @@ export default function DashboardScreen() {
           {partitioned.famachaSoon.map((task) => (
             <TaskRow
               key={task.id}
-              title={task.title}
+              title={shownTaskTitle(task)}
               detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
               onTick={() => tickTask(task.id)}
@@ -337,7 +371,7 @@ export default function DashboardScreen() {
             ? partitioned.comingWeek.map((task) => (
                 <TaskRow
                   key={task.id}
-                  title={task.title}
+                  title={shownTaskTitle(task)}
                   detail={task.dueDate ? formatDisplayDate(task.dueDate) : ''}
                   onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
                   onTick={() => tickTask(task.id)}

@@ -10,15 +10,20 @@ export type TodayTask = {
 export function partitionOpenTasks<T extends TodayTask>(
   tasks: T[],
   today: string,
-): { dueNow: T[]; famachaSoon: T[]; comingWeek: T[] } {
+): { dueNow: T[]; famachaSoon: T[]; comingWeek: T[]; undated: T[] } {
   const weekEnd = addDaysToIso(today, 7);
   const famachaEnd = addDaysToIso(today, 3);
   const dueNow: T[] = [];
   const famachaSoon: T[] = [];
   const comingWeek: T[] = [];
+  const undated: T[] = [];
 
   for (const task of tasks) {
-    if (task.completed || !task.dueDate || !weekEnd || !famachaEnd) {
+    if (task.completed || !weekEnd || !famachaEnd) {
+      continue;
+    }
+    if (!task.dueDate) {
+      undated.push(task);
       continue;
     }
     const due = task.dueDate;
@@ -41,7 +46,8 @@ export function partitionOpenTasks<T extends TodayTask>(
   dueNow.sort(byDue);
   famachaSoon.sort(byDue);
   comingWeek.sort(byDue);
-  return { dueNow, famachaSoon, comingWeek };
+  undated.sort((a, b) => a.id.localeCompare(b.id));
+  return { dueNow, famachaSoon, comingWeek, undated };
 }
 
 export function hideOldCompletedTask(

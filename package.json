@@ -15,6 +15,7 @@
     "expo-crypto": "^57.0.2",
     "expo-font": "~57.0.3",
     "expo-linking": "~57.0.9",
+    "expo-network": "~57.0.2",
     "expo-router": "~57.0.20",
     "expo-splash-screen": "~57.0.8",
     "expo-status-bar": "~57.0.1",
@@ -45,7 +46,7 @@
     "web": "bash scripts/setup-env.sh && expo start --web",
     "build:web": "bash scripts/vercel-build.sh",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/assert-jwt-sanitize.mjs && node scripts/assert-upload-errors.mjs && node scripts/assert-land-domain.mjs && node scripts/assert-breeding-health-domain.mjs && node scripts/assert-phase5.mjs && node scripts/assert-phase6.mjs && node scripts/assert-phase7.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-phase8-11.mjs",
+    "test": "node scripts/assert-jwt-sanitize.mjs && node scripts/assert-upload-errors.mjs && node scripts/assert-land-domain.mjs && node scripts/assert-breeding-health-domain.mjs && node scripts/assert-phase5.mjs && node scripts/assert-phase6.mjs && node scripts/assert-phase7.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-phase8-11.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-trial-fixes.mjs",
     "test:phase7:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 node scripts/phase7-thorough-test.mjs",
     "seed:demo": "node scripts/seed-demo-account.mjs"
   },
