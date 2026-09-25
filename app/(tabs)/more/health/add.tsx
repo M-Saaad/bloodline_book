@@ -206,7 +206,7 @@ export default function AddHealthRecordScreen() {
       ) {
         const deworm = await confirmAction(
           'Deworm now?',
-          `${animalLabel} scored FAMACHA ${famachaScore}. OK opens a deworming record. Cancel adds a deworm task due today.`,
+          `${animalLabel} scored FAMACHA ${famachaScore}. Deworm now opens a deworming record. Not now adds a deworm task due today.`,
           'Deworm now',
           'Not now',
         );

@@ -11,7 +11,9 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { todayIso } from '@/lib/dates';
 import { mapTask } from '@/lib/db/mappers';
 import { setTaskCompleted } from '@/lib/db/documents';
+import { taskTitleWithGoatName } from '@/lib/domain/health';
 import { hideOldCompletedTask } from '@/lib/domain/today';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
@@ -19,6 +21,37 @@ export default function TasksScreen() {
   const { activeFarm } = useFarm();
   const { canWrite } = useFarmRole();
   const [tab, setTab] = useState<'open' | 'done'>('open');
+
+  const { data: healthNameRows } = useQuery(
+    activeFarm
+      ? `SELECT h.id as id, a.name as name, a.tag_number as tag_number, a.id as animal_id
+         FROM health_records h
+         JOIN animals a ON a.id = h.animal_id
+         WHERE h.farm_id = ?`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const goatNameByHealthId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of healthNameRows ?? []) {
+      const record = row as {
+        id: string;
+        name: string | null;
+        tag_number: string | null;
+        animal_id: string;
+      };
+      map.set(
+        String(record.id),
+        animalDisplayLabel({
+          id: String(record.animal_id),
+          name: record.name,
+          tagNumber: record.tag_number,
+        }),
+      );
+    }
+    return map;
+  }, [healthNameRows]);
 
   const { data, isLoading } = useQuery(
     activeFarm
@@ -133,7 +166,10 @@ export default function TasksScreen() {
                       ? 'text-gray-500 line-through'
                       : 'text-gray-900'
                   }`}>
-                  {item.title}
+                  {taskTitleWithGoatName(
+                    item.title,
+                    item.sourceId ? goatNameByHealthId.get(item.sourceId) : null,
+                  )}
                 </Text>
                 {item.dueDate ? (
                   <Text className="text-gray-500 text-sm mt-1">

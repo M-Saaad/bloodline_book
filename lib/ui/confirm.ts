@@ -1,24 +1,51 @@
-import { Alert, Platform } from 'react-native';
+type ConfirmRequest = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  resolve: (confirmed: boolean) => void;
+};
 
+let opener: ((request: ConfirmRequest) => void) | null = null;
+const queue: ConfirmRequest[] = [];
+
+export function registerConfirmOpener(
+  next: (request: ConfirmRequest) => void,
+): () => void {
+  opener = next;
+  const waiting = queue.splice(0, queue.length);
+  for (const request of waiting) {
+    next(request);
+  }
+  return () => {
+    if (opener === next) {
+      opener = null;
+    }
+  };
+}
+
+/**
+ * In-app confirm. Buttons use the labels you pass.
+ * A blocked browser confirm() used to return false and take the "no" path.
+ */
 export function confirmAction(
   title: string,
   message: string,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
 ): Promise<boolean> {
-  if (Platform.OS === 'web') {
-    const text = message ? `${title}\n\n${message}` : title;
-    return Promise.resolve(window.confirm(text));
-  }
-
   return new Promise((resolve) => {
-    Alert.alert(title, message, [
-      { text: cancelLabel, style: 'cancel', onPress: () => resolve(false) },
-      {
-        text: confirmLabel,
-        style: 'destructive',
-        onPress: () => resolve(true),
-      },
-    ]);
+    const request: ConfirmRequest = {
+      title,
+      message,
+      confirmLabel,
+      cancelLabel,
+      resolve,
+    };
+    if (opener) {
+      opener(request);
+      return;
+    }
+    queue.push(request);
   });
 }

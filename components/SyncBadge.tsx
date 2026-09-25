@@ -1,25 +1,24 @@
 import { useQuery, useStatus } from '@powersync/react';
 import { router } from 'expo-router';
+import { useNetworkState } from 'expo-network';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 
+import { deviceHasSignal, resolveSyncBadge } from '@/lib/domain/sync-badge';
 import { powersync } from '@/lib/powersync/system';
-
-type SyncBadgeState =
-  | { kind: 'all_saved'; label: 'All saved' }
-  | { kind: 'saving'; label: 'Saving…' }
-  | { kind: 'offline_waiting'; label: string; count: number }
-  | { kind: 'not_saved'; label: string; count: number };
 
 export function SyncBadge() {
   const status = useStatus();
+  const network = useNetworkState();
   const [queueCount, setQueueCount] = useState(0);
 
   const { data: failureRows } = useQuery<{ c: number }>(
     'SELECT COUNT(*) AS c FROM upload_failures',
+    [],
   );
 
   const failureCount = failureRows?.[0]?.c ?? 0;
+  const deviceOnline = deviceHasSignal(network);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,9 +30,7 @@ export function SyncBadge() {
           setQueueCount(stats.count);
         }
       } catch {
-        if (!cancelled) {
-          setQueueCount(0);
-        }
+        // Keep the last count. Clearing it while offline left the badge on "Saving…".
       }
     }
 
@@ -43,34 +40,25 @@ export function SyncBadge() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [status.uploading, status.connected]);
+  }, [status.uploading, status.connected, deviceOnline]);
 
-  const badge = useMemo((): SyncBadgeState => {
-    if (failureCount > 0) {
-      return {
-        kind: 'not_saved',
-        count: failureCount,
-        label: `${failureCount} not saved`,
-      };
-    }
-
-    const online = status.connected === true;
-    const uploading = status.uploading === true || queueCount > 0;
-
-    if (!online && queueCount > 0) {
-      return {
-        kind: 'offline_waiting',
-        count: queueCount,
-        label: `Offline · ${queueCount} waiting`,
-      };
-    }
-
-    if (uploading) {
-      return { kind: 'saving', label: 'Saving…' };
-    }
-
-    return { kind: 'all_saved', label: 'All saved' };
-  }, [failureCount, queueCount, status.connected, status.uploading]);
+  const badge = useMemo(
+    () =>
+      resolveSyncBadge({
+        failureCount,
+        queueCount,
+        connected: status.connected === true,
+        uploading: status.uploading === true,
+        deviceOnline,
+      }),
+    [
+      deviceOnline,
+      failureCount,
+      queueCount,
+      status.connected,
+      status.uploading,
+    ],
+  );
 
   const toneClass =
     badge.kind === 'not_saved'

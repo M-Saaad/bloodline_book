@@ -30,7 +30,13 @@ export function expectedKiddingTaskTitle(animalLabel: string): string {
 export function kidAnimalDefaultName(
   damLabel: string,
   index: number,
+  kidDate?: string | null,
 ): string {
+  const year =
+    kidDate && /^\d{4}/.test(kidDate) ? kidDate.slice(2, 4) : '';
+  if (year) {
+    return `${damLabel} ${year} kid ${index}`;
+  }
   return `${damLabel} kid ${index}`;
 }
 

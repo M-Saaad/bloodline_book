@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 
+import { ConfirmDialogHost } from '@/components/ui/ConfirmDialogHost';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { FarmProvider } from '@/providers/FarmProvider';
 import { PowerSyncProvider } from '@/providers/PowerSyncProvider';
@@ -38,6 +39,7 @@ export default function RootLayout() {
     <AuthProvider>
       <PowerSyncProvider>
         <FarmProvider>
+          <ConfirmDialogHost />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />

@@ -5,7 +5,8 @@ import { RequireAuth } from '@/components/RequireAuth';
 import { syncBadgeHeaderRight } from '@/components/SyncBadge';
 
 function TabIcon({ label }: { label: string }) {
-  return <Text className="text-lg">{label}</Text>;
+  // className on a tab icon is drawn twice by NativeWind's style interop.
+  return <Text style={{ fontSize: 18, lineHeight: 22 }}>{label}</Text>;
 }
 
 export default function TabLayout() {

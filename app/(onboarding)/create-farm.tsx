@@ -79,8 +79,7 @@ export default function CreateFarmScreen() {
         Set up your farm
       </Text>
       <Text className="text-gray-600 mb-8">
-        This creates your farm and makes you the owner via the on_farm_created
-        trigger.
+        This creates your farm and makes you the owner.
       </Text>
 
       <FormMessage message={errorMessage} tone="error" />

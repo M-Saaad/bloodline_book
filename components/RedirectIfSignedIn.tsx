@@ -1,10 +1,14 @@
-import { Redirect } from 'expo-router';
+import { Redirect, useSegments } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/providers/AuthProvider';
 
 export function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
   const { session, isLoading, isConfigured } = useAuth();
+  const segments = useSegments();
+  const onResetPassword = (segments as readonly string[]).includes(
+    'reset-password',
+  );
 
   if (!isConfigured) {
     return <Redirect href="/" />;
@@ -18,7 +22,7 @@ export function RedirectIfSignedIn({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (session) {
+  if (session && !onResetPassword) {
     return <Redirect href="/" />;
   }
 

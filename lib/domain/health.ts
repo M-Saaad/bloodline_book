@@ -79,6 +79,18 @@ export function dewormTaskTitle(animalLabel: string, score: number): string {
   return `Deworm — ${animalLabel} (FAMACHA ${score})`;
 }
 
+/** Replace a stored "Animal" placeholder with the goat's name. */
+export function taskTitleWithGoatName(
+  title: string,
+  goatName: string | null | undefined,
+): string {
+  const name = goatName?.trim();
+  if (!name) {
+    return title;
+  }
+  return title.replace(/ — Animal(?= \(|$)/g, ` — ${name}`);
+}
+
 export function withdrawalBadgeLabel(
   kind: 'meat' | 'milk',
   clearDate: string,

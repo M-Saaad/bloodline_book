@@ -14,6 +14,7 @@ import {
 } from '@/lib/domain/health';
 import { addDaysToIso } from '@/lib/dates';
 import type { HealthRecordKind } from '@/lib/types/health';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
 type OpenHealthTask = {
   id: string;
@@ -27,6 +28,26 @@ const FOLLOW_UP_SOURCES = [
   'famacha_check',
   'deworm',
 ] as const;
+
+async function labelForAnimal(
+  tx: Transaction,
+  animalId: string,
+  fallback: string,
+): Promise<string> {
+  const row = await tx.getOptional<{
+    name: string | null;
+    tag_number: string | null;
+  }>('SELECT name, tag_number FROM animals WHERE id = ?', [animalId]);
+  if (!row) {
+    const trimmed = fallback.trim();
+    return trimmed && trimmed !== 'Animal' ? trimmed : 'Animal';
+  }
+  return animalDisplayLabel({
+    id: animalId,
+    name: row.name,
+    tagNumber: row.tag_number,
+  });
+}
 
 async function upsertTask(
   tx: Transaction,
@@ -93,6 +114,12 @@ export async function syncOpenTasksForHealthRecord(
     famachaRecheckDays?: number;
   },
 ): Promise<void> {
+  const animalLabel = await labelForAnimal(
+    tx,
+    input.animalId,
+    input.animalLabel,
+  );
+
   const openTasks = await tx.getAll<OpenHealthTask>(
     `SELECT id, source FROM tasks
      WHERE source_id = ? AND completed = 0 AND source IN (${FOLLOW_UP_SOURCES.map(() => '?').join(', ')})`,
@@ -123,7 +150,7 @@ export async function syncOpenTasksForHealthRecord(
 
   if (meatDue) {
     await upsertTask(tx, farmId, meatExisting, {
-      title: meatWithdrawalTaskTitle(input.animalLabel, input.productName),
+      title: meatWithdrawalTaskTitle(animalLabel, input.productName),
       dueDate: meatDue,
       priority: 'high',
       source: 'meat_withdrawal',
@@ -143,7 +170,7 @@ export async function syncOpenTasksForHealthRecord(
 
   if (milkDue) {
     await upsertTask(tx, farmId, milkTask?.id, {
-      title: milkWithdrawalTaskTitle(input.animalLabel, input.productName),
+      title: milkWithdrawalTaskTitle(animalLabel, input.productName),
       dueDate: milkDue,
       priority: 'high',
       source: 'milk_withdrawal',
@@ -163,7 +190,7 @@ export async function syncOpenTasksForHealthRecord(
 
   if (famachaDue && input.famachaScore != null) {
     await upsertTask(tx, farmId, famachaTask?.id, {
-      title: famachaFollowUpTaskTitle(input.animalLabel),
+      title: famachaFollowUpTaskTitle(animalLabel),
       dueDate: famachaDue,
       priority: input.famachaScore >= 5 ? 'high' : 'medium',
       source: 'famacha_check',

@@ -25,6 +25,10 @@ const MENU_ITEMS = [
   { title: 'Changes not saved', route: '/(tabs)/more/changes-not-saved' as const },
 ];
 
+function changesPhrase(count: number): string {
+  return `${count} ${count === 1 ? 'change' : 'changes'}`;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -53,7 +57,7 @@ export default function MoreScreen() {
       }
 
       if (syncStatus.connected) {
-        setSignOutMessage(`Uploading ${stats.count} changes…`);
+        setSignOutMessage(`Uploading ${changesPhrase(stats.count)}…`);
         for (let attempt = 0; attempt < 30; attempt += 1) {
           await sleep(1000);
           const next = await powersync.getUploadQueueStats();
@@ -63,14 +67,15 @@ export default function MoreScreen() {
             router.replace('/(auth)/sign-in');
             return;
           }
-          setSignOutMessage(`Uploading ${next.count} changes…`);
+          setSignOutMessage(`Uploading ${changesPhrase(next.count)}…`);
         }
       }
 
       const remaining = await powersync.getUploadQueueStats();
       setPendingQueueCount(remaining.count);
+      const verb = remaining.count === 1 ? 'is' : 'are';
       setSignOutMessage(
-        `${remaining.count} changes are only on this phone. Connect to the internet and wait for "All saved" before signing out.`,
+        `${changesPhrase(remaining.count)} ${verb} only on this phone. Connect to the internet and wait for "All saved" before signing out.`,
       );
     } finally {
       setSignOutBusy(false);
@@ -138,7 +143,7 @@ export default function MoreScreen() {
 
       {pendingQueueCount > 0 ? (
         <Button
-          title={`Sign out and delete ${pendingQueueCount} changes`}
+          title={`Sign out and delete ${changesPhrase(pendingQueueCount)}`}
           variant="outline"
           onPress={handleSignOutAndDiscard}
           disabled={signOutBusy}

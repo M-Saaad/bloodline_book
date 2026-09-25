@@ -54,7 +54,7 @@ const STATUS_OPTIONS: {
 }[] = [
   { value: 'active', label: 'Active' },
   { value: 'sold', label: 'Sold' },
-  { value: 'died', label: 'Deceased' },
+  { value: 'died', label: 'Dead' },
   { value: 'slaughtered', label: 'Slaughtered' },
   { value: 'transferred', label: 'Transferred' },
 ];

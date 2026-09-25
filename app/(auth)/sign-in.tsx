@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import { normalizeAuthEmail } from '@/lib/auth/email';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SignInScreen() {
@@ -42,14 +43,15 @@ export default function SignInScreen() {
     setErrorMessage('');
     setResetSent(false);
 
-    if (!email.trim()) {
+    const normalized = normalizeAuthEmail(email);
+    if (!normalized) {
       setErrorMessage('Enter your email first, then tap Forgot password.');
       return;
     }
 
     setResetLoading(true);
     try {
-      await requestPasswordReset(email.trim());
+      await requestPasswordReset(normalized);
       setResetSent(true);
     } catch (error) {
       setErrorMessage(

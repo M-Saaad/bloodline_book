@@ -19,7 +19,7 @@ export function formatLifecycleStage(stage: Animal['lifecycleStage']): string {
 export function formatAnimalStatus(status: Animal['status']): string {
   switch (status) {
     case 'died':
-      return 'deceased';
+      return 'dead';
     default:
       return status.replace(/_/g, ' ');
   }

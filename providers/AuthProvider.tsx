@@ -9,6 +9,10 @@ import React, {
   useState,
 } from 'react';
 
+import {
+  isAcceptableAuthEmail,
+  normalizeAuthEmail,
+} from '@/lib/auth/email';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client';
 
 interface AuthContextValue {
@@ -56,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizeAuthEmail(email),
       password,
     });
     if (error) {
@@ -65,7 +69,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizeAuthEmail(email),
+      password,
+    });
     if (error) {
       throw error;
     }
@@ -74,8 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const requestPasswordReset = useCallback(async (email: string) => {
+    const normalized = normalizeAuthEmail(email);
+    if (!isAcceptableAuthEmail(normalized)) {
+      throw new Error('Enter the full email address you use to sign in.');
+    }
     const redirectTo = Linking.createURL('/reset-password');
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
       redirectTo,
     });
     if (error) {

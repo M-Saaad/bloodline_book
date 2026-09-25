@@ -328,7 +328,7 @@ export async function createKiddingEvent(
       const kidId = Crypto.randomUUID();
       const name = kid.name?.trim()
         ? kid.name.trim()
-        : kidAnimalDefaultName(damLabel, i + 1);
+        : kidAnimalDefaultName(damLabel, i + 1, input.kidDate);
       await tx.execute(
         `INSERT INTO animals (
           id, farm_id, name, tag_number, sex, status, lifecycle_stage,
@@ -757,7 +757,7 @@ async function syncKiddingLitterAnimals(
         [
           kidId,
           kidding.farmId,
-          kidAnimalDefaultName(damLabel, startIndex + i + 1),
+          kidAnimalDefaultName(damLabel, startIndex + i + 1, input.kidDate),
           null,
           'female',
           input.kidDate,

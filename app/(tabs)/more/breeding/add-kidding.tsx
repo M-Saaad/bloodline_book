@@ -166,7 +166,7 @@ export default function AddKiddingScreen() {
       drafts.push({
         sex: kid.sex,
         outcome: kid.outcome,
-        name: kid.name.trim() || kidAnimalDefaultName(damLabel, index + 1),
+        name: kid.name.trim() || kidAnimalDefaultName(damLabel, index + 1, kidDate),
         tagNumber: kid.tag.trim() || undefined,
         birthWeight: weight,
       });
@@ -353,7 +353,7 @@ export default function AddKiddingScreen() {
               label="Name"
               value={kid.name}
               onChangeText={(value) => updateKid(index, { name: value })}
-              placeholder={kidAnimalDefaultName(damLabel, index + 1)}
+              placeholder={kidAnimalDefaultName(damLabel, index + 1, kidDate)}
             />
             <Input
               label="Tag"
