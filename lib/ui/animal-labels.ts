@@ -12,6 +12,19 @@ export function animalDisplayLabel(
   return `Animal ${animal.id.slice(0, 8)}`;
 }
 
+export function formatSex(sex: Animal['sex']): string {
+  switch (sex) {
+    case 'female':
+      return 'Doe';
+    case 'male':
+      return 'Buck';
+    default: {
+      const _exhaustive: never = sex;
+      return _exhaustive;
+    }
+  }
+}
+
 export function formatLifecycleStage(stage: Animal['lifecycleStage']): string {
   return stage.replace(/_/g, ' ');
 }

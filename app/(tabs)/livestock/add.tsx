@@ -38,6 +38,7 @@ export default function AddAnimalScreen() {
   const [breedPercentage, setBreedPercentage] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [damId, setDamId] = useState<string | null>(null);
+  const [damExternalName, setDamExternalName] = useState('');
   const [sireId, setSireId] = useState<string | null>(null);
   const [sireExternalName, setSireExternalName] = useState('');
   const [damAnimals, setDamAnimals] = useState<Animal[]>([]);
@@ -128,7 +129,8 @@ export default function AddAnimalScreen() {
         breedPrimaryId: breedId,
         breedPercentage: parsedBreedPercentage,
         dateOfBirth: dateOfBirth || null,
-        damId,
+        damId: damExternalName.trim() ? null : damId,
+        damExternalName: damExternalName.trim() || null,
         sireId: sireExternalName.trim() ? null : sireId,
         sireExternalName: sireExternalName.trim() || null,
         registrationBody,
@@ -218,6 +220,8 @@ export default function AddAnimalScreen() {
           sireAnimals={sireAnimals}
           damId={damId}
           onDamIdChange={setDamId}
+          damExternalName={damExternalName}
+          onDamExternalNameChange={setDamExternalName}
           sireId={sireId}
           onSireIdChange={setSireId}
           sireExternalName={sireExternalName}

@@ -148,7 +148,7 @@ export default function EditBreedingScreen() {
     try {
       await updateBreedingEvent(id, {
         damId,
-        sireId: sireId ?? undefined,
+        sireId: sireExternalName.trim() ? undefined : sireId ?? undefined,
         sireExternalName: sireExternalName.trim() || undefined,
         bredDate,
         exposureEndDate: exposureEnd,
@@ -348,15 +348,17 @@ export default function EditBreedingScreen() {
           onChange={setDamId}
         />
         <AnimalSelectField
-          label="Sire (on farm)"
+          label="Sire"
           animals={males}
           value={sireId}
           onChange={setSireId}
-        />
-        <Input
-          label="External sire name"
-          value={sireExternalName}
-          onChangeText={setSireExternalName}
+          externalLabel={sireExternalName}
+          onExternalLabelChange={(label) => setSireExternalName(label ?? '')}
+          allowClear
+          allowUnknown
+          allowOutside
+          outsideSex="male"
+          emptyMessage="No bucks on this farm yet. You can add one who is not in this herd."
         />
         <DateField
           label={exposureEnd ? 'Exposure start' : 'Bred date'}
