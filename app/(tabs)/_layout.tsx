@@ -1,8 +1,12 @@
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
 import { RequireAuth } from '@/components/RequireAuth';
 import { syncBadgeHeaderRight } from '@/components/SyncBadge';
+import {
+  currentNestedRouteName,
+  tabPressShouldOpenRoot,
+} from '@/lib/navigation/more-tab';
 
 function TabIcon({ label }: { label: string }) {
   // className on a tab icon is drawn twice by NativeWind's style interop.
@@ -54,9 +58,23 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="more"
+        listeners={({ navigation }) => ({
+          tabPress: (event) => {
+            const routeName = currentNestedRouteName(
+              navigation.getState().routes,
+              'more',
+            );
+            if (!tabPressShouldOpenRoot(routeName)) {
+              return;
+            }
+            event.preventDefault();
+            router.navigate('/more');
+          },
+        })}
         options={{
           title: 'More',
           headerShown: false,
+          popToTopOnBlur: true,
           tabBarIcon: () => <TabIcon label="⋯" />,
         }}
       />

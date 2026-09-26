@@ -6,8 +6,17 @@ import {
   recoveryParamsFromUrl,
 } from '../lib/auth/email.ts';
 import { kidAnimalDefaultName } from '../lib/domain/breeding.ts';
+import {
+  rememberAnimals,
+  windowAnimalChoices,
+} from '../lib/domain/animals.ts';
 import { taskTitleWithGoatName } from '../lib/domain/health.ts';
 import { deviceHasSignal, resolveSyncBadge } from '../lib/domain/sync-badge.ts';
+import {
+  currentNestedRouteName,
+  nestedStackIndex,
+  tabPressShouldOpenRoot,
+} from '../lib/navigation/more-tab.ts';
 
 assert.equal(kidAnimalDefaultName('Daisy', 1, '2026-03-14'), 'Daisy 26 kid 1');
 assert.equal(kidAnimalDefaultName('Daisy', 2, '2025-12-01'), 'Daisy 25 kid 2');
@@ -113,5 +122,42 @@ const fromQuery = recoveryParamsFromUrl(
 );
 assert.equal(fromQuery.code, 'xyz');
 assert.equal(fromQuery.accessToken, null);
+
+const herd = [
+  { id: 'a', name: 'Daisy', tagNumber: 'WCD-101' },
+  { id: 'b', name: 'Clover', tagNumber: 'WCD-102' },
+  { id: 'c', name: 'Fern', tagNumber: 'WCD-103' },
+];
+const kept = rememberAnimals(herd, []);
+assert.equal(kept.length, 3);
+assert.equal(rememberAnimals([], []).length, 0);
+assert.equal(rememberAnimals(herd, [{ id: 'd', name: 'New' }])[0].id, 'd');
+
+const windowed = windowAnimalChoices(herd, ['c'], 2);
+assert.deepEqual(
+  windowed.shown.map((animal) => animal.id),
+  ['c', 'a'],
+);
+assert.equal(windowed.hiddenCount, 1);
+const allShown = windowAnimalChoices(herd, [], 8);
+assert.equal(allShown.hiddenCount, 0);
+assert.equal(allShown.shown.length, 3);
+
+assert.equal(nestedStackIndex([{ name: 'more' }], 'more'), 0);
+assert.equal(
+  nestedStackIndex([{ name: 'more', state: { index: 2 } }], 'more'),
+  2,
+);
+assert.equal(
+  currentNestedRouteName(
+    [{ name: 'more', state: { index: 0, routes: [{ name: 'changes-not-saved' }] } }],
+    'more',
+  ),
+  'changes-not-saved',
+);
+assert.equal(tabPressShouldOpenRoot('index'), false);
+assert.equal(tabPressShouldOpenRoot(undefined), false);
+assert.equal(tabPressShouldOpenRoot('changes-not-saved'), true);
+assert.equal(tabPressShouldOpenRoot('tasks'), true);
 
 console.log('assert-trial-fixes: ok');

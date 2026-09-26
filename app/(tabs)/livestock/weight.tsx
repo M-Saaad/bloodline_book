@@ -10,6 +10,11 @@ import {
 } from 'react-native';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
+import {
+  AnimalSearchField,
+  useAnimalSearch,
+  useRememberedAnimals,
+} from '@/components/ui/AnimalSearchField';
 import { DateField } from '@/components/ui/DateField';
 import { Button } from '@/components/ui/Button';
 import { todayIso } from '@/lib/dates';
@@ -17,6 +22,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapAnimal } from '@/lib/db/mappers';
+import { formatLivestockRowTitle } from '@/lib/domain/animals';
 import { createWeighSessionWithLogs } from '@/lib/db/weights';
 import type { WeighSession } from '@/lib/types/weight';
 import { useFarm } from '@/providers/FarmProvider';
@@ -55,6 +61,8 @@ export default function WeighDayScreen() {
     () => (data ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
     [data],
   );
+  const remembered = useRememberedAnimals(animals);
+  const { query, setQuery, filtered } = useAnimalSearch(remembered);
 
   function setWeight(animalId: string, value: string) {
     setWeights((prev) => ({ ...prev, [animalId]: value }));
@@ -180,26 +188,41 @@ export default function WeighDayScreen() {
       </View>
 
       <FlatList
-        data={animals}
+        data={filtered}
         keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
         contentContainerClassName={
-          animals.length === 0 ? 'flex-grow' : 'px-4 py-2 pb-24'
+          filtered.length === 0 ? 'flex-grow' : 'px-4 py-2 pb-24'
+        }
+        ListHeaderComponent={
+          remembered.length > 0 ? (
+            <View className="pb-2">
+              <AnimalSearchField value={query} onChangeText={setQuery} />
+            </View>
+          ) : null
         }
         ListEmptyComponent={
-          <EmptyState
-            title="No animals to weigh"
-            description="Add animals before running weigh day."
-            actionLabel="Add Animal"
-            onAction={() => router.push('/(tabs)/livestock/add')}
-          />
+          remembered.length === 0 ? (
+            <EmptyState
+              title="No animals to weigh"
+              description="Add animals before running weigh day."
+              actionLabel="Add Animal"
+              onAction={() => router.push('/(tabs)/livestock/add')}
+            />
+          ) : (
+            <Text className="text-sm text-gray-500 px-1 py-4">
+              No goats match that search.
+            </Text>
+          )
         }
         renderItem={({ item }) => (
           <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
             <View className="flex-1 pr-3">
               <Text className="font-medium text-gray-900">
-                {item.name ?? item.tagNumber ?? 'Unnamed'}
+                {formatLivestockRowTitle(item)}
               </Text>
               <Text className="text-gray-500 text-sm capitalize">
+                {item.tagNumber?.trim() ? `Tag ${item.tagNumber.trim()} · ` : ''}
                 {item.sex}
               </Text>
             </View>
@@ -219,7 +242,7 @@ export default function WeighDayScreen() {
         <Button
           title={submitting ? 'Saving…' : 'Submit Weigh Day'}
           onPress={handleSubmit}
-          disabled={submitting || animals.length === 0}
+          disabled={submitting || remembered.length === 0}
         />
       </View>
     </View>

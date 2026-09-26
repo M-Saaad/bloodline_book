@@ -185,7 +185,10 @@ export default function AddBreedingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        contentContainerClassName="p-4"
+        keyboardShouldPersistTaps="handled">
         <FormMessage message={errorMessage} tone="error" />
 
         <Text className="text-sm font-medium text-gray-700 mb-2">
