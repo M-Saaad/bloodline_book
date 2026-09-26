@@ -1,24 +1,24 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { HerdFilterSheet } from '@/components/livestock/HerdFilterSheet';
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
 import {
   animalMatchesSearch,
-  formatAnimalAge,
   formatLivestockRowTitle,
   parseHerdStatusFilter,
   type HerdLifecycleFilter,
   type HerdSexFilter,
   type HerdStatusFilter,
 } from '@/lib/domain/animals';
+import { compareHerdOrder, herdRowSubtitle } from '@/lib/ui/animal-picker';
 import { todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
 import {
@@ -27,7 +27,6 @@ import {
 } from '@/lib/domain/health';
 import {
   formatAnimalStatus,
-  formatLifecycleStage,
   statusBadgeTone,
 } from '@/lib/ui/animal-labels';
 import { useFarmRole } from '@/hooks/useFarmRole';
@@ -72,6 +71,10 @@ export default function LivestockListScreen() {
   const [sexFilter, setSexFilter] = useState<HerdSexFilter>('all');
   const [lifecycleFilter, setLifecycleFilter] =
     useState<HerdLifecycleFilter>('all');
+  const [pastureFilter, setPastureFilter] = useState<string | null>(null);
+  const [withdrawalOnly, setWithdrawalOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     setStatusFilter(parseHerdStatusFilter(params.status));
@@ -152,6 +155,56 @@ export default function LivestockListScreen() {
     return labels;
   }, [activeFarm, healthRows]);
 
+  const { data: grazingRows } = useQuery(
+    activeFarm
+      ? `SELECT g.animal_id, p.id as pasture_id, p.name
+         FROM grazing_records g
+         JOIN pastures p ON p.id = g.pasture_id
+         WHERE g.farm_id = ? AND g.end_date IS NULL`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: breedRows } = useQuery(
+    'SELECT id, name FROM breeds',
+    [],
+  );
+
+  const pastureByAnimal = useMemo(() => {
+    const names: Record<string, string> = {};
+    const pastureIds: Record<string, string> = {};
+    for (const row of grazingRows ?? []) {
+      const record = row as {
+        animal_id: string;
+        pasture_id: string;
+        name: string;
+      };
+      names[String(record.animal_id)] = String(record.name);
+      pastureIds[String(record.animal_id)] = String(record.pasture_id);
+    }
+    return { names, pastureIds };
+  }, [grazingRows]);
+
+  const breedNames = useMemo(() => {
+    const names: Record<string, string> = {};
+    for (const row of breedRows ?? []) {
+      const record = row as { id: string; name: string };
+      names[String(record.id)] = String(record.name);
+    }
+    return names;
+  }, [breedRows]);
+
+  const pastureOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const row of grazingRows ?? []) {
+      const record = row as { pasture_id: string; name: string };
+      seen.set(String(record.pasture_id), String(record.name));
+    }
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [grazingRows]);
+
   const animals = useMemo(() => {
     const mapped = (data ?? []).map((row) =>
       mapAnimal(row as Record<string, unknown>),
@@ -167,9 +220,27 @@ export default function LivestockListScreen() {
       ) {
         return false;
       }
+      if (
+        pastureFilter &&
+        pastureByAnimal.pastureIds[animal.id] !== pastureFilter
+      ) {
+        return false;
+      }
+      if (withdrawalOnly && !withdrawalLabels.has(animal.id)) {
+        return false;
+      }
       return animalMatchesSearch(animal, searchQuery);
-    });
-  }, [data, lifecycleFilter, searchQuery, sexFilter]);
+    }).sort(compareHerdOrder);
+  }, [
+    data,
+    lifecycleFilter,
+    pastureByAnimal.pastureIds,
+    pastureFilter,
+    searchQuery,
+    sexFilter,
+    withdrawalLabels,
+    withdrawalOnly,
+  ]);
 
   if (farmLoading || (activeFarm && animalsLoading)) {
     return <LoadingState message="Loading livestock…" />;
@@ -186,6 +257,22 @@ export default function LivestockListScreen() {
     );
   }
 
+  const activeChips = herdFilterChips({
+    statusFilter,
+    sexFilter,
+    lifecycleFilter,
+    pastureFilter,
+    pastureOptions,
+    withdrawalOnly,
+    onStatus: setStatusFilter,
+    onSex: setSexFilter,
+    onLifecycle: setLifecycleFilter,
+    onPasture: setPastureFilter,
+    onWithdrawal: setWithdrawalOnly,
+  });
+  const listIsUnfiltered =
+    activeChips.length === 0 && !searchQuery.trim();
+
   return (
     <View className="flex-1 bg-gray-50">
       {isHand ? (
@@ -193,75 +280,74 @@ export default function LivestockListScreen() {
           <ReadOnlyFarmBanner />
         </View>
       ) : null}
-      <View className="px-4 py-3 gap-3">
-        <FarmWriteGate>
-          <View className="flex-row gap-2">
-            <Button
-              title="Add Animal"
-              onPress={() => router.push('/(tabs)/livestock/add')}
-              className="flex-1"
-            />
-            <Button
-              title="Weigh Day"
-              variant="secondary"
-              onPress={() => router.push('/(tabs)/livestock/weight')}
-              className="flex-1"
-            />
-          </View>
-        </FarmWriteGate>
-
-        <Input
-          label="Search herd"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Name, tag, official ID, registration, tattoo"
-        />
-
-        <FilterChipRow
-          label="Status"
-          options={STATUS_FILTERS}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
-        <FilterChipRow
-          label="Sex"
-          options={SEX_FILTERS}
-          value={sexFilter}
-          onChange={setSexFilter}
-        />
-        <FilterChipRow
-          label="Stage"
-          options={LIFECYCLE_FILTERS}
-          value={lifecycleFilter}
-          onChange={setLifecycleFilter}
-        />
+      <View className="px-4 pt-3 pb-2">
+        <View className="flex-row items-center gap-2">
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search name or tag"
+            autoCapitalize="none"
+            autoCorrect={false}
+            clearButtonMode="while-editing"
+            className="flex-1 border border-gray-300 rounded-xl px-4 min-h-[48px] text-base bg-white text-gray-900"
+            placeholderTextColor="#4b5563"
+          />
+          <Pressable
+            onPress={() => setFiltersOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              activeChips.length > 0
+                ? `Filters, ${activeChips.length} active`
+                : 'Filters'
+            }
+            className={`min-h-[48px] min-w-[48px] px-3 rounded-xl items-center justify-center ${
+              activeChips.length > 0 ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
+            }`}>
+            <Text
+              className={`font-semibold ${
+                activeChips.length > 0 ? 'text-white' : 'text-gray-900'
+              }`}>
+              {activeChips.length > 0 ? `Filters ${activeChips.length}` : 'Filters'}
+            </Text>
+          </Pressable>
+        </View>
+        {activeChips.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="mt-2"
+            contentContainerClassName="gap-2">
+            {activeChips.map((chip) => (
+              <Pressable
+                key={chip.key}
+                onPress={chip.onRemove}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${chip.label} filter`}
+                className="min-h-[44px] justify-center rounded-full bg-bloodline-600 px-4">
+                <Text className="text-white font-semibold">{chip.label} ×</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
       </View>
 
       <FlatList
         data={animals}
         keyExtractor={(item) => item.id}
         contentContainerClassName={
-          animals.length === 0 ? 'flex-grow' : 'px-4 pb-6'
+          animals.length === 0 ? 'flex-grow' : 'px-4 pb-28'
         }
         ListEmptyComponent={
           <EmptyState
-            title={
-              statusFilter === 'active' && !searchQuery.trim()
-                ? 'No active animals'
-                : 'No goats match these filters'
-            }
+            title={listIsUnfiltered ? 'No active animals' : 'No goats match'}
             description={
-              statusFilter === 'active' && !searchQuery.trim()
+              listIsUnfiltered
                 ? 'Add your first goat to start tracking weights and records.'
                 : 'Try another search term or filter.'
             }
-            actionLabel={
-              statusFilter === 'active' && !searchQuery.trim()
-                ? 'Add Animal'
-                : undefined
-            }
+            actionLabel={listIsUnfiltered ? 'Add Animal' : undefined}
             onAction={
-              statusFilter === 'active' && !searchQuery.trim()
+              listIsUnfiltered
                 ? () => router.push('/(tabs)/livestock/add')
                 : undefined
             }
@@ -270,33 +356,81 @@ export default function LivestockListScreen() {
         renderItem={({ item }) => (
           <LivestockRow
             animal={item}
+            breedName={
+              item.breedPrimaryId ? breedNames[item.breedPrimaryId] : null
+            }
+            pastureName={pastureByAnimal.names[item.id] ?? null}
             withdrawalLines={withdrawalLabels.get(item.id) ?? []}
           />
         )}
       />
+
+      <HerdFilterSheet
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        status={statusFilter}
+        sex={sexFilter}
+        lifecycle={lifecycleFilter}
+        pastureId={pastureFilter}
+        withdrawalOnly={withdrawalOnly}
+        statusOptions={STATUS_FILTERS}
+        sexOptions={SEX_FILTERS}
+        lifecycleOptions={LIFECYCLE_FILTERS}
+        pastures={pastureOptions}
+        onStatus={setStatusFilter}
+        onSex={setSexFilter}
+        onLifecycle={setLifecycleFilter}
+        onPasture={setPastureFilter}
+        onWithdrawal={setWithdrawalOnly}
+        onClear={() => {
+          setStatusFilter('active');
+          setSexFilter('all');
+          setLifecycleFilter('all');
+          setPastureFilter(null);
+          setWithdrawalOnly(false);
+        }}
+        matchCount={animals.length}
+      />
+
+      <FarmWriteGate>
+        <Pressable
+          onPress={() => router.push('/(tabs)/livestock/add')}
+          accessibilityRole="button"
+          accessibilityLabel="Add animal"
+          className="absolute right-4 h-14 w-14 rounded-full bg-bloodline-600 items-center justify-center"
+          style={{ bottom: Math.max(insets.bottom, 16) + 12 }}>
+          <Text className="text-white text-3xl leading-8">+</Text>
+        </Pressable>
+      </FarmWriteGate>
     </View>
   );
 }
 
 function LivestockRow({
   animal,
+  breedName,
+  pastureName,
   withdrawalLines,
 }: {
   animal: Animal;
+  breedName?: string | null;
+  pastureName?: string | null;
   withdrawalLines: string[];
 }) {
   return (
     <Pressable
       onPress={() => router.push(`/(tabs)/livestock/${animal.id}`)}
-      className="bg-white border border-gray-200 rounded-xl p-4 mb-2 active:bg-gray-50">
+      className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-2 min-h-[56px] active:bg-gray-50">
       <View className="flex-row justify-between items-start">
         <View className="flex-1 pr-3">
-          <Text className="text-lg font-semibold text-gray-900">
+          <Text className="text-lg font-semibold text-gray-900" numberOfLines={1}>
             {formatLivestockRowTitle(animal)}
           </Text>
-          <Text className="text-gray-500 capitalize mt-1">
-            {animal.sex} · {formatLifecycleStage(animal.lifecycleStage)} ·{' '}
-            {formatAnimalAge(animal.dateOfBirth)}
+          <Text className="text-gray-700 mt-1" numberOfLines={1}>
+            {herdRowSubtitle(animal, {
+              breed: breedName,
+              pasture: pastureName,
+            })}
           </Text>
           {withdrawalLines.map((line) => (
             <Text key={line} className="text-amber-800 text-sm mt-1">
@@ -304,51 +438,73 @@ function LivestockRow({
             </Text>
           ))}
         </View>
-        <Badge
-          label={formatAnimalStatus(animal.status)}
-          tone={statusBadgeTone(animal.status)}
-        />
+        {animal.status !== 'active' ? (
+          <Badge
+            label={formatAnimalStatus(animal.status)}
+            tone={statusBadgeTone(animal.status)}
+          />
+        ) : null}
       </View>
     </Pressable>
   );
 }
 
-function FilterChipRow<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <View>
-      <Text className="text-xs font-medium text-gray-500 mb-1">{label}</Text>
-      <View className="flex-row flex-wrap gap-2">
-        {options.map((option) => {
-          const selected = value === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => onChange(option.value)}
-              className={`rounded-full border px-3 py-1.5 ${
-                selected
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-xs ${
-                  selected ? 'text-bloodline-700 font-medium' : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </View>
-  );
+function herdFilterChips(input: {
+  statusFilter: HerdStatusFilter;
+  sexFilter: HerdSexFilter;
+  lifecycleFilter: HerdLifecycleFilter;
+  pastureFilter: string | null;
+  pastureOptions: { id: string; name: string }[];
+  withdrawalOnly: boolean;
+  onStatus: (value: HerdStatusFilter) => void;
+  onSex: (value: HerdSexFilter) => void;
+  onLifecycle: (value: HerdLifecycleFilter) => void;
+  onPasture: (value: string | null) => void;
+  onWithdrawal: (value: boolean) => void;
+}): { key: string; label: string; onRemove: () => void }[] {
+  const chips: { key: string; label: string; onRemove: () => void }[] = [];
+  if (input.statusFilter !== 'active') {
+    const match = STATUS_FILTERS.find((option) => option.value === input.statusFilter);
+    chips.push({
+      key: 'status',
+      label: match?.label ?? input.statusFilter,
+      onRemove: () => input.onStatus('active'),
+    });
+  }
+  if (input.sexFilter !== 'all') {
+    const match = SEX_FILTERS.find((option) => option.value === input.sexFilter);
+    chips.push({
+      key: 'sex',
+      label: match?.label ?? input.sexFilter,
+      onRemove: () => input.onSex('all'),
+    });
+  }
+  if (input.lifecycleFilter !== 'all') {
+    const match = LIFECYCLE_FILTERS.find(
+      (option) => option.value === input.lifecycleFilter,
+    );
+    chips.push({
+      key: 'stage',
+      label: match?.label ?? input.lifecycleFilter,
+      onRemove: () => input.onLifecycle('all'),
+    });
+  }
+  if (input.pastureFilter) {
+    const match = input.pastureOptions.find(
+      (pasture) => pasture.id === input.pastureFilter,
+    );
+    chips.push({
+      key: 'pasture',
+      label: match?.name ?? 'Pasture',
+      onRemove: () => input.onPasture(null),
+    });
+  }
+  if (input.withdrawalOnly) {
+    chips.push({
+      key: 'withdrawal',
+      label: 'In withdrawal',
+      onRemove: () => input.onWithdrawal(false),
+    });
+  }
+  return chips;
 }

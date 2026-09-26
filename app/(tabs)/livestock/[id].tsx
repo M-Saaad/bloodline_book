@@ -1,6 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Badge } from '@/components/ui/Badge';
@@ -32,6 +33,7 @@ import { useFarm } from '@/providers/FarmProvider';
 export default function AnimalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { activeFarm } = useFarm();
+  const insets = useSafeAreaInsets();
 
   const { data: animalRows, isLoading: animalLoading } = useQuery(
     id ? 'SELECT * FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
@@ -204,10 +206,82 @@ export default function AnimalDetailScreen() {
     ? mapKiddingEvent(litterKiddingRows[0] as Record<string, unknown>)
     : null;
 
+  const quickActions =
+    animal.sex === 'female'
+      ? [
+          {
+            label: 'Weigh',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/livestock/weight',
+                params: { animalId: animal.id },
+              }),
+          },
+          {
+            label: 'Treat',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/more/health/add',
+                params: { animalId: animal.id },
+              }),
+          },
+          {
+            label: 'Move',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/land/add-grazing',
+                params: { animalId: animal.id },
+              }),
+          },
+          {
+            label: 'Kidding',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/more/breeding/add-kidding',
+                params: { damId: animal.id },
+              }),
+          },
+        ]
+      : [
+          {
+            label: 'Weigh',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/livestock/weight',
+                params: { animalId: animal.id },
+              }),
+          },
+          {
+            label: 'Treat',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/more/health/add',
+                params: { animalId: animal.id },
+              }),
+          },
+          {
+            label: 'Move',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/land/add-grazing',
+                params: { animalId: animal.id },
+              }),
+          },
+          {
+            label: 'Breed',
+            onPress: () =>
+              router.push({
+                pathname: '/(tabs)/more/breeding/add-breeding',
+                params: { sireId: animal.id },
+              }),
+          },
+        ];
+
   return (
+    <View className="flex-1 bg-gray-50">
     <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4 gap-4 pb-8">
+      className="flex-1"
+      contentContainerClassName="p-4 gap-4 pb-28">
       <Card>
         <View className="flex-row justify-between items-start mb-3">
           <View className="flex-1 pr-3">
@@ -321,6 +395,8 @@ export default function AnimalDetailScreen() {
                   : null
               }
             />
+          ) : animal.damExternalName ? (
+            <DetailRow label="Dam" value={animal.damExternalName} />
           ) : (
             <DetailRow label="Dam" value="Not set" />
           )}
@@ -402,11 +478,28 @@ export default function AnimalDetailScreen() {
         </Card>
       ) : null}
 
-      {animal.sex === 'female' && (breedingRows ?? []).length > 0 ? (
+      {animal.sex === 'female' ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-3">
-            Breeding history
-          </Text>
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-semibold text-gray-900">
+              Breeding history
+            </Text>
+            <FarmWriteGate>
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/more/breeding/add-breeding',
+                    params: { damId: animal.id },
+                  })
+                }
+                className="min-h-[44px] justify-center px-2">
+                <Text className="text-bloodline-700 font-semibold">Log breeding</Text>
+              </Pressable>
+            </FarmWriteGate>
+          </View>
+          {(breedingRows ?? []).length === 0 ? (
+            <Text className="text-gray-700">No breedings recorded yet.</Text>
+          ) : null}
           {(breedingRows ?? []).map((row) => {
             const record = row as Record<string, unknown>;
             const breeding = mapBreedingEvent(record);
@@ -492,7 +585,12 @@ export default function AnimalDetailScreen() {
               <Button
                 title="Add Health Record"
                 variant="outline"
-                onPress={() => router.push('/(tabs)/more/health/add')}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(tabs)/more/health/add',
+                    params: { animalId: animal.id },
+                  })
+                }
               />
             </FarmWriteGate>
           </View>
@@ -571,6 +669,22 @@ export default function AnimalDetailScreen() {
         )}
       </Card>
     </ScrollView>
+    <FarmWriteGate>
+      <View
+        className="absolute left-0 right-0 bottom-0 flex-row bg-white border-t border-gray-200"
+        style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+        {quickActions.map((action) => (
+          <Pressable
+            key={action.label}
+            onPress={action.onPress}
+            accessibilityRole="button"
+            className="flex-1 min-h-[48px] items-center justify-center">
+            <Text className="text-bloodline-700 font-semibold">{action.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </FarmWriteGate>
+    </View>
   );
 }
 
