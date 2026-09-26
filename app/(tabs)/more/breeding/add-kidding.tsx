@@ -208,7 +208,10 @@ export default function AddKiddingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 pb-10">
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        contentContainerClassName="p-4 pb-10"
+        keyboardShouldPersistTaps="handled">
         <FormMessage message={errorMessage} tone="error" />
 
         <AnimalSelectField

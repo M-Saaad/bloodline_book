@@ -1,10 +1,14 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import {
   AnimalSearchField,
   useAnimalSearch,
+  useRememberedAnimals,
 } from '@/components/ui/AnimalSearchField';
-import { formatLivestockRowTitle } from '@/lib/domain/animals';
+import {
+  formatLivestockRowTitle,
+  windowAnimalChoices,
+} from '@/lib/domain/animals';
 import type { Animal } from '@/lib/types/animals';
 
 type AnimalSelectFieldProps = {
@@ -24,16 +28,21 @@ export function AnimalSelectField({
   emptyMessage = 'No matching animals on this farm.',
   allowClear = false,
 }: AnimalSelectFieldProps) {
-  const { query, setQuery, filtered } = useAnimalSearch(animals);
+  const remembered = useRememberedAnimals(animals);
+  const { query, setQuery, filtered } = useAnimalSearch(remembered);
+  const { shown, hiddenCount } = windowAnimalChoices(
+    filtered,
+    value ? [value] : [],
+  );
 
   return (
     <View className="mb-4">
       <Text className="text-sm font-medium text-gray-700 mb-2">{label}</Text>
-      {animals.length === 0 ? (
+      <AnimalSearchField value={query} onChangeText={setQuery} />
+      {remembered.length === 0 ? (
         <Text className="text-sm text-gray-500">{emptyMessage}</Text>
       ) : (
         <View className="gap-2">
-          <AnimalSearchField value={query} onChangeText={setQuery} />
           {allowClear ? (
             <Pressable
               onPress={() => onChange(null)}
@@ -55,14 +64,18 @@ export function AnimalSelectField({
               No goats match that search.
             </Text>
           ) : (
-            filtered.map((animal) => {
+            <ScrollView
+              style={{ maxHeight: 280 }}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled">
+              {shown.map((animal) => {
               const selected = value === animal.id;
               const tag = animal.tagNumber?.trim();
               return (
                 <Pressable
                   key={animal.id}
                   onPress={() => onChange(animal.id)}
-                  className={`rounded-xl border px-3 py-3 ${
+                  className={`mb-2 rounded-xl border px-3 py-3 ${
                     selected
                       ? 'border-bloodline-600 bg-bloodline-50'
                       : 'border-gray-300 bg-white'
@@ -80,8 +93,15 @@ export function AnimalSelectField({
                   </Text>
                 </Pressable>
               );
-            })
+            })}
+            </ScrollView>
           )}
+          {hiddenCount > 0 ? (
+            <Text className="text-xs text-gray-500">
+              Showing {shown.length} of {filtered.length}. Type a name or tag to
+              narrow.
+            </Text>
+          ) : null}
         </View>
       )}
     </View>

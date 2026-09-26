@@ -250,7 +250,10 @@ export default function AddHealthRecordScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        contentContainerClassName="p-4"
+        keyboardShouldPersistTaps="handled">
         <FormMessage message={errorMessage} tone="error" />
         <AnimalSelectField
           label="Animal"

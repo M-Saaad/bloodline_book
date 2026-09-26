@@ -294,7 +294,8 @@ export default function EditAnimalScreen() {
     <HandWriteBlocked>
       <ScrollView
         className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4">
+        contentContainerClassName="p-4"
+        keyboardShouldPersistTaps="handled">
         <FormMessage message={errorMessage} tone="error" />
         <FormMessage message={warningMessage} tone="warning" />
 

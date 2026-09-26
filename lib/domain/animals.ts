@@ -93,6 +93,41 @@ export function formatAnimalAge(
   return `${years} yr ${remainingMonths} mo`;
 }
 
+/** How many goats a form picker paints before asking for a narrower search. */
+export const ANIMAL_PICKER_WINDOW = 8;
+
+/**
+ * Keep a goat list on screen when a later query result is empty.
+ * Offline reconnects can briefly emit an empty result after the herd has already loaded.
+ */
+export function rememberAnimals(
+  previous: readonly Animal[],
+  next: readonly Animal[],
+): readonly Animal[] {
+  if (next.length > 0) {
+    return next;
+  }
+  return previous.length > 0 ? previous : next;
+}
+
+/**
+ * Show selected goats plus a short slice of the rest, so the search field stays on screen.
+ */
+export function windowAnimalChoices(
+  animals: readonly Animal[],
+  selectedIds: readonly string[],
+  limit: number = ANIMAL_PICKER_WINDOW,
+): { shown: Animal[]; hiddenCount: number } {
+  const selected = animals.filter((animal) => selectedIds.includes(animal.id));
+  const rest = animals.filter((animal) => !selectedIds.includes(animal.id));
+  const extra = Math.max(0, limit - selected.length);
+  const shown = [...selected, ...rest.slice(0, extra)];
+  return {
+    shown,
+    hiddenCount: Math.max(0, animals.length - shown.length),
+  };
+}
+
 export function formatLivestockRowTitle(animal: Animal): string {
   const tag = animal.tagNumber?.trim();
   const name = animal.name?.trim();

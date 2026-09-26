@@ -250,7 +250,10 @@ export default function EditBreedingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        contentContainerClassName="p-4"
+        keyboardShouldPersistTaps="handled">
         <FormMessage message={errorMessage} tone="error" />
         <View className="flex-row items-center gap-2 mb-3">
           <Badge label={status} />
