@@ -1,5 +1,5 @@
 import { useQuery } from '@powersync/react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -29,11 +29,12 @@ import { useFarm } from '@/providers/FarmProvider';
 type BreedingMode = 'hand' | 'exposure';
 
 export default function AddBreedingScreen() {
+  const params = useLocalSearchParams<{ damId?: string; sireId?: string }>();
   const { activeFarm } = useFarm();
   const [mode, setMode] = useState<BreedingMode>('hand');
-  const [damId, setDamId] = useState<string | null>(null);
+  const [damId, setDamId] = useState<string | null>(params.damId || null);
   const [damIds, setDamIds] = useState<string[]>([]);
-  const [sireId, setSireId] = useState<string | null>(null);
+  const [sireId, setSireId] = useState<string | null>(params.sireId || null);
   const [sireExternalName, setSireExternalName] = useState('');
   const [bredDate, setBredDate] = useState(todayIso);
   const [exposureEnd, setExposureEnd] = useState(todayIso);
@@ -133,7 +134,7 @@ export default function AddBreedingScreen() {
         const dam = females.find((animal) => animal.id === damId);
         await createBreedingEvent(activeFarm.id, {
           damId,
-          sireId: sireId ?? undefined,
+          sireId: sireExternalName.trim() ? undefined : sireId ?? undefined,
           sireExternalName: sireExternalName.trim() || undefined,
           bredDate,
           gestationDays,
@@ -159,7 +160,7 @@ export default function AddBreedingScreen() {
         }
         await createExposureBreedings(activeFarm.id, {
           damIds,
-          sireId: sireId ?? undefined,
+          sireId: sireExternalName.trim() ? undefined : sireId ?? undefined,
           sireExternalName: sireExternalName.trim() || undefined,
           startDate: bredDate,
           endDate: exposureEnd,
@@ -238,17 +239,17 @@ export default function AddBreedingScreen() {
         )}
 
         <AnimalSelectField
-          label="Sire (on farm)"
+          label="Sire"
           animals={males}
           value={sireId}
           onChange={setSireId}
-          emptyMessage="Optional — use external sire name below if off-farm."
-        />
-        <Input
-          label="External sire name"
-          value={sireExternalName}
-          onChangeText={setSireExternalName}
-          placeholder="If sire is not in herd"
+          externalLabel={sireExternalName}
+          onExternalLabelChange={(label) => setSireExternalName(label ?? '')}
+          allowClear
+          allowUnknown
+          allowOutside
+          outsideSex="male"
+          emptyMessage="No bucks on this farm yet. You can add one who is not in this herd."
         />
 
         <DateField

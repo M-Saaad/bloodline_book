@@ -23,10 +23,11 @@ import {
   findAnimalByTagNumber,
   getAnimalById,
   getAnimalDeleteInfo,
+  getAnimalsByFarm,
   getBreedsForFarm,
-  getParentPickerAnimals,
   updateAnimal,
 } from '@/lib/db/animals';
+import { pedigreeBlockers, type PickerBlock } from '@/lib/ui/animal-picker';
 import {
   animalDeleteBlockedMessage,
   formatAnimalDeletePreview,
@@ -85,10 +86,12 @@ export default function EditAnimalScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [outDate, setOutDate] = useState('');
   const [damId, setDamId] = useState<string | null>(null);
+  const [damExternalName, setDamExternalName] = useState('');
   const [sireId, setSireId] = useState<string | null>(null);
   const [sireExternalName, setSireExternalName] = useState('');
   const [damAnimals, setDamAnimals] = useState<Animal[]>([]);
   const [sireAnimals, setSireAnimals] = useState<Animal[]>([]);
+  const [parentBlocks, setParentBlocks] = useState<PickerBlock[]>([]);
   const [deleteBlockers, setDeleteBlockers] = useState<AnimalDeleteBlocker[]>(
     [],
   );
@@ -106,11 +109,10 @@ export default function EditAnimalScreen() {
     async function load() {
       setLoading(true);
       try {
-        const [animal, farmBreeds, does, bucks] = await Promise.all([
+        const [animal, farmBreeds, herd] = await Promise.all([
           getAnimalById(id),
           getBreedsForFarm(farm.id, farm.segment),
-          getParentPickerAnimals(farm.id, 'female', id),
-          getParentPickerAnimals(farm.id, 'male', id),
+          getAnimalsByFarm(farm.id, 'all'),
         ]);
 
         if (cancelled) {
@@ -140,11 +142,13 @@ export default function EditAnimalScreen() {
         setDateOfBirth(animal.dateOfBirth ?? '');
         setOutDate(animal.outDate ?? todayIso());
         setDamId(animal.damId);
+        setDamExternalName(animal.damExternalName ?? '');
         setSireId(animal.sireId);
         setSireExternalName(animal.sireExternalName ?? '');
         setBreeds(farmBreeds);
-        setDamAnimals(does);
-        setSireAnimals(bucks);
+        setDamAnimals(herd.filter((item) => item.sex === 'female'));
+        setSireAnimals(herd.filter((item) => item.sex === 'male'));
+        setParentBlocks(pedigreeBlockers(id, herd));
 
         const deleteInfo = await getAnimalDeleteInfo(id);
         if (!cancelled) {
@@ -264,7 +268,8 @@ export default function EditAnimalScreen() {
         notes: notes.trim() || null,
         dateOfBirth: dateOfBirth || null,
         outDate: leavingHerd ? outDate || todayIso() : null,
-        damId,
+        damId: damExternalName.trim() ? null : damId,
+        damExternalName: damExternalName.trim() || null,
         sireId: sireExternalName.trim() ? null : sireId,
         sireExternalName: sireExternalName.trim() || null,
         registrationBody,
@@ -380,15 +385,17 @@ export default function EditAnimalScreen() {
         />
 
         <AnimalParentFields
-          key={`${id}-${sireExternalName ? 'external' : 'farm'}`}
           damAnimals={damAnimals}
           sireAnimals={sireAnimals}
           damId={damId}
           onDamIdChange={setDamId}
+          damExternalName={damExternalName}
+          onDamExternalNameChange={setDamExternalName}
           sireId={sireId}
           onSireIdChange={setSireId}
           sireExternalName={sireExternalName}
           onSireExternalNameChange={setSireExternalName}
+          exclude={parentBlocks}
         />
 
         <Text className="text-sm font-medium text-gray-700 mb-2">Status</Text>

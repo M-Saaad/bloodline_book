@@ -72,6 +72,8 @@ export function mapAnimal(row: Record<string, unknown>): Animal {
     lifecycleStage: row.lifecycle_stage as Animal['lifecycleStage'],
     purpose: row.purpose as Animal['purpose'],
     damId: row.dam_id != null ? String(row.dam_id) : null,
+    damExternalName:
+      row.dam_external_name != null ? String(row.dam_external_name) : null,
     sireId: row.sire_id != null ? String(row.sire_id) : null,
     sireExternalName:
       row.sire_external_name != null ? String(row.sire_external_name) : null,

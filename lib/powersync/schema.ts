@@ -51,6 +51,7 @@ const animals = new Table(
     lifecycle_stage: column.text,
     purpose: column.text,
     dam_id: column.text,
+    dam_external_name: column.text,
     sire_id: column.text,
     sire_external_name: column.text,
     litter_id: column.text,

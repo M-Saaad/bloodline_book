@@ -177,7 +177,7 @@ export default function AddKiddingScreen() {
     try {
       const kiddingId = await createKiddingEvent(activeFarm.id, {
         damId,
-        sireId: sireId ?? undefined,
+        sireId: sireExternalName.trim() ? undefined : sireId ?? undefined,
         sireExternalName: sireExternalName.trim() || undefined,
         kidDate,
         kidsBorn: kids.length,
@@ -255,17 +255,17 @@ export default function AddKiddingScreen() {
         </View>
 
         <AnimalSelectField
-          label="Sire (on farm)"
+          label="Sire"
           animals={males}
           value={sireId}
           onChange={setSireId}
-          emptyMessage="Optional — use external sire name below if off-farm."
-        />
-        <Input
-          label="External sire name"
-          value={sireExternalName}
-          onChangeText={setSireExternalName}
-          placeholder="Optional"
+          externalLabel={sireExternalName}
+          onExternalLabelChange={(label) => setSireExternalName(label ?? '')}
+          allowClear
+          allowUnknown
+          allowOutside
+          outsideSex="male"
+          emptyMessage="No bucks on this farm yet. You can add one who is not in this herd."
         />
         <DateField label="Kid date" value={kidDate} onChange={setKidDate} />
 

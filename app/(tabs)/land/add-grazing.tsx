@@ -1,11 +1,12 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView } from 'react-native';
 
-import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
+import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
 import { Button } from '@/components/ui/Button';
+import { ChoicePickerField } from '@/components/ui/ChoicePickerField';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -15,14 +16,18 @@ import { moveAnimalsToPasture } from '@/lib/db/land';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function AddGrazingScreen() {
-  const { pastureId: pastureIdParam } = useLocalSearchParams<{
-    pastureId?: string;
-  }>();
+  const { pastureId: pastureIdParam, animalId: animalIdParam } =
+    useLocalSearchParams<{
+      pastureId?: string;
+      animalId?: string;
+    }>();
   const { activeFarm } = useFarm();
   const [pastureId, setPastureId] = useState<string | null>(
     pastureIdParam ?? null,
   );
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    animalIdParam ? [animalIdParam] : [],
+  );
   const [startDate, setStartDate] = useState(todayIso);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,6 +38,16 @@ export default function AddGrazingScreen() {
       ? `SELECT * FROM pastures
          WHERE farm_id = ?
          ORDER BY name COLLATE NOCASE`
+      : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: grazingRows } = useQuery(
+    activeFarm
+      ? `SELECT g.animal_id, g.pasture_id, p.name
+         FROM grazing_records g
+         JOIN pastures p ON p.id = g.pasture_id
+         WHERE g.farm_id = ? AND g.end_date IS NULL`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );
@@ -53,6 +68,41 @@ export default function AddGrazingScreen() {
   const animals = useMemo(
     () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
     [animalRows],
+  );
+  const openGrazing = useMemo(
+    () =>
+      (grazingRows ?? []).map((row) => {
+        const record = row as {
+          animal_id: string;
+          pasture_id: string;
+          name: string;
+        };
+        return {
+          animalId: String(record.animal_id),
+          pastureId: String(record.pasture_id),
+          pastureName: String(record.name),
+        };
+      }),
+    [grazingRows],
+  );
+  const pastureNameByAnimal = useMemo(() => {
+    const names: Record<string, string> = {};
+    for (const stay of openGrazing) {
+      names[stay.animalId] = stay.pastureName;
+    }
+    return names;
+  }, [openGrazing]);
+  const alreadyHere = useMemo(
+    () =>
+      pastureId
+        ? openGrazing
+            .filter((stay) => stay.pastureId === pastureId)
+            .map((stay) => ({
+              id: stay.animalId,
+              reason: 'Already on this pasture',
+            }))
+        : [],
+    [openGrazing, pastureId],
   );
 
   async function handleSave() {
@@ -100,26 +150,16 @@ export default function AddGrazingScreen() {
       keyboardShouldPersistTaps="handled">
       <FormMessage message={errorMessage} tone="error" />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Pasture</Text>
-      {pastures.length === 0 ? (
-        <Text className="text-sm text-gray-500 mb-4">
-          Add a pasture before moving animals.
-        </Text>
-      ) : (
-        <View className="gap-2 mb-4">
-          {pastures.map((pasture) => {
-            const selected = pastureId === pasture.id;
-            return (
-              <Button
-                key={pasture.id}
-                title={pasture.name}
-                variant={selected ? 'primary' : 'outline'}
-                onPress={() => setPastureId(pasture.id)}
-              />
-            );
-          })}
-        </View>
-      )}
+      <ChoicePickerField
+        label="Pasture"
+        options={pastures.map((pasture) => ({
+          id: pasture.id,
+          label: pasture.name,
+        }))}
+        value={pastureId}
+        onChange={setPastureId}
+        emptyMessage="Add a pasture before moving animals."
+      />
 
       <DateField
         label="Moved in"
@@ -133,6 +173,18 @@ export default function AddGrazingScreen() {
         animals={animals}
         selectedIds={selectedIds}
         onChange={setSelectedIds}
+        pastureByAnimalId={pastureNameByAnimal}
+        disabled={alreadyHere}
+        quickChips={pastures.map((pasture) => ({
+          id: pasture.id,
+          label: pasture.name,
+          match: (animal) =>
+            openGrazing.some(
+              (stay) =>
+                stay.animalId === animal.id && stay.pastureId === pasture.id,
+            ),
+        }))}
+        emptyMessage="Add active goats on the Livestock tab first."
       />
 
       <Input
@@ -143,7 +195,13 @@ export default function AddGrazingScreen() {
       />
 
       <Button
-        title={loading ? 'Saving…' : 'Move Animals'}
+        title={
+          loading
+            ? 'Saving…'
+            : selectedIds.length > 0
+              ? `Move ${selectedIds.length} goat${selectedIds.length === 1 ? '' : 's'}`
+              : 'Move Animals'
+        }
         onPress={handleSave}
         disabled={loading || pastures.length === 0}
       />

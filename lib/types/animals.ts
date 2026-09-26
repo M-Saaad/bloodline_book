@@ -27,6 +27,7 @@ export interface Animal {
     | 'adult';
   purpose: 'dairy' | 'meat' | 'breeding_stock' | null;
   damId: string | null;
+  damExternalName: string | null;
   sireId: string | null;
   sireExternalName: string | null;
   litterId: string | null;

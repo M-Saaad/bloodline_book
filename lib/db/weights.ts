@@ -41,50 +41,121 @@ export async function createWeighSessionWithLogs(
       ],
     );
 
-    for (const entry of input.entries) {
-      const logId = Crypto.randomUUID();
+    await writeWeighEntries(tx, {
+      farmId,
+      sessionId,
+      weightUnit: input.weightUnit,
+      entries: input.entries,
+      markWeaned: input.markWeaned ?? false,
+      weighPoint: input.weighPoint,
+      now,
+    });
+  });
+
+  return sessionId;
+}
+
+export async function startOrAppendWeighSession(
+  farmId: string,
+  input: {
+    sessionId: string | null;
+    date: string;
+    weighPoint: WeighSession['weighPoint'];
+    weightUnit: 'lb' | 'kg';
+    entries: WeighDayEntry[];
+    markWeaned?: boolean;
+  },
+): Promise<string> {
+  if (!input.sessionId) {
+    return createWeighSessionWithLogs(farmId, input);
+  }
+
+  const sessionId = input.sessionId;
+  const now = dbNow();
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await writeWeighEntries(tx, {
+      farmId,
+      sessionId,
+      weightUnit: input.weightUnit,
+      entries: input.entries,
+      markWeaned: input.markWeaned ?? false,
+      weighPoint: input.weighPoint,
+      now,
+    });
+    await tx.execute(
+      'UPDATE weigh_sessions SET updated_at = ? WHERE id = ?',
+      [now, sessionId],
+    );
+  });
+  return sessionId;
+}
+
+async function writeWeighEntries(
+  tx: Transaction,
+  input: {
+    farmId: string;
+    sessionId: string;
+    weightUnit: 'lb' | 'kg';
+    entries: WeighDayEntry[];
+    markWeaned: boolean;
+    weighPoint: WeighSession['weighPoint'];
+    now: string;
+  },
+) {
+  for (const entry of input.entries) {
+    const existing = await tx.getOptional<{ id: string }>(
+      `SELECT id FROM weight_logs
+       WHERE weigh_session_id = ? AND animal_id = ?`,
+      [input.sessionId, entry.animalId],
+    );
+    if (existing) {
+      await tx.execute(
+        `UPDATE weight_logs
+         SET weight_value = ?, weight_unit = ?, updated_at = ?
+         WHERE id = ?`,
+        [entry.weightValue, input.weightUnit, input.now, existing.id],
+      );
+    } else {
       await tx.execute(
         `INSERT INTO weight_logs (
           id, farm_id, weigh_session_id, animal_id, weight_value, weight_unit, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          logId,
-          farmId,
-          sessionId,
+          Crypto.randomUUID(),
+          input.farmId,
+          input.sessionId,
           entry.animalId,
           entry.weightValue,
           input.weightUnit,
-          now,
-          now,
+          input.now,
+          input.now,
         ],
       );
+    }
 
-      if (input.markWeaned && input.weighPoint === 'weaning') {
-        const animal = await tx.getOptional<{
-          lifecycle_stage: string;
-          litter_id: string | null;
-        }>(
-          'SELECT lifecycle_stage, litter_id FROM animals WHERE id = ?',
-          [entry.animalId],
+    if (input.markWeaned && input.weighPoint === 'weaning') {
+      const animal = await tx.getOptional<{
+        lifecycle_stage: string;
+        litter_id: string | null;
+      }>(
+        'SELECT lifecycle_stage, litter_id FROM animals WHERE id = ?',
+        [entry.animalId],
+      );
+      if (animal?.lifecycle_stage === 'kid') {
+        await tx.execute(
+          `UPDATE animals SET lifecycle_stage = 'weaned', updated_at = ? WHERE id = ?`,
+          [input.now, entry.animalId],
         );
-        if (animal?.lifecycle_stage === 'kid') {
+        if (animal.litter_id) {
           await tx.execute(
-            `UPDATE animals SET lifecycle_stage = 'weaned', updated_at = ? WHERE id = ?`,
-            [now, entry.animalId],
+            `UPDATE tasks SET completed = 1, updated_at = ?
+             WHERE source = 'weaning' AND source_id = ? AND completed = 0`,
+            [input.now, animal.litter_id],
           );
-          if (animal.litter_id) {
-            await tx.execute(
-              `UPDATE tasks SET completed = 1, updated_at = ?
-               WHERE source = 'weaning' AND source_id = ? AND completed = 0`,
-              [now, animal.litter_id],
-            );
-          }
         }
       }
     }
-  });
-
-  return sessionId;
+  }
 }
 
 export async function getWeighSessionById(

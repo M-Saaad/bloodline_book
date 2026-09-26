@@ -22,6 +22,7 @@ export type AnimalWriteInput = {
   purpose?: Animal['purpose'];
   dateOfBirth?: string | null;
   damId?: string | null;
+  damExternalName?: string | null;
   sireId?: string | null;
   sireExternalName?: string | null;
   litterId?: string | null;
@@ -152,10 +153,10 @@ export async function createAnimal(
   await powersync.execute(
     `INSERT INTO animals (
       id, farm_id, name, tag_number, official_id, sex, status, lifecycle_stage,
-      purpose, breed_primary_id, breed_percentage, date_of_birth, dam_id, sire_id,
-      sire_external_name, litter_id, registration_body, registration_number, tattoo,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      purpose, breed_primary_id, breed_percentage, date_of_birth, dam_id,
+      dam_external_name, sire_id, sire_external_name, litter_id, registration_body,
+      registration_number, tattoo, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       farmId,
@@ -169,6 +170,7 @@ export async function createAnimal(
       input.breedPercentage ?? null,
       input.dateOfBirth ?? null,
       input.damId ?? null,
+      input.damExternalName ?? null,
       input.sireId ?? null,
       input.sireExternalName ?? null,
       input.litterId ?? null,
@@ -247,6 +249,9 @@ export async function updateAnimal(
   }
   if (input.damId !== undefined) {
     assign('dam_id', input.damId);
+  }
+  if (input.damExternalName !== undefined) {
+    assign('dam_external_name', input.damExternalName);
   }
   if (input.sireId !== undefined) {
     assign('sire_id', input.sireId);
