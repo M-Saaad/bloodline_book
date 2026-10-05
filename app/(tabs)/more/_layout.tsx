@@ -7,6 +7,7 @@ export default function MoreLayout() {
     <Stack screenOptions={stackWithSyncBadge}>
       <Stack.Screen name="index" options={{ title: 'More' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      <Stack.Screen name="help" options={{ title: 'Help' }} />
       <Stack.Screen name="team" options={{ title: 'Team' }} />
       <Stack.Screen name="changes-not-saved" options={{ title: 'Changes not saved' }} />
       <Stack.Screen name="documents" options={{ headerShown: false }} />
