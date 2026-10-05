@@ -75,20 +75,45 @@ You can pass a farm id instead of a name. The script prints the project URL and 
 
 ## Database backup (`scripts/backup-db.sh`)
 
-**When to use it:** Once a week, from your own machine, so a bad migration or a deleted project is recoverable. The dump contains the whole database, including farmer records and auth data. Keep it outside this repo.
+**When to run it:** from your own machine, once a week, and again before every migration, before you delete data, and before the isolation test (`npm run test:isolation`). The dump contains farmer records, emails, and password hashes. Keep it outside this repo.
 
 This repository is public. Do **not** add a GitHub Actions workflow for backups. Artifacts from a public repo can be downloaded by other GitHub users.
 
-The script reads `SUPABASE_DB_URL` (the Postgres connection string) and `BACKUP_DIR` from the shell only. It does not read `.env`. It refuses to run if `BACKUP_DIR` is inside the git checkout. It writes:
+The script reads `SUPABASE_DB_URL` and `BACKUP_DIR` from the shell only. It does not read `.env` or anything checked into the repo. It refuses to run if `BACKUP_DIR` is inside the git checkout, including when a symlink makes that path land inside the repo or the path you named is a symlink inside the repo. It never prints the connection string. It prints the database host only.
 
-- `bloodline-schema-<timestamp>.sql`
-- `bloodline-data-<timestamp>.sql`
+It uses `pg_dump` and `psql` only. It does not call the Supabase CLI and it does not need Docker. Before dumping, it runs `psql "$SUPABASE_DB_URL" -Atc 'show server_version'` and exits if `pg_dump` is older than the server. If `pg_dump` or `psql` is missing, the script prints how to install the PostgreSQL client tools on Windows, macOS, and Linux.
 
-It uses `supabase db dump` when the Supabase CLI is installed, and `pg_dump` otherwise. Each file starts with a `psql` restore comment. After a successful dump it keeps the newest 8 schema files and the newest 8 data files, and prints their sizes in bytes.
+One run writes three files that share a timestamp:
 
-Get the connection string from the Supabase dashboard: **Connect** → direct connection (or the session pooler URI). It looks like `postgresql://postgres.<ref>:<password>@<host>:5432/postgres`. Store it in a file outside the repo, mode `600`, not in git.
+- `bloodline-schema-<timestamp>.sql` — `public` schema
+- `bloodline-auth-<timestamp>.sql` — `auth.users` and `auth.identities`
+- `bloodline-data-<timestamp>.sql` — `public` table data
+
+The auth and public data files begin with `SET session_replication_role = replica;` so a restore does not fire `handle_new_farm` or `accept_farm_invites_for_user`. Those triggers insert into `farm_members` and break foreign keys. Every file includes a header comment with the restore order and commands: schema, then auth data, then public data. After a successful dump the script keeps the newest 8 sets. The three files from one run are always kept or removed together. It prints each file's size in bytes and how many `COPY` blocks it contains, and it sets mode `600` where the system allows it.
+
+The auth file contains emails and password hashes. Keep it private. Do not commit it, and do not email it.
+
+Do not put `BACKUP_DIR` in OneDrive, Dropbox, or any other synced folder unless that folder is encrypted. Sync clients copy the files onto other machines and into the cloud.
+
+### Connection string
+
+In the Supabase dashboard open **Connect** and copy the **Session pooler** URI. Use port **5432** and the user `postgres.<project-ref>`. It looks like:
+
+`postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`
+
+`pg_dump` needs that session connection. Do not use the transaction pooler (port **6543**). The direct connection host (`db.<project-ref>.supabase.co`) is often IPv6-only, so it fails on many home and office networks that only have IPv4.
+
+If the database password contains characters such as `@`, `:`, `/`, `?`, `#`, `[`, `]`, or `%`, URL-encode them in the URI. `@` is `%40`, `#` is `%23`, and `%` is `%25`.
+
+Store the URI outside the repo, in a file with mode `600`, not in git and not in `.env`. `$HOME/.config/bloodline/db-url.env` should contain only:
+
+```bash
+SUPABASE_DB_URL='postgresql://postgres.<project-ref>:...@aws-0-<region>.pooler.supabase.com:5432/postgres'
+```
 
 ### Weekly run
+
+Git Bash or WSL:
 
 ```bash
 set -a
@@ -99,27 +124,46 @@ export BACKUP_DIR="$HOME/bloodline-backups"
 bash /path/to/bloodline_book/scripts/backup-db.sh
 ```
 
-`$HOME/.config/bloodline/db-url.env` should contain only `SUPABASE_DB_URL='postgresql://...'`.
+Run that same command by hand before `scripts/run-migrations.sh` or any SQL you apply in the dashboard, before you delete rows, and before `npm run test:isolation`.
 
-A Sunday cron entry on that machine (not in GitHub):
+On WSL, a Sunday cron entry on that machine (not in GitHub):
 
 ```cron
 15 6 * * 0 bash -lc 'set -a; source "$HOME/.config/bloodline/db-url.env"; set +a; export BACKUP_DIR="$HOME/bloodline-backups"; bash "$HOME/src/bloodline_book/scripts/backup-db.sh"'
 ```
 
+On Windows, point Task Scheduler at Git Bash with the same command, for example:
+
+`C:\Program Files\Git\bin\bash.exe -lc "set -a; source \"$HOME/.config/bloodline/db-url.env\"; set +a; export BACKUP_DIR=\"$HOME/bloodline-backups\"; bash \"/c/src/bloodline_book/scripts/backup-db.sh\""`
+
+Paths with spaces are fine. Quote them.
+
+### Restore (`scripts/restore-db.sh`)
+
+Restore only into a scratch project. The script reads `RESTORE_DB_URL` and `BACKUP_DIR` from the shell. Pass a timestamp to choose a set, or pass nothing to use the newest complete set.
+
+It will not restore into the live project when `SUPABASE_DB_URL` is set. A matching host is refused. The session pooler hostname is shared by every project in a region, so a different `postgres.<project-ref>` on that same host is a different project and is allowed. The same project ref is refused even when one URI is the direct host and the other is the pooler. Every run also asks you to type the restore host. Typing it cannot override a live-project refusal.
+
+A restore loads the public schema, then `auth.users` and `auth.identities`, then public table data (`psql -v ON_ERROR_STOP=1`). It then prints row counts for `auth.users` and for each `public` table that has rows.
+
+A restore does not recreate Supabase project settings, auth provider settings, PowerSync config, API keys, or anything outside `public` plus `auth.users` and `auth.identities`.
+
 ### Test a restore
 
-1. Create a new empty Supabase project used only as a scratch target. Do not use the farmer project.
-2. Copy that project's direct connection string.
-3. From the backup directory, schema first, then the matching data file:
+1. Create a free Supabase project used only as a scratch target. Do not use the farmer project.
+2. Copy that project's session pooler URI (port 5432, user `postgres.<project-ref>`).
+3. From your machine:
 
 ```bash
-export SUPABASE_DB_URL='postgresql://...scratch-project...'
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f bloodline-schema-TIMESTAMP.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f bloodline-data-TIMESTAMP.sql
+export SUPABASE_DB_URL='postgresql://...live...'
+export RESTORE_DB_URL='postgresql://...scratch...'
+export BACKUP_DIR="$HOME/bloodline-backups"
+bash /path/to/bloodline_book/scripts/restore-db.sh
 ```
 
-4. In the scratch project's SQL editor, check a table you know (for example `select count(*) from public.farms`).
+Type the scratch host when the script asks. It restores schema, then auth data, then public data.
+
+4. Point the app at the scratch project, sign in as the demo user `demo@bloodlinebook.test`, and check that the goats appear. The demo password is the one you keep in the shell as `DEMO_PASSWORD` (see [TEST-ACCOUNT.md](TEST-ACCOUNT.md)). It is not stored in this repo.
 5. Delete the scratch project when the check is done.
 
-The same `psql` lines are in a comment at the top of each dump. Point them at the scratch URL only.
+The same `psql` commands are in a comment at the top of each dump. Point them at `RESTORE_DB_URL` for the scratch project only.
