@@ -39,6 +39,9 @@ yarn-error.*
 .env
 .env*.local
 
+# operator CSV exports (farmer data — never commit)
+exports/
+
 # typescript
 *.tsbuildinfo
 

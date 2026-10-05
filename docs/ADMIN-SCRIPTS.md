@@ -52,3 +52,23 @@ If `redirect_to` is missing or wrong, set **Site URL** / **Redirect URLs** in Su
 1. Open the link on the device where they use Bloodline Book.
 2. Land on **Reset password** (`app/(auth)/reset-password.tsx`).
 3. Enter a new password (same rules as sign-up: at least 8 characters).
+
+## Farm CSV export (`scripts/export-farm-csv.mjs`)
+
+**When to use it:** A farmer asks for a copy of their herd records, and there is no in-app export button yet. This is how you honour that request.
+
+The script writes one CSV per farm-scoped table under `exports/<farm-slug>-<YYYY-MM-DD>/`. Foreign-key ids stay in their original columns. Where it is straightforward, a readable name (and tag, for goats) is added in the next column — for example `animal_id` plus `animal_name` and `animal_tag`.
+
+It does **not** export `farm_members` or `farm_invites`. Those tables hold other people’s email addresses.
+
+`exports/` is gitignored. Do not commit the files. Send them to the farmer through a channel you already use for support, then delete the folder from this machine.
+
+### Run
+
+```bash
+export SUPABASE_URL='https://YOUR_PROJECT.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'
+node scripts/export-farm-csv.mjs "Willow Creek"
+```
+
+You can pass a farm id instead of a name. The script prints the project URL and waits for `yes` before it reads any rows. If several farms share the name, it lists their ids and stops.
