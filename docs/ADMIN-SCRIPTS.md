@@ -72,3 +72,54 @@ node scripts/export-farm-csv.mjs "Willow Creek"
 ```
 
 You can pass a farm id instead of a name. The script prints the project URL and waits for `yes` before it reads any rows. If several farms share the name, it lists their ids and stops.
+
+## Database backup (`scripts/backup-db.sh`)
+
+**When to use it:** Once a week, from your own machine, so a bad migration or a deleted project is recoverable. The dump contains the whole database, including farmer records and auth data. Keep it outside this repo.
+
+This repository is public. Do **not** add a GitHub Actions workflow for backups. Artifacts from a public repo can be downloaded by other GitHub users.
+
+The script reads `SUPABASE_DB_URL` (the Postgres connection string) and `BACKUP_DIR` from the shell only. It does not read `.env`. It refuses to run if `BACKUP_DIR` is inside the git checkout. It writes:
+
+- `bloodline-schema-<timestamp>.sql`
+- `bloodline-data-<timestamp>.sql`
+
+It uses `supabase db dump` when the Supabase CLI is installed, and `pg_dump` otherwise. Each file starts with a `psql` restore comment. After a successful dump it keeps the newest 8 schema files and the newest 8 data files, and prints their sizes in bytes.
+
+Get the connection string from the Supabase dashboard: **Connect** → direct connection (or the session pooler URI). It looks like `postgresql://postgres.<ref>:<password>@<host>:5432/postgres`. Store it in a file outside the repo, mode `600`, not in git.
+
+### Weekly run
+
+```bash
+set -a
+# shellcheck disable=SC1090
+source "$HOME/.config/bloodline/db-url.env"
+set +a
+export BACKUP_DIR="$HOME/bloodline-backups"
+bash /path/to/bloodline_book/scripts/backup-db.sh
+```
+
+`$HOME/.config/bloodline/db-url.env` should contain only `SUPABASE_DB_URL='postgresql://...'`.
+
+A Sunday cron entry on that machine (not in GitHub):
+
+```cron
+15 6 * * 0 bash -lc 'set -a; source "$HOME/.config/bloodline/db-url.env"; set +a; export BACKUP_DIR="$HOME/bloodline-backups"; bash "$HOME/src/bloodline_book/scripts/backup-db.sh"'
+```
+
+### Test a restore
+
+1. Create a new empty Supabase project used only as a scratch target. Do not use the farmer project.
+2. Copy that project's direct connection string.
+3. From the backup directory, schema first, then the matching data file:
+
+```bash
+export SUPABASE_DB_URL='postgresql://...scratch-project...'
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f bloodline-schema-TIMESTAMP.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f bloodline-data-TIMESTAMP.sql
+```
+
+4. In the scratch project's SQL editor, check a table you know (for example `select count(*) from public.farms`).
+5. Delete the scratch project when the check is done.
+
+The same `psql` lines are in a comment at the top of each dump. Point them at the scratch URL only.
