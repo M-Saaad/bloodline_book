@@ -9,7 +9,7 @@ All build phases, specs, and “Done when” checks live in **[ROADMAP.md](ROADM
 ### 1. Supabase
 
 1. Create a [Supabase](https://supabase.com) project.
-2. Run migrations in order from `supabase/migrations/` (through `0015`; see [ROADMAP.md](ROADMAP.md)).
+2. Run migrations in order from `supabase/migrations/` (through `0016_dam_external_name.sql`; see [ROADMAP.md](ROADMAP.md)).
 3. Create a PowerSync replication role and publication (see [PowerSync + Supabase guide](https://docs.powersync.com/integration-guides/supabase-+-powersync)).
 4. Disable email confirmation for local dev (Authentication → Providers → Email).
 

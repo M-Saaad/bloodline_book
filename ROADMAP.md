@@ -101,7 +101,7 @@ Give these to Cursor with every phase.
 
 1. Read `AGENTS.md` first (Expo v57 docs).
 2. Every new table or column needs all of:
-   - a new numbered file in `supabase/migrations/` (the next number is `0016`)
+   - a new numbered file in `supabase/migrations/` (the next number is `0017`; `0016_dam_external_name.sql` already adds `animals.dam_external_name`)
    - `lib/powersync/schema.ts`
    - `powersync/sync-rules.yaml` **and** `powersync/sync-config.yaml` (keep them identical)
    - `lib/types/*` and `lib/db/mappers.ts`
@@ -538,7 +538,7 @@ Phases 5–11 are the "smallest release" from review Q10.
 - Web: file download. Phone: `expo-file-system` + `expo-sharing` (new packages).
 
 ### Data changes
-Migration `0016`: `transactions.animal_id uuid references animals(id) on delete set null`; index on `(farm_id, animal_id)`.
+`0016_dam_external_name.sql` already adds `animals.dam_external_name`. The next migration is `0017`: `transactions.animal_id uuid references animals(id) on delete set null`; index on `(farm_id, animal_id)`.
 
 ### Done when
 - Selling a goat prompts for the sale, and the revenue row is linked and shows on her page.
