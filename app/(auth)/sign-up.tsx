@@ -5,6 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import { DATA_REGION, SUPPORT_EMAIL } from '@/lib/config/support';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SignUpScreen() {
@@ -87,6 +88,12 @@ export default function SignUpScreen() {
         disabled={loading}
         className="mt-2"
       />
+
+      <Text className="text-base text-gray-500 leading-6 mt-4">
+        Your herd records belong to you. They are stored with Supabase in{' '}
+        {DATA_REGION}. They are never sold or shared. Email {SUPPORT_EMAIL} any
+        time to get a full export or have everything deleted.
+      </Text>
 
       <View className="mt-6 flex-row justify-center">
         <Text className="text-gray-600">Already have an account? </Text>

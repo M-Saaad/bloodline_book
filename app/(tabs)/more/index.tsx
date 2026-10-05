@@ -21,6 +21,7 @@ const MENU_ITEMS = [
   { title: 'Health Log', route: '/(tabs)/more/health' as const },
   { title: 'Breeding & Kidding', route: '/(tabs)/more/breeding' as const },
   { title: 'Settings', route: '/(tabs)/more/settings' as const },
+  { title: 'Help', route: '/(tabs)/more/help' as const },
   { title: 'Tasks', route: '/(tabs)/more/tasks' as const },
   { title: 'Changes not saved', route: '/(tabs)/more/changes-not-saved' as const },
 ];
