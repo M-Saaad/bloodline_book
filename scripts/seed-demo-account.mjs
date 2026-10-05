@@ -2,7 +2,11 @@
  * Creates a demo user + farm with sample herd data using the public anon key.
  * Requires EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env.
  *
- * Usage: node scripts/seed-demo-account.mjs
+ * The demo password comes from the shell variable DEMO_PASSWORD only.
+ * Never put it in .env, EXPO_PUBLIC_*, or this repo.
+ *
+ * Usage: node scripts/seed-demo-account.mjs --yes-live
+ *        node scripts/seed-demo-account.mjs --yes-live --reset
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -11,8 +15,25 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const DEMO_EMAIL = 'demo@bloodlinebook.test';
-const DEMO_PASSWORD = 'DemoHerd2026!';
 const FARM_NAME = 'Willow Creek Demo';
+
+/** Child tables an owner may delete (RLS DELETE policies require role owner). */
+const DELETE_ORDER = [
+  'weight_logs',
+  'grazing_records',
+  'feed_logs',
+  'health_records',
+  'documents',
+  'tasks',
+  'transactions',
+  'breeding_events',
+  'kidding_events',
+  'animals',
+  'weigh_sessions',
+  'pastures',
+  'breeds',
+  'farm_invites',
+];
 
 function loadEnv() {
   const path = resolve(process.cwd(), '.env');
@@ -24,6 +45,9 @@ function loadEnv() {
       const eq = trimmed.indexOf('=');
       if (eq === -1) continue;
       const key = trimmed.slice(0, eq);
+      if (key === 'DEMO_PASSWORD') {
+        continue;
+      }
       const value = trimmed.slice(eq + 1);
       if (process.env[key] === undefined) {
         process.env[key] = value;
@@ -54,9 +78,40 @@ const url =
 const anonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const demoPassword = process.env.DEMO_PASSWORD ?? '';
+const yesLive = process.argv.includes('--yes-live');
+const reset = process.argv.includes('--reset');
+
+function hostFromUrl(value) {
+  try {
+    return new URL(value).host;
+  } catch {
+    return '';
+  }
+}
 
 if (!url || !anonKey) {
   console.error('Missing Supabase URL and anon key in .env');
+  process.exit(1);
+}
+
+const host = hostFromUrl(url);
+if (!host) {
+  console.error('EXPO_PUBLIC_SUPABASE_URL is not a valid URL.');
+  process.exit(1);
+}
+
+console.log(host);
+
+if (!yesLive) {
+  console.error('Re-run with --yes-live to seed the live project.');
+  process.exit(1);
+}
+
+if (!demoPassword) {
+  console.error(
+    'DEMO_PASSWORD is missing. Export it in the shell. Do not put it in .env or EXPO_PUBLIC_*.',
+  );
   process.exit(1);
 }
 
@@ -65,7 +120,7 @@ const supabase = createClient(url, anonKey);
 async function ensureSession() {
   const signIn = await supabase.auth.signInWithPassword({
     email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
+    password: demoPassword,
   });
   if (!signIn.error && signIn.data.session) {
     return signIn.data.session;
@@ -73,7 +128,7 @@ async function ensureSession() {
 
   const signUp = await supabase.auth.signUp({
     email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
+    password: demoPassword,
   });
   if (signUp.error) {
     throw signUp.error;
@@ -84,7 +139,7 @@ async function ensureSession() {
 
   const retry = await supabase.auth.signInWithPassword({
     email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
+    password: demoPassword,
   });
   if (retry.error || !retry.data.session) {
     throw new Error(
@@ -103,6 +158,174 @@ async function farmAlreadySeeded() {
     .maybeSingle();
   if (error) throw error;
   return data?.id ?? null;
+}
+
+async function signInOnly() {
+  const signIn = await supabase.auth.signInWithPassword({
+    email: DEMO_EMAIL,
+    password: demoPassword,
+  });
+  if (signIn.error || !signIn.data.session || !signIn.data.user) {
+    throw new Error(
+      signIn.error?.message ?? 'Could not sign in as the demo user.',
+    );
+  }
+  return signIn.data.user;
+}
+
+async function assertDemoOwner(farmId, userId) {
+  const { data, error } = await supabase
+    .from('farm_members')
+    .select('role, user_id')
+    .eq('farm_id', farmId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    throw error;
+  }
+  if (!data || data.role !== 'owner' || data.user_id !== userId) {
+    throw new Error(
+      `Refusing to reset: ${FARM_NAME} is not owned by ${DEMO_EMAIL}.`,
+    );
+  }
+}
+
+async function countForFarm(table, farmId) {
+  const { count, error } = await supabase
+    .from(table)
+    .select('farm_id', { count: 'exact', head: true })
+    .eq('farm_id', farmId);
+  if (error) {
+    throw new Error(`${table}: ${error.message}`);
+  }
+  return count ?? 0;
+}
+
+async function deleteFarmRows(table, farmId) {
+  for (;;) {
+    const before = await countForFarm(table, farmId);
+    if (before === 0) {
+      return;
+    }
+    const { data, error } = await supabase
+      .from(table)
+      .delete()
+      .eq('farm_id', farmId)
+      .select('farm_id');
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+    if (!data?.length) {
+      const leftover = new Error(
+        `${table}: anon key deleted 0 of ${before} rows. RLS has no matching DELETE policy, or the policy rejected them.`,
+      );
+      leftover.table = table;
+      throw leftover;
+    }
+  }
+}
+
+async function clearAnimalParentLinks(farmId) {
+  const before = await countForFarm('animals', farmId);
+  if (before === 0) {
+    return;
+  }
+  const { data, error } = await supabase
+    .from('animals')
+    .update({ dam_id: null, sire_id: null, litter_id: null })
+    .eq('farm_id', farmId)
+    .select('id');
+  if (error) {
+    throw new Error(`animals: ${error.message}`);
+  }
+  if (!data?.length) {
+    const leftover = new Error(
+      `animals: could not clear dam_id, sire_id, and litter_id on ${before} rows.`,
+    );
+    leftover.table = 'animals';
+    throw leftover;
+  }
+}
+
+function editorSql(farmId, tables) {
+  const lines = [
+    '-- Willow Creek Demo only. Run in the Supabase SQL editor as a role that bypasses RLS.',
+    `-- Farm id: ${farmId}`,
+  ];
+  if (tables.includes('animals')) {
+    lines.push(
+      `update public.animals set dam_id = null, sire_id = null, litter_id = null where farm_id = '${farmId}';`,
+    );
+  }
+  for (const table of DELETE_ORDER) {
+    if (tables.includes(table)) {
+      lines.push(`delete from public.${table} where farm_id = '${farmId}';`);
+    }
+  }
+  if (tables.includes('farms') || tables.includes('farm_members')) {
+    lines.push(
+      `delete from public.farms where id = '${farmId}' and name = 'Willow Creek Demo';`,
+    );
+  }
+  return lines.join('\n');
+}
+
+async function printLeftovers(farmId, cause) {
+  console.error(cause.message);
+  console.error('');
+  console.error(`Rows still on ${FARM_NAME} (${farmId}):`);
+  const remaining = [];
+  for (const table of [...DELETE_ORDER, 'farm_members']) {
+    try {
+      const count = await countForFarm(table, farmId);
+      if (count > 0) {
+        remaining.push(table);
+        console.error(`  ${table}: ${count}`);
+      }
+    } catch (error) {
+      remaining.push(table);
+      console.error(
+        `  ${table}: could not count (${error instanceof Error ? error.message : error})`,
+      );
+    }
+  }
+  const { data: farmRow } = await supabase
+    .from('farms')
+    .select('id')
+    .eq('id', farmId)
+    .eq('name', FARM_NAME)
+    .maybeSingle();
+  if (farmRow) {
+    remaining.push('farms');
+    console.error('  farms: 1');
+  }
+  console.error('');
+  console.error(editorSql(farmId, remaining));
+}
+
+async function resetDemoFarm(farmId) {
+  await clearAnimalParentLinks(farmId);
+  for (const table of DELETE_ORDER) {
+    await deleteFarmRows(table, farmId);
+  }
+  const { data, error } = await supabase
+    .from('farms')
+    .delete()
+    .eq('id', farmId)
+    .eq('name', FARM_NAME)
+    .select('id');
+  if (error) {
+    const leftover = new Error(`farms: ${error.message}`);
+    leftover.table = 'farms';
+    throw leftover;
+  }
+  if (!data?.length) {
+    const leftover = new Error(
+      'farms: anon key cannot delete the farm. supabase/migrations/0001_extensions_and_tenancy.sql has SELECT, INSERT, and UPDATE policies only.',
+    );
+    leftover.table = 'farms';
+    throw leftover;
+  }
 }
 
 async function getBreedId(name) {
@@ -491,13 +714,30 @@ async function seed() {
   return { farmId, skipped: false, dueOpen };
 }
 
-seed()
+async function run() {
+  if (reset) {
+    const user = await signInOnly();
+    const existingFarmId = await farmAlreadySeeded();
+    if (existingFarmId) {
+      await assertDemoOwner(existingFarmId, user.id);
+      try {
+        await resetDemoFarm(existingFarmId);
+      } catch (error) {
+        await printLeftovers(existingFarmId, error);
+        process.exit(1);
+      }
+    }
+  }
+  return seed();
+}
+
+run()
   .then(({ farmId, skipped, dueOpen }) => {
     console.log('');
     console.log('Demo account ready');
     console.log('--------------------');
     console.log(`Email:    ${DEMO_EMAIL}`);
-    console.log(`Password: ${DEMO_PASSWORD}`);
+    console.log('Password: set in the shell as DEMO_PASSWORD (not printed)');
     console.log(`Farm:     ${FARM_NAME} (${farmId})`);
     if (skipped) {
       console.log('');

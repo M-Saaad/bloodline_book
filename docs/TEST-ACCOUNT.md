@@ -7,8 +7,10 @@ Use this account to explore Bloodline Book with pre-loaded herd data. Safe for d
 | Field | Value |
 |-------|--------|
 | **Email** | `demo@bloodlinebook.test` |
-| **Password** | `DemoHerd2026!` |
+| **Password** | Set by the repo owner and kept outside this repo |
 | **Farm name** | Willow Creek Demo |
+
+The password is **not** stored in git, `.env`, or any `EXPO_PUBLIC_*` variable. The owner exports it in the shell as `DEMO_PASSWORD` when seeding or signing in for a demo. Ask the owner for it. Do not commit it.
 
 Sign in with email and password (no magic link). Email confirmation is disabled on dev Supabase projects.
 
@@ -27,13 +29,20 @@ After sign-in, open **Today**, **More → Tasks** (Open / Done), **Breeding cale
 
 ## Refresh or recreate data
 
-From the repo root (uses the anon key in `.env`; run `bash scripts/setup-env.sh` first on Cloud Agent):
+From the repo root (uses the anon key in `.env`; run `bash scripts/setup-env.sh` first on Cloud Agent). The script prints only the Supabase host and refuses to write unless `--yes-live` is passed.
 
 ```bash
-npm run seed:demo
+export DEMO_PASSWORD='the-password-kept-outside-the-repo'
+npm run seed:demo -- --yes-live
 ```
 
-If a farm named `Willow Creek Demo` already exists for this user, the script leaves it unchanged and prints the same credentials.
+If a farm named `Willow Creek Demo` already exists for this user, the script leaves it unchanged.
+
+To delete that farm's rows and seed it again, pass `--reset`. The script signs in as the demo user and only deletes the farm named `Willow Creek Demo` that this user owns. `farms` has no DELETE policy, so the anon key cannot remove the farm row itself. If that happens, the script stops, lists what is left, and prints SQL to run in the Supabase SQL editor. It does not seed a second copy while the old farm row remains.
+
+```bash
+npm run seed:demo -- --yes-live --reset
+```
 
 ## Backend
 

@@ -33,8 +33,14 @@ async function signIn(page) {
   });
   await page.waitForSelector('input', { timeout: 30000 });
   const inputs = page.locator('input');
+  const demoPassword = process.env.DEMO_PASSWORD;
+  if (!demoPassword) {
+    throw new Error(
+      'DEMO_PASSWORD is missing. Export it in the shell. Do not put it in .env or the repo.',
+    );
+  }
   await inputs.nth(0).fill('demo@bloodlinebook.test');
-  await inputs.nth(1).fill('DemoHerd2026!');
+  await inputs.nth(1).fill(demoPassword);
   await page.getByText('Sign In', { exact: true }).last().click();
   await page.waitForTimeout(12000);
 }
