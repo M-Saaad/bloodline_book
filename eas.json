@@ -25,6 +25,16 @@
         "DATABASE_TARGET": "production",
         "EXPO_PUBLIC_DATABASE_TARGET": "production"
       }
+    },
+    "pilot": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "DATABASE_TARGET": "production",
+        "EXPO_PUBLIC_DATABASE_TARGET": "production"
+      }
     }
   },
   "submit": {

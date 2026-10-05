@@ -16,6 +16,7 @@ Run SQL files in numeric order:
 12. `0013_breeding_windows.sql`
 13. `0014_kidding_ease_weaning.sql`
 14. `0015_health_withdrawal_split.sql`
+15. `0016_dam_external_name.sql`
 
 ## PowerSync replication setup
 

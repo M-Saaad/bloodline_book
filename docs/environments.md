@@ -11,7 +11,7 @@ The app name, bundle ID, and UI are identical on every branch. Only the connecte
 
 ## Setup (one-time)
 
-Create **two Supabase projects** and **two PowerSync instances** (dev + prod). Run the same migrations in both. See `supabase/README.md`.
+Create **two Supabase projects** and **two PowerSync instances** (dev + prod). Run the same migrations in both, through `0016_dam_external_name.sql`. See `supabase/README.md`.
 
 ## Local development
 
@@ -69,6 +69,20 @@ Non-production databases show a **Development DB** badge on the dashboard. Produ
 - `production` → production database secrets
 
 Store prod credentials as EAS secrets for the `production` profile.
+
+## Pilot builds
+
+Build the farmer pilot as an internal Android APK:
+
+```bash
+eas build -p android --profile pilot
+```
+
+The `pilot` profile sets `DATABASE_TARGET` and `EXPO_PUBLIC_DATABASE_TARGET` to `production`. Right now one Supabase project serves every build and the Vercel site. These three variables must exist in EAS (set them in the EAS dashboard; do not commit URLs or keys):
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_POWERSYNC_URL`
 
 ## Vercel (web hosting)
 
