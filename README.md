@@ -29,6 +29,8 @@ npm run web   # or npm run ios / npm run android
 
 See [docs/environments.md](docs/environments.md) for branch → database mapping (same app, different Supabase/PowerSync per branch).
 
+**Service role key:** never commit it or put it in `.env` / `EXPO_PUBLIC_*`. Operator-only scripts (password recovery links) are documented in [docs/ADMIN-SCRIPTS.md](docs/ADMIN-SCRIPTS.md).
+
 ## Product review
 
 User-facing inventory of what the app does today, what it does not, and questions for an outside expert: [docs/PRODUCT-REVIEW.md](docs/PRODUCT-REVIEW.md).
