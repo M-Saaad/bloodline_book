@@ -65,7 +65,7 @@ assert_no_secret() {
 
 write_backup() {
   mkdir -p "$TMP/backup"
-  printf '%s\n' '-- schema' >"$TMP/backup/bloodline-schema-${STAMP}.sql"
+  printf '%s\n' 'CREATE SCHEMA public;' '-- schema' >"$TMP/backup/bloodline-schema-${STAMP}.sql"
   printf '%s\n' '-- auth' >"$TMP/backup/bloodline-auth-${STAMP}.sql"
   printf '%s\n' '-- data' >"$TMP/backup/bloodline-data-${STAMP}.sql"
 }
@@ -93,9 +93,15 @@ for arg in "$@"; do
   prev="$arg"
 done
 
+prev_f=0
 for arg in "$@"; do
-  if [[ "$arg" == "-f" ]]; then
+  if ((prev_f)); then
+    printf 'FILE %s\n' "$arg" >>"$log"
+    prev_f=0
     exit 0
+  fi
+  if [[ "$arg" == "-f" ]]; then
+    prev_f=1
   fi
 done
 
@@ -225,9 +231,38 @@ run_restore $'db.example.test\n' "${common_env[@]}" "RESTORE_INTO_SOURCE=yes" "S
 assert_eq "$STATUS" "0" "empty target status"
 assert_grep "public base tables: 0" "empty target tables"
 assert_grep "auth.users rows: 0" "empty target users"
+assert_grep "Filtered CREATE SCHEMA public;" "empty target schema filter notice"
 assert_grep "Publication powersync: not found" "empty target publication"
 assert_no_secret "empty target"
 assert_eq "$(file_restores)" "3" "empty target applies schema, auth, and data"
+grep -qxF 'CREATE SCHEMA public;' "$TMP/backup/bloodline-schema-${STAMP}.sql" \
+  || fail "backup schema file on disk was modified"
+schema_psql_file="$(grep '^FILE ' "$PSQL_LOG" | head -n 1 | sed 's/^FILE //')"
+if [[ -z "$schema_psql_file" ]]; then
+  fail "empty target: psql stub did not record a schema -f path"
+fi
+case "$schema_psql_file" in
+  *"/.bloodline-schema-restore."*) ;;
+  *)
+    fail "empty target: expected a filtered temp schema file, got ${schema_psql_file}"
+    ;;
+esac
+
+# prepare_schema_file_for_restore: original unchanged, temp copy omits CREATE SCHEMA.
+SCHEMA_FIXTURE="$TMP/filter-schema.sql"
+printf '%s\n' 'CREATE SCHEMA public;' '-- keep' >"$SCHEMA_FIXTURE"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/restore-db.sh"
+FILTERED="$(prepare_schema_file_for_restore "$SCHEMA_FIXTURE" "$TMP/backup")"
+grep -qxF 'CREATE SCHEMA public;' "$SCHEMA_FIXTURE" \
+  || fail "filter unit: original fixture lost CREATE SCHEMA public;"
+if [[ "$FILTERED" == "$SCHEMA_FIXTURE" ]]; then
+  fail "filter unit: expected a temp file when CREATE SCHEMA public; is present"
+fi
+grep -qxF 'CREATE SCHEMA public;' "$FILTERED" \
+  && fail "filter unit: filtered file still contains CREATE SCHEMA public;"
+grep -qxF -- '-- keep' "$FILTERED" || fail "filter unit: filtered file dropped other lines"
+rm -f -- "$FILTERED"
 
 # compare-validation.sh ignores '#' headers.
 BEFORE="$TMP/before.tsv"

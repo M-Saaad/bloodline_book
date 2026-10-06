@@ -348,6 +348,26 @@ require_set() {
   fi
 }
 
+# pg_dump --schema=public emits CREATE SCHEMA public; Supabase already has public.
+# Returns a path to feed psql: the original file, or a temp copy with that line removed.
+prepare_schema_file_for_restore() {
+  local schema_file="$1"
+  local backup_dir="$2"
+  local filtered=""
+
+  if ! grep -qxF 'CREATE SCHEMA public;' "$schema_file"; then
+    printf '%s\n' "$schema_file"
+    return 0
+  fi
+
+  filtered="$(mktemp "${backup_dir}/.bloodline-schema-restore.XXXXXX")" \
+    || fail "Could not create a temporary schema file in BACKUP_DIR."
+  grep -vxF 'CREATE SCHEMA public;' "$schema_file" >"$filtered" \
+    || fail "Could not filter CREATE SCHEMA public; from the schema backup."
+  echo "Filtered CREATE SCHEMA public; from schema restore input (public schema already exists on target)." >&2
+  printf '%s\n' "$filtered"
+}
+
 print_row_counts() {
   local table count users tables
   users="$(psql "$RESTORE_DB_URL" -X -v ON_ERROR_STOP=1 -Atc 'SELECT count(*) FROM auth.users')" \
@@ -381,7 +401,7 @@ print_row_counts() {
 
 main() {
   local stamp backup_abs restore_host
-  local schema_file auth_file data_file
+  local schema_file auth_file data_file schema_restore_file
   local in_place=0
 
   if (($# > 1)); then
@@ -449,8 +469,13 @@ main() {
     require_empty_target "$restore_host"
   fi
 
+  schema_restore_file="$(prepare_schema_file_for_restore "$schema_file" "$backup_abs")" || exit 1
+
   echo "Restoring schema into host ${restore_host}"
-  psql "$RESTORE_DB_URL" -X -v ON_ERROR_STOP=1 -f "$schema_file"
+  psql "$RESTORE_DB_URL" -X -v ON_ERROR_STOP=1 -f "$schema_restore_file"
+  if [[ "$schema_restore_file" != "$schema_file" ]]; then
+    rm -f -- "$schema_restore_file"
+  fi
   sync_powersync_publication
   echo "Restoring auth data into host ${restore_host}"
   psql "$RESTORE_DB_URL" -X -v ON_ERROR_STOP=1 -f "$auth_file"
