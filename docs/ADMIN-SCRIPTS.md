@@ -85,7 +85,7 @@ It uses `pg_dump` and `psql` only. It does not call the Supabase CLI and it does
 
 One run writes three files that share a timestamp:
 
-- `bloodline-schema-<timestamp>.sql` — `public` schema
+- `bloodline-schema-<timestamp>.sql` — `public` schema, plus `DROP TRIGGER IF EXISTS` and `CREATE TRIGGER` for every non-internal trigger on `auth.users` whose function is in `public` (so the invite trigger is restored with the schema)
 - `bloodline-auth-<timestamp>.sql` — `auth.users` and `auth.identities`
 - `bloodline-data-<timestamp>.sql` — `public` table data
 
@@ -142,11 +142,13 @@ Paths with spaces are fine. Quote them.
 
 Restore only into a scratch project. The script reads `RESTORE_DB_URL` and `BACKUP_DIR` from the shell. Pass a timestamp to choose a set, or pass nothing to use the newest complete set.
 
-It will not restore into the live project when `SUPABASE_DB_URL` is set. A matching host is refused. The session pooler hostname is shared by every project in a region, so a different `postgres.<project-ref>` on that same host is a different project and is allowed. The same project ref is refused even when one URI is the direct host and the other is the pooler. Every run also asks you to type the restore host. Typing it cannot override a live-project refusal.
+It will not restore into the live project when `SUPABASE_DB_URL` is set. A matching host is refused. The session pooler hostname is shared by every project in a region, so a different `postgres.<project-ref>` on that same host is a different project and is allowed. The same project ref is refused even when one URI is the direct host and the other is the pooler. Every run also asks you to type the restore host. Typing the host cannot by itself override that refusal. The only override is in-place disaster recovery, and it still refuses a target that is not empty. See [Disaster recovery in place](#disaster-recovery-in-place).
 
 A restore loads the public schema, then `auth.users` and `auth.identities`, then public table data (`psql -v ON_ERROR_STOP=1`). It then prints row counts for `auth.users` and for each `public` table that has rows.
 
-A restore does not recreate Supabase project settings, auth provider settings, PowerSync config, API keys, or anything outside `public` plus `auth.users` and `auth.identities`.
+After the schema load, if a publication named `powersync` exists and is not `FOR ALL TABLES`, the script adds every base table in `public` to it. If that publication is missing, or it is `FOR ALL TABLES`, the script prints what it found and does not change it.
+
+A restore does not recreate Supabase project settings, auth provider settings, PowerSync config (the PowerSync instance, sync rules, or API keys), or anything outside `public` plus `auth.users` and `auth.identities`. The schema file does restore non-internal triggers on `auth.users` whose function is in `public`, including the invite trigger, when that trigger existed at backup time.
 
 ### Test a restore
 
@@ -167,3 +169,138 @@ Type the scratch host when the script asks. It restores schema, then auth data, 
 5. Delete the scratch project when the check is done.
 
 The same `psql` commands are in a comment at the top of each dump. Point them at `RESTORE_DB_URL` for the scratch project only.
+
+## Disaster recovery in place
+
+Use this only when the farmer project itself has to be rebuilt and a scratch project will not do. Take a backup first. The normal restore path still refuses the source project. The in-place path is an override, and it refuses a target that is not empty.
+
+Nothing in this section reads `.env` or prints the connection string. Keep the backup files, the matrix files, and the connection string outside the git repo.
+
+### 1. Save a validation matrix
+
+`scripts/db-validation-matrix.sh` is read-only. It uses `psql` only, in one read-only transaction. Run it before the wipe, against the same database the backup describes (take a fresh backup first if the last one is older than the data you want back).
+
+```bash
+bash /path/to/bloodline_book/scripts/db-validation-matrix.sh "$HOME/bloodline-backups/matrix-before.tsv"
+```
+
+That reads `SUPABASE_DB_URL`. `--url-var NAME` reads a different variable, which is how you point the same script at `RESTORE_DB_URL` after the restore. The script prints the host once, on a `#` line, with a UTC timestamp. The rest of the file is a tab-separated matrix, sorted so two runs against an identical database match once that header is ignored:
+
+- every base table in `public`: name, exact row count, and `md5` of `t::text` ordered by that text
+- the same count and `md5` for `auth.users` and `auth.identities`
+- counts of tables, columns per table, indexes, constraints, RLS-enabled tables, policies (`pg_policies`), functions in `public`, triggers on `public` tables, and types in `public`
+- the name of each non-internal trigger on `auth.users`
+- each publication: its name, whether it is `FOR ALL TABLES`, and the tables it contains
+
+The hash reads every row. The file is not a dump, but it is still derived from farmer data. Do not commit it.
+
+### 2. Wipe the target
+
+The override checks two facts and prints them before it writes:
+
+- schema `public` has no base tables (`relkind = 'r'`)
+- `auth.users` has zero rows
+
+Any public base table, or any row in `auth.users`, stops the restore. Typing the host does not skip that check.
+
+The schema file is a `pg_dump` of `public`, so the objects it creates have to be gone as well, or `psql` stops on the first one that already exists. From `psql` against that project, after the backup is safely outside the repo:
+
+```sql
+DO $$
+DECLARE
+  name text;
+  fn regprocedure;
+BEGIN
+  FOR name IN
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind = 'r'
+    ORDER BY c.relname
+  LOOP
+    EXECUTE format('DROP TABLE IF EXISTS public.%I CASCADE', name);
+  END LOOP;
+
+  FOR fn IN
+    SELECT p.oid::regprocedure
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prokind = 'f'
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.objid = p.oid AND d.deptype = 'e'
+      )
+  LOOP
+    EXECUTE 'DROP FUNCTION ' || fn::text || ' CASCADE';
+  END LOOP;
+END $$;
+
+DELETE FROM auth.users;
+```
+
+`DROP FUNCTION ... CASCADE` also drops the invite trigger on `auth.users`, because that trigger calls `public.accept_farm_invites_for_user()`. The schema file puts that trigger back.
+
+On Supabase, deleting `auth.users` also removes `auth.identities` and the other auth rows that reference the user. If a foreign key blocks the delete, delete those referencing rows first, then delete `auth.users` again. The restore still requires the `auth.users` count to be zero.
+
+Confirm both counts are `0` before you restore:
+
+```sql
+SELECT count(*)
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind = 'r';
+
+SELECT count(*) FROM auth.users;
+```
+
+Supabase already has a `public` schema. If the schema file's first error is `schema "public" already exists`, delete that one `CREATE SCHEMA public;` statement from a copy of the schema file and run the restore again. Do not delete anything else. If `psql` stopped on that line, it has not created tables, so the empty-target checks still pass.
+
+### 3. Restore in place
+
+```bash
+export RESTORE_INTO_SOURCE=yes
+export SUPABASE_DB_URL='postgresql://...source...'
+export RESTORE_DB_URL='postgresql://...same project...'
+export BACKUP_DIR="$HOME/bloodline-backups"
+bash /path/to/bloodline_book/scripts/restore-db.sh
+```
+
+`RESTORE_INTO_SOURCE` must be the exact word `yes`. The script prints the target host and waits for you to type it. It then prints what it checked: `RESTORE_INTO_SOURCE=yes`, the host you typed, the public base-table count (and names, when there are any), and the `auth.users` count. Then it loads schema, auth data, and public data.
+
+Leaving `RESTORE_INTO_SOURCE` unset keeps the refusal, even if you would have typed the host. Setting it does not skip the host prompt. A non-empty target is refused before any backup file is applied.
+
+After the schema load, the script checks publication `powersync`:
+
+- not found: it says so and adds nothing
+- `FOR ALL TABLES`: it says so and leaves the publication unchanged
+- otherwise: it adds every base table in `public` that is not already a member, and prints the names
+
+### 4. Compare the matrices
+
+```bash
+bash /path/to/bloodline_book/scripts/db-validation-matrix.sh \
+  --url-var RESTORE_DB_URL \
+  "$HOME/bloodline-backups/matrix-after.tsv"
+bash /path/to/bloodline_book/scripts/compare-validation.sh \
+  "$HOME/bloodline-backups/matrix-before.tsv" \
+  "$HOME/bloodline-backups/matrix-after.tsv"
+```
+
+`compare-validation.sh` ignores `#` lines, so the host and timestamp may differ. Exit 0 means the remaining rows match. Exit 1 prints a table of rows that changed, rows only in the before file, and rows only in the after file.
+
+Compare a matrix taken from the database you dumped. A matrix from before a later migration will not match a restore of an older backup.
+
+### What a restore does not recreate
+
+A restore does not recreate:
+
+- Supabase project settings
+- auth provider settings (providers, email templates, redirect URLs)
+- PowerSync config: the PowerSync instance, sync rules, and API keys. The script only adds `public` base tables to an existing `powersync` publication that is not `FOR ALL TABLES`. It does not create the publication or the replication role.
+- API keys
+- storage objects, realtime, roles, extensions, and database settings
+- auth tables other than `auth.users` and `auth.identities` (sessions and refresh tokens are not in the dump, so farmers sign in again)
+
+The schema file does recreate non-internal triggers on `auth.users` whose function is in `public`, including `on_auth_user_created_accept_invites`, when that trigger was present for the backup. The auth and public data files still set `session_replication_role` to `replica`, so those triggers do not fire while the rows are loaded.

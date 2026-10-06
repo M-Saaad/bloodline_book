@@ -5,7 +5,8 @@
 # Never source .env. Never put the database URL in this repo. Never print the URL.
 #
 # Writes three files that share one timestamp:
-#   bloodline-schema-<ts>.sql   public schema
+#   bloodline-schema-<ts>.sql   public schema, plus non-internal triggers on
+#                               auth.users whose function is in schema public
 #   bloodline-auth-<ts>.sql     auth.users and auth.identities
 #   bloodline-data-<ts>.sql     public table data
 #
@@ -267,6 +268,9 @@ header_lines() {
 --   1. schema
 --   2. auth data (auth.users and auth.identities)
 --   3. public data
+-- The schema file ends with DROP TRIGGER IF EXISTS and CREATE TRIGGER for every
+-- non-internal trigger on auth.users whose function is in schema public, so the
+-- invite trigger is restored with the schema. pg_dump --schema=public omits it.
 -- The auth and public data files set session_replication_role to replica so
 -- restore does not fire handle_new_farm or accept_farm_invites_for_user.
 -- Those triggers insert into farm_members and break foreign keys on restore.
@@ -341,6 +345,60 @@ run_pg_dump() {
   shift
   if ! pg_dump "$SUPABASE_DB_URL" "$@"; then
     fail "pg_dump failed while writing the ${label} backup. Partial files were removed. The connection string was not printed."
+  fi
+}
+
+append_auth_user_public_triggers() {
+  local schema_file="$1"
+  local sql raw line name def
+  sql="$(cat <<'EOF'
+SELECT t.tgname || E'\t' || pg_get_triggerdef(t.oid, false)
+FROM pg_trigger t
+JOIN pg_class c ON c.oid = t.tgrelid
+JOIN pg_namespace cn ON cn.oid = c.relnamespace
+JOIN pg_proc p ON p.oid = t.tgfoid
+JOIN pg_namespace pn ON pn.oid = p.pronamespace
+WHERE cn.nspname = 'auth'
+  AND c.relname = 'users'
+  AND NOT t.tgisinternal
+  AND pn.nspname = 'public'
+ORDER BY t.tgname;
+EOF
+)"
+  # search_path=pg_catalog makes pg_get_triggerdef schema-qualify public functions,
+  # so CREATE TRIGGER still finds accept_farm_invites_for_user on restore.
+  raw="$(PGOPTIONS="-c search_path=pg_catalog${PGOPTIONS:+ ${PGOPTIONS}}" \
+    psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -Atc "$sql")" \
+    || fail "Could not read triggers on auth.users. The connection string was not printed."
+  raw="${raw//$'\r'/}"
+
+  {
+    printf '\n'
+    printf '%s\n' '-- Non-internal triggers on auth.users whose function is in schema public.'
+    printf '%s\n' '-- pg_dump --schema=public does not include these. Drop and create them'
+    printf '%s\n' '-- with the schema so the invite trigger is restored.'
+    if [[ -z "$raw" ]]; then
+      printf '%s\n' '-- (none)'
+    else
+      while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" ]] && continue
+        name="${line%%$'\t'*}"
+        def="${line#*$'\t'}"
+        if [[ ! "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+          fail "Refusing to record an auth.users trigger whose name is not a plain identifier."
+        fi
+        if [[ "$def" == "$line" || -z "$def" ]]; then
+          fail "pg_get_triggerdef returned nothing for auth.users trigger ${name}."
+        fi
+        def="${def%;}"
+        printf 'DROP TRIGGER IF EXISTS %s ON auth.users;\n' "$name"
+        printf '%s;\n' "$def"
+      done <<< "$raw"
+    fi
+  } >>"$schema_file"
+
+  if [[ "$raw" != *on_auth_user_created_accept_invites* ]]; then
+    echo "WARNING: no on_auth_user_created_accept_invites trigger was appended to the schema file. Invite acceptance will not be restored with the schema." >&2
   fi
 }
 
@@ -507,6 +565,8 @@ main() {
     --data-only --schema=public --no-owner --no-privileges \
     --file "$data_tmp"
 
+  append_auth_user_public_triggers "$schema_tmp"
+
   compose_dump_file "$schema_tmp" "$schema_final" schema "$stamp" \
     "$schema_name" "$auth_name" "$data_name"
   compose_dump_file "$auth_tmp" "$auth_final" auth "$stamp" \
@@ -526,6 +586,9 @@ main() {
   fi
   if ! grep -q 'COPY public.' "$data_final"; then
     fail "Sanity check failed: ${data_name} does not contain 'COPY public.'. Nothing was kept."
+  fi
+  if ! grep -q 'Non-internal triggers on auth.users whose function is in schema public.' "$schema_final"; then
+    fail "Sanity check failed: ${schema_name} is missing the auth.users trigger section. Nothing was kept."
   fi
 
   chmod_private "$schema_final" "$auth_final" "$data_final"
