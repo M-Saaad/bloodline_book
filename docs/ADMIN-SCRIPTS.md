@@ -95,6 +95,15 @@ The auth file contains emails and password hashes. Keep it private. Do not commi
 
 Do not put `BACKUP_DIR` in OneDrive, Dropbox, or any other synced folder unless that folder is encrypted. Sync clients copy the files onto other machines and into the cloud.
 
+## Disaster recovery
+
+1. Run `scripts/backup-db.sh` weekly and again before any risky change (migrations, bulk deletes, isolation tests).
+2. Copy the whole backup folder somewhere outside this git repository and outside the machine that took the backup.
+3. To restore: save a validation matrix from the database you are replacing (`scripts/db-validation-matrix.sh`), run `scripts/restore-db.sh` with `RESTORE_INTO_SOURCE=yes` when rebuilding the farmer project (see [Disaster recovery in place](#disaster-recovery-in-place)), then compare matrices with `scripts/compare-validation.sh`.
+4. After a restore, open the PowerSync dashboard and confirm replication looks healthy, then sign in to the app once so auth sessions refresh.
+
+`restore-db.sh` drops the exact line `CREATE SCHEMA public;` from a temporary copy of the schema file when present, because Supabase already has the `public` schema. The backup files on disk are not modified.
+
 ### Connection string
 
 In the Supabase dashboard open **Connect** and copy the **Session pooler** URI. Use port **5432** and the user `postgres.<project-ref>`. It looks like:
@@ -144,7 +153,7 @@ Restore only into a scratch project. The script reads `RESTORE_DB_URL` and `BACK
 
 It will not restore into the live project when `SUPABASE_DB_URL` is set. A matching host is refused. The session pooler hostname is shared by every project in a region, so a different `postgres.<project-ref>` on that same host is a different project and is allowed. The same project ref is refused even when one URI is the direct host and the other is the pooler. Every run also asks you to type the restore host. Typing the host cannot by itself override that refusal. The only override is in-place disaster recovery, and it still refuses a target that is not empty. See [Disaster recovery in place](#disaster-recovery-in-place).
 
-A restore loads the public schema, then `auth.users` and `auth.identities`, then public table data (`psql -v ON_ERROR_STOP=1`). It then prints row counts for `auth.users` and for each `public` table that has rows.
+A restore loads the public schema, then `auth.users` and `auth.identities`, then public table data (`psql -v ON_ERROR_STOP=1`). Schema restore skips the exact line `CREATE SCHEMA public;` when the backup contains it (Supabase already has `public`); the on-disk backup is unchanged. It then prints row counts for `auth.users` and for each `public` table that has rows.
 
 After the schema load, if a publication named `powersync` exists and is not `FOR ALL TABLES`, the script adds every base table in `public` to it. If that publication is missing, or it is `FOR ALL TABLES`, the script prints what it found and does not change it.
 
@@ -254,8 +263,6 @@ WHERE n.nspname = 'public' AND c.relkind = 'r';
 
 SELECT count(*) FROM auth.users;
 ```
-
-Supabase already has a `public` schema. If the schema file's first error is `schema "public" already exists`, delete that one `CREATE SCHEMA public;` statement from a copy of the schema file and run the restore again. Do not delete anything else. If `psql` stopped on that line, it has not created tables, so the empty-target checks still pass.
 
 ### 3. Restore in place
 
