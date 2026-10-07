@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -55,9 +56,7 @@ export default function AddTaskScreen() {
 
   return (
     <HandWriteBlocked>
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4">
+    <FormKeyboardScreen contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
       <Input
@@ -100,7 +99,7 @@ export default function AddTaskScreen() {
         onPress={handleSave}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { SUPPORT_EMAIL } from '@/lib/config/support';
 import { useFarm } from '@/providers/FarmProvider';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -15,10 +16,10 @@ export default function IndexScreen() {
           Bloodline Book
         </Text>
         <Text className="text-center text-gray-600">
-          Supabase credentials are not configured for this deployment. In Vercel,
-          set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (legacy
-          NEXT_PUBLIC_* names are accepted at build time), plus
-          EXPO_PUBLIC_POWERSYNC_URL, then redeploy.
+          This app is not set up yet. Try again later or contact support.
+        </Text>
+        <Text className="text-center text-gray-600 mt-4">
+          {SUPPORT_EMAIL}
         </Text>
       </View>
     );

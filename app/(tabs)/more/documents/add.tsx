@@ -101,7 +101,7 @@ export default function AddDocumentScreen() {
       />
 
       <Text className="text-sm text-gray-500 mb-4">
-        File upload arrives in a later phase. Metadata is saved now.
+        You can note paperwork here; photos are coming later.
       </Text>
 
       <Button

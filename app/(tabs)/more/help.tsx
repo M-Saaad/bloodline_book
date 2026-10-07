@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -48,6 +49,14 @@ export default function HelpScreen() {
             void openWhatsApp();
           }}
         />
+
+        <View className="mt-4 pt-4 border-t border-gray-200">
+          <Button
+            title="View changes not saved"
+            variant="outline"
+            onPress={() => router.push('/(tabs)/more/changes-not-saved')}
+          />
+        </View>
       </Card>
 
       <Text className="text-center text-xs text-gray-500">

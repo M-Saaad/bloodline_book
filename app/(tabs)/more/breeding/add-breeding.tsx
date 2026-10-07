@@ -1,8 +1,9 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
@@ -186,10 +187,7 @@ export default function AddBreedingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen contentContainerClassName="p-4">
         <FormMessage message={errorMessage} tone="error" />
 
         <Text className="text-sm font-medium text-gray-700 mb-2">
@@ -287,7 +285,7 @@ export default function AddBreedingScreen() {
           onPress={handleSave}
           disabled={loading}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

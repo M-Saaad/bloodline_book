@@ -30,3 +30,13 @@ export function uploadFailurePlainReason(errorCode: string | null): string {
       return 'This change could not be saved to the server.';
   }
 }
+
+/** Short farmer-facing line for a failed upload row. */
+export function uploadFailureSummary(input: {
+  tableName: string;
+  errorCode: string | null;
+}): string {
+  const record = uploadFailureTableLabel(input.tableName);
+  const reason = uploadFailurePlainReason(input.errorCode);
+  return `${record}: ${reason}`;
+}
