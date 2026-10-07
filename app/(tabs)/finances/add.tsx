@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -11,6 +12,7 @@ import { todayIso } from '@/lib/dates';
 import { createTransaction } from '@/lib/db/transactions';
 import { formatFarmCurrency } from '@/lib/format/money';
 import type { Transaction } from '@/lib/types/finances';
+import { formatTransactionKind } from '@/lib/ui/finance-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const KIND_OPTIONS: Transaction['kind'][] = ['expense', 'revenue'];
@@ -82,9 +84,7 @@ export default function AddTransactionScreen() {
 
   return (
     <HandWriteBlocked>
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4">
+    <FormKeyboardScreen contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
       <DateField
@@ -119,7 +119,7 @@ export default function AddTransactionScreen() {
               className={`font-medium ${
                 kind === option ? 'text-bloodline-700' : 'text-gray-700'
               }`}>
-              {option}
+              {formatTransactionKind(option)}
             </Text>
           </Pressable>
         ))}
@@ -175,7 +175,7 @@ export default function AddTransactionScreen() {
         onPress={handleSave}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

@@ -1,11 +1,16 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { Text } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import {
+  AUTH_PASSWORD_HINT,
+  mapAuthErrorMessage,
+} from '@/lib/auth/errors';
 import { recoveryParamsFromUrl } from '@/lib/auth/email';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/providers/AuthProvider';
@@ -52,11 +57,7 @@ export default function ResetPasswordScreen() {
         }
       } catch (error) {
         if (!cancelled) {
-          setLinkError(
-            error instanceof Error
-              ? error.message
-              : 'This reset link could not be opened.',
-          );
+          setLinkError(mapAuthErrorMessage(error));
         }
       }
     }
@@ -106,9 +107,7 @@ export default function ResetPasswordScreen() {
       await updatePassword(password);
       router.replace('/');
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Could not update password.',
-      );
+      setErrorMessage(mapAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -116,21 +115,17 @@ export default function ResetPasswordScreen() {
 
   if (!ready) {
     return (
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="px-6 py-8">
+      <FormKeyboardScreen contentContainerClassName="px-6 py-8">
         <FormMessage message={linkError} tone="error" />
         <Text className="text-gray-700">
           Open the password reset link from your email to continue.
         </Text>
-      </ScrollView>
+      </FormKeyboardScreen>
     );
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="px-6 py-8">
+    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
       <Text className="text-2xl font-bold text-bloodline-800 mb-2">
         Choose a new password
       </Text>
@@ -144,6 +139,7 @@ export default function ResetPasswordScreen() {
         label="New password"
         value={password}
         onChangeText={setPassword}
+        hint={AUTH_PASSWORD_HINT}
         secureTextEntry
         autoCapitalize="none"
       />
@@ -151,6 +147,7 @@ export default function ResetPasswordScreen() {
         label="Confirm password"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
+        hint={AUTH_PASSWORD_HINT}
         secureTextEntry
         autoCapitalize="none"
       />
@@ -161,6 +158,6 @@ export default function ResetPasswordScreen() {
         disabled={loading}
         className="mt-2"
       />
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

@@ -1,8 +1,9 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
@@ -24,7 +25,7 @@ import {
   type KidOutcome,
 } from '@/lib/domain/kidding';
 import type { BreedingEvent } from '@/lib/types/breeding';
-import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { animalDisplayLabel, formatSex } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 type KidRow = {
@@ -208,10 +209,7 @@ export default function AddKiddingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4 pb-10"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen contentContainerClassName="p-4 pb-10">
         <FormMessage message={errorMessage} tone="error" />
 
         <AnimalSelectField
@@ -332,7 +330,7 @@ export default function AddKiddingScreen() {
                       ? 'border-bloodline-600 bg-bloodline-50'
                       : 'border-gray-300'
                   }`}>
-                  <Text className="capitalize text-gray-800">{sex}</Text>
+                  <Text className="text-gray-800">{formatSex(sex)}</Text>
                 </Pressable>
               ))}
             </View>
@@ -400,7 +398,7 @@ export default function AddKiddingScreen() {
           onPress={handleSave}
           disabled={loading}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

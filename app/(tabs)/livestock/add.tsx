@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 
 import { AnimalBreedFields } from '@/components/livestock/AnimalBreedFields';
 import { AnimalIdentityFields } from '@/components/livestock/AnimalIdentityFields';
@@ -18,7 +20,8 @@ import {
   getParentPickerAnimals,
 } from '@/lib/db/animals';
 import type { Animal, Breed } from '@/lib/types/animals';
-import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { animalDisplayLabel, formatSex } from '@/lib/ui/animal-labels';
+import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
 
 const SEX_OPTIONS: Animal['sex'][] = ['female', 'male'];
@@ -119,6 +122,17 @@ export default function AddAnimalScreen() {
       }
     }
 
+    if (warningMessage) {
+      const confirmed = await confirmAction(
+        'Duplicate tag?',
+        warningMessage,
+        'Save anyway',
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await createAnimal(activeFarm.id, {
@@ -153,10 +167,7 @@ export default function AddAnimalScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen contentContainerClassName="p-4">
         <FormMessage message={errorMessage} tone="error" />
         <FormMessage message={warningMessage} tone="warning" />
 
@@ -181,7 +192,7 @@ export default function AddAnimalScreen() {
             <Pressable
               key={option}
               onPress={() => setSex(option)}
-              className={`flex-1 rounded-xl border px-3 py-3 items-center capitalize ${
+              className={`flex-1 rounded-xl border px-3 py-3 items-center ${
                 sex === option
                   ? 'border-bloodline-600 bg-bloodline-50'
                   : 'border-gray-300 bg-white'
@@ -190,7 +201,7 @@ export default function AddAnimalScreen() {
                 className={`font-medium ${
                   sex === option ? 'text-bloodline-700' : 'text-gray-700'
                 }`}>
-                {option}
+                {formatSex(option)}
               </Text>
             </Pressable>
           ))}
@@ -229,11 +240,11 @@ export default function AddAnimalScreen() {
         />
 
         <Button
-          title={loading ? 'Saving…' : 'Save Animal'}
+          title={loading ? 'Saving…' : 'Save goat'}
           onPress={handleSave}
           disabled={loading}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { updateFarmSettings } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { confirmAction } from '@/lib/ui/confirm';
+import { formatFarmOperationType } from '@/lib/ui/farm-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const WEIGHT_UNITS: Farm['weightUnit'][] = ['lb', 'kg'];
@@ -116,9 +118,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4">
+    <FormKeyboardScreen contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
       <FormMessage message={successMessage} tone="success" />
 
@@ -174,8 +174,8 @@ export default function SettingsScreen() {
         keyboardType="numeric"
       />
 
-      <Text className="text-sm text-gray-500 mb-4 capitalize">
-        Segment: {activeFarm.segment} (read-only)
+      <Text className="text-sm text-gray-500 mb-4">
+        Operation type: {formatFarmOperationType(activeFarm.segment)} (read-only)
       </Text>
 
       <Button
@@ -183,6 +183,6 @@ export default function SettingsScreen() {
         onPress={handleSave}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

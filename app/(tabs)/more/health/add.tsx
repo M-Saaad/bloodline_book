@@ -1,8 +1,9 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import {
   parseWithdrawalDays,
@@ -250,10 +251,7 @@ export default function AddHealthRecordScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen contentContainerClassName="p-4">
         <FormMessage message={errorMessage} tone="error" />
         <AnimalSelectField
           label="Animal"
@@ -351,7 +349,7 @@ export default function AddHealthRecordScreen() {
           onPress={handleSave}
           disabled={loading}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

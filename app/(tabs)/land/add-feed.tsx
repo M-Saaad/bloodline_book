@@ -1,8 +1,9 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -95,7 +96,7 @@ export default function AddFeedScreen() {
 
   return (
     <HandWriteBlocked>
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
+    <FormKeyboardScreen contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
       <DateField
@@ -217,7 +218,7 @@ export default function AddFeedScreen() {
         onPress={handleSave}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

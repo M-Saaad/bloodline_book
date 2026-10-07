@@ -6,7 +6,7 @@ import {
 } from '@/lib/config/database';
 
 export function EnvironmentBadge() {
-  if (isProductionDatabase) {
+  if (isProductionDatabase || !__DEV__) {
     return null;
   }
 

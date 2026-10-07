@@ -1,4 +1,5 @@
 import { useQuery } from '@powersync/react';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
@@ -8,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { TEAM_INVITES_ENABLED } from '@/lib/config/features';
 import { mapFarmInvite, mapFarmMember } from '@/lib/db/mappers';
 import { createFarmInvite, revokeFarmInvite } from '@/lib/db/team';
 import type { FarmInvite } from '@/lib/types/team';
@@ -43,6 +45,10 @@ export default function TeamScreen() {
   const invites = (inviteRows ?? []).map((row) =>
     mapFarmInvite(row as Record<string, unknown>),
   );
+
+  if (!TEAM_INVITES_ENABLED) {
+    return <Redirect href="/(tabs)/more" />;
+  }
 
   async function handleInvite() {
     if (!activeFarm) {

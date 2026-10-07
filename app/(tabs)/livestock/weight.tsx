@@ -26,7 +26,7 @@ import type { WeighSession } from '@/lib/types/weight';
 import { useFarm } from '@/providers/FarmProvider';
 
 const WEIGH_POINTS: { value: WeighSession['weighPoint']; label: string }[] = [
-  { value: 'ad_hoc', label: 'Ad hoc' },
+  { value: 'ad_hoc', label: 'Any time' },
   { value: 'birth', label: 'Birth' },
   { value: '30_day', label: '30 day' },
   { value: '60_day', label: '60 day' },
@@ -305,7 +305,7 @@ export default function WeighDayScreen() {
         <EmptyState
           title="No animals to weigh"
           description="Add animals before running weigh day."
-          actionLabel="Add Animal"
+          actionLabel="Add goat"
           onAction={() => router.push('/(tabs)/livestock/add')}
         />
       </HandWriteBlocked>
@@ -321,7 +321,7 @@ export default function WeighDayScreen() {
             Saved on this phone.
           </Text>
           <Text className="text-lg text-gray-800 mt-3">
-            It will sync when you have a signal.
+            They will upload when you have internet.
           </Text>
           <Text className="text-gray-700 mt-3">
             {count} weight{count === 1 ? '' : 's'} recorded.
@@ -363,7 +363,7 @@ export default function WeighDayScreen() {
           </Text>
           <View className="flex-row gap-2 mt-3">
             <ModeButton
-              label="One at a time"
+              label="One by one"
               selected={mode === 'chute'}
               onPress={() => setMode('chute')}
             />
@@ -375,7 +375,7 @@ export default function WeighDayScreen() {
           </View>
           {savedOnPhone ? (
             <Text className="text-gray-900 font-medium mt-3">
-              Saved on this phone. Waiting for signal.
+              Saved on this phone. Waiting for internet.
             </Text>
           ) : null}
           <FormMessage message={errorMessage} tone="error" />

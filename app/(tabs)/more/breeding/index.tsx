@@ -10,6 +10,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import {
+  formatBreedingStatus,
   formatDueWindowPhrase,
   resolveBreedingWindow,
 } from '@/lib/domain/breeding';
@@ -163,7 +164,7 @@ export default function BreedingScreen() {
                 <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
                   {animalLabels.get(item.damId) ?? 'Dam'}
                 </Text>
-                <Badge label={item.status} tone="default" />
+                <Badge label={formatBreedingStatus(item.status)} tone="default" />
               </View>
               <Text className="text-gray-600 text-sm mt-1">
                 {item.exposureEndDate
