@@ -72,17 +72,22 @@ Store prod credentials as EAS secrets for the `production` profile.
 
 ## Pilot builds
 
-Build the farmer pilot as an internal Android APK:
+The `pilot` profile builds an installable Android APK for pilot farmers. It sets `distribution` to `internal`, `android.buildType` to `apk`, and the same database target as `production`: `DATABASE_TARGET` and `EXPO_PUBLIC_DATABASE_TARGET` are `production`. It also sets `environment` to `production`. EAS CLI 16 and later (this repo requires `>= 16.0.0`) accepts that key, so the build reads variables from the EAS production environment. An internal profile that omits `environment` loads the preview environment instead.
 
-```bash
-eas build -p android --profile pilot
-```
-
-The `pilot` profile sets `DATABASE_TARGET` and `EXPO_PUBLIC_DATABASE_TARGET` to `production`. Right now one Supabase project serves every build and the Vercel site. These three variables must exist in EAS (set them in the EAS dashboard; do not commit URLs or keys):
+`app.config.ts` does not define the Supabase URL, the anon key, or the PowerSync URL. `.env.production.example` names the variables a production build reads. `scripts/setup-env.sh` only writes a local `.env` for the current shell; EAS Build does not run it, so the `_PROD` and `NEXT_PUBLIC_*` aliases that script accepts are not what the APK reads. Create these names in the EAS production environment. Do not commit values, and do not put them in `eas.json`. Use plain text or sensitive visibility so Expo can inline them; secret visibility is not substituted into `EXPO_PUBLIC_*` client code.
 
 - `EXPO_PUBLIC_SUPABASE_URL`
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 - `EXPO_PUBLIC_POWERSYNC_URL`
+
+`EXPO_PUBLIC_DATABASE_TARGET` is already set on the `pilot` profile.
+
+```bash
+eas env:create production
+eas build -p android --profile pilot
+```
+
+Run `eas env:create production` once for each name above. Never use `preview` for farmers because it talks to the development setup.
 
 ## Vercel (web hosting)
 
