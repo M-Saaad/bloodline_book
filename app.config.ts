@@ -2,8 +2,14 @@ import type { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
   name: 'Bloodline Book',
-  slug: 'bloodline-book',
+  owner: 'bloodline-books-team',
+  slug: 'blood-line-book-app',
   scheme: 'bloodlinebook',
+  extra: {
+    eas: {
+      projectId: 'b3bb8e1d-c845-4c51-a31c-f26f59ee6512',
+    },
+  },
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
