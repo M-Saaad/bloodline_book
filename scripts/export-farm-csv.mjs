@@ -11,27 +11,77 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const FARM_TABLES = [
-  'animals',
-  'breeds',
-  'weigh_sessions',
-  'weight_logs',
-  'health_records',
-  'breeding_events',
-  'kidding_events',
-  'transactions',
-  'tasks',
-  'pastures',
-  'grazing_records',
-  'feed_logs',
-  'documents',
-];
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const MIGRATIONS_DIR = join(SCRIPT_DIR, '..', 'supabase', 'migrations');
+
+const SKIP_FARM_TABLES = new Set(['farm_members', 'farm_invites']);
+
+const CREATE_TABLE_RE =
+  /\bcreate\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?(\w+)\s*\(/gi;
+
+/**
+ * @param {string} sql
+ * @returns {{ name: string; body: string }[]}
+ */
+function createTableBlocks(sql) {
+  const blocks = [];
+  let match;
+  CREATE_TABLE_RE.lastIndex = 0;
+  while ((match = CREATE_TABLE_RE.exec(sql)) !== null) {
+    const name = match[1];
+    let index = match.index + match[0].length;
+    let depth = 1;
+    const bodyStart = index;
+    while (index < sql.length && depth > 0) {
+      const ch = sql[index];
+      if (ch === '(') {
+        depth += 1;
+      } else if (ch === ')') {
+        depth -= 1;
+      }
+      index += 1;
+    }
+    blocks.push({ name, body: sql.slice(bodyStart, index - 1) });
+  }
+  return blocks;
+}
+
+/**
+ * Farm-scoped tables are every `public` table in migrations that has a `farm_id`
+ * column, except membership / invite tables (other people's emails).
+ *
+ * @param {string} [migrationsDir]
+ */
+export async function farmScopedTablesFromMigrations(migrationsDir = MIGRATIONS_DIR) {
+  const files = (await readdir(migrationsDir))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  const tables = [];
+  const seen = new Set();
+  for (const file of files) {
+    const sql = await readFile(join(migrationsDir, file), 'utf8');
+    for (const block of createTableBlocks(sql)) {
+      if (SKIP_FARM_TABLES.has(block.name)) {
+        continue;
+      }
+      if (!/\bfarm_id\b/i.test(block.body)) {
+        continue;
+      }
+      if (seen.has(block.name)) {
+        continue;
+      }
+      seen.add(block.name);
+      tables.push(block.name);
+    }
+  }
+  return tables;
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -244,121 +294,125 @@ async function findFarm(client, query) {
 }
 
 async function main() {
-const query = process.argv[2];
-if (!query || query.startsWith('-')) {
-  usage();
-  process.exit(1);
-}
-
-const supabaseUrl = process.env.SUPABASE_URL?.trim();
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-if (!supabaseUrl || !serviceRoleKey) {
-  console.error('Missing SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY.');
-  usage();
-  process.exit(1);
-}
-
-let parsedUrl;
-try {
-  parsedUrl = new URL(supabaseUrl);
-} catch {
-  console.error('SUPABASE_URL is not a valid URL.');
-  process.exit(1);
-}
-
-const rl = createInterface({ input, output });
-console.log(`Supabase project URL: ${parsedUrl.origin}`);
-console.log(
-  'This uses the service role key from your shell and exports every row for one farm.',
-);
-const answer = await rl.question('Type yes to continue: ');
-rl.close();
-if (answer.trim().toLowerCase() !== 'yes') {
-  console.error('Aborted.');
-  process.exit(1);
-}
-
-const admin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-
-let farms;
-try {
-  farms = await findFarm(admin, query.trim());
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-}
-
-if (farms.length === 0) {
-  console.error(`No farm found for: ${query.trim()}`);
-  process.exit(1);
-}
-if (farms.length > 1) {
-  console.error(`More than one farm matches "${query.trim()}":`);
-  for (const farm of farms) {
-    console.error(`  ${farm.id}  ${farm.name}`);
-  }
-  console.error('Pass the farm id instead.');
-  process.exit(1);
-}
-
-const farm = farms[0];
-const day = new Date().toISOString().slice(0, 10);
-const dir = resolve('exports', `${slugify(farm.name)}-${day}`);
-
-try {
-  const tables = {};
-  for (const table of FARM_TABLES) {
-    tables[table] = await fetchAll(admin, table, farm.id);
+  const query = process.argv[2];
+  if (!query || query.startsWith('-')) {
+    usage();
+    process.exit(1);
   }
 
-  const { data: globalBreeds, error: breedError } = await admin
-    .from('breeds')
-    .select('id, name')
-    .is('farm_id', null);
-  if (breedError) {
-    throw new Error(`breeds: ${breedError.message}`);
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('Missing SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY.');
+    usage();
+    process.exit(1);
   }
 
-  const maps = {
-    animals: new Map(
-      tables.animals.map((row) => [
-        row.id,
-        { name: row.name, tag_number: row.tag_number },
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(supabaseUrl);
+  } catch {
+    console.error('SUPABASE_URL is not a valid URL.');
+    process.exit(1);
+  }
+
+  const rl = createInterface({ input, output });
+  console.log(`Supabase project URL: ${parsedUrl.origin}`);
+  console.log(
+    'This uses the service role key from your shell and exports every row for one farm.',
+  );
+  const answer = await rl.question('Type yes to continue: ');
+  rl.close();
+  if (answer.trim().toLowerCase() !== 'yes') {
+    console.error('Aborted.');
+    process.exit(1);
+  }
+
+  const farmTables = await farmScopedTablesFromMigrations();
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  let farms;
+  try {
+    farms = await findFarm(admin, query.trim());
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+
+  if (farms.length === 0) {
+    console.error(`No farm found for: ${query.trim()}`);
+    process.exit(1);
+  }
+  if (farms.length > 1) {
+    console.error(`More than one farm matches "${query.trim()}":`);
+    for (const farm of farms) {
+      console.error(`  ${farm.id}  ${farm.name}`);
+    }
+    console.error('Pass the farm id instead.');
+    process.exit(1);
+  }
+
+  const farm = farms[0];
+  const day = new Date().toISOString().slice(0, 10);
+  const dir = resolve('exports', `${slugify(farm.name)}-${day}`);
+
+  try {
+    const tables = {};
+    for (const table of farmTables) {
+      tables[table] = await fetchAll(admin, table, farm.id);
+    }
+
+    const { data: globalBreeds, error: breedError } = await admin
+      .from('breeds')
+      .select('id, name')
+      .is('farm_id', null);
+    if (breedError) {
+      throw new Error(`breeds: ${breedError.message}`);
+    }
+
+    const maps = {
+      animals: new Map(
+        (tables.animals ?? []).map((row) => [
+          row.id,
+          { name: row.name, tag_number: row.tag_number },
+        ]),
+      ),
+      breeds: new Map([
+        ...(tables.breeds ?? []).map((row) => [row.id, row.name]),
+        ...(globalBreeds ?? []).map((row) => [row.id, row.name]),
       ]),
-    ),
-    breeds: new Map([
-      ...tables.breeds.map((row) => [row.id, row.name]),
-      ...(globalBreeds ?? []).map((row) => [row.id, row.name]),
-    ]),
-    pastures: new Map(tables.pastures.map((row) => [row.id, row.name ?? ''])),
-    sessions: new Map(
-      tables.weigh_sessions.map((row) => [
-        row.id,
-        [row.date, row.weigh_point].filter(Boolean).join(' '),
-      ]),
-    ),
-    kidding: new Map(
-      tables.kidding_events.map((row) => [
-        row.id,
-        row.kid_date ? `kidding ${row.kid_date}` : 'kidding',
-      ]),
-    ),
-  };
+      pastures: new Map(
+        (tables.pastures ?? []).map((row) => [row.id, row.name ?? '']),
+      ),
+      sessions: new Map(
+        (tables.weigh_sessions ?? []).map((row) => [
+          row.id,
+          [row.date, row.weigh_point].filter(Boolean).join(' '),
+        ]),
+      ),
+      kidding: new Map(
+        (tables.kidding_events ?? []).map((row) => [
+          row.id,
+          row.kid_date ? `kidding ${row.kid_date}` : 'kidding',
+        ]),
+      ),
+    };
 
-  await mkdir(dir, { recursive: true });
-  for (const table of FARM_TABLES) {
-    const csv = toCsv(table, tables[table], maps);
-    await writeFile(resolve(dir, `${table}.csv`), csv, 'utf8');
-    console.error(`${table}.csv  ${tables[table].length} rows`);
+    await mkdir(dir, { recursive: true });
+    for (const table of farmTables) {
+      const csv = toCsv(table, tables[table], maps);
+      await writeFile(resolve(dir, `${table}.csv`), csv, 'utf8');
+      console.error(`${table}.csv  ${tables[table].length} rows`);
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
   }
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-}
 
-console.log(dir);
+  console.log(dir);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
