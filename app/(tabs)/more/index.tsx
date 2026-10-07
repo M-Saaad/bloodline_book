@@ -7,6 +7,7 @@ import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { TEAM_INVITES_ENABLED } from '@/lib/config/features';
 import { countUploadFailures } from '@/lib/powersync/upload-failures';
 import {
   disconnectAndClearPowerSync,
@@ -24,6 +25,9 @@ const BASE_MENU_ITEMS: MenuItem[] = [
   { title: 'Health Log', route: '/(tabs)/more/health' },
   { title: 'Breeding & Kidding', route: '/(tabs)/more/breeding' },
   { title: 'Settings', route: '/(tabs)/more/settings' },
+  ...(TEAM_INVITES_ENABLED
+    ? [{ title: 'Team', route: '/(tabs)/more/team' as Href }]
+    : []),
   { title: 'Help', route: '/(tabs)/more/help' },
   { title: 'Tasks', route: '/(tabs)/more/tasks' },
 ];
