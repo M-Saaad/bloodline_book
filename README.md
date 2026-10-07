@@ -38,3 +38,5 @@ User-facing inventory of what the app does today, what it does not, and question
 Every path from sign-in through FAMACHA scoring and kidding, including branches and chained stories: [docs/USER-FLOWS.md](docs/USER-FLOWS.md).
 
 Demo login with sample herd data: [docs/TEST-ACCOUNT.md](docs/TEST-ACCOUNT.md) (`npm run seed:demo`).
+
+Pull requests and pushes to `main` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml) (typecheck, tests, restore-guard checks).
