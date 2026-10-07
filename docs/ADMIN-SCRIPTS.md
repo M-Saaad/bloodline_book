@@ -73,6 +73,44 @@ node scripts/export-farm-csv.mjs "Willow Creek"
 
 You can pass a farm id instead of a name. The script prints the project URL and waits for `yes` before it reads any rows. If several farms share the name, it lists their ids and stops.
 
+## Farm deletion (`scripts/admin-delete-farm.mjs`)
+
+**When to use it:** A farmer asks you to delete their farm and all associated data (for example under a privacy or account-closure request).
+
+The script permanently removes one farm’s rows, files in the **documents** Storage bucket for that farm, and the `farms` row. It uses the service role key and bypasses RLS.
+
+**Before you run it:**
+
+1. Take a database backup (`scripts/backup-db.sh`).
+2. Export the farm to CSV the same day (`scripts/export-farm-csv.mjs`). The delete script refuses to run unless today’s export folder exists under `exports/<farm-slug>-<YYYY-MM-DD>/`, unless you pass `--no-export-check`.
+
+### Run
+
+```bash
+export SUPABASE_URL='https://YOUR_PROJECT.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'
+node scripts/admin-delete-farm.mjs "Willow Creek"
+```
+
+You can pass a farm id instead of a name. The script prints the project URL, then a summary (farm name and id, members with masked emails like `j***@gmail.com`, and row counts per farm-scoped table). It stops unless you type the **exact** farm name.
+
+It then asks separately whether to delete **auth users** who would belong to no other farm after this deletion. The default is **no** (press Enter or answer `n`).
+
+Pass `--no-export-check` only if you already exported the farm elsewhere today.
+
+### What gets deleted
+
+- Objects in the Supabase Storage **documents** bucket referenced by `documents.storage_path` and any objects under a `{farm_id}/` prefix in that bucket.
+- Rows in farm-scoped tables (animals, health, breeding, finances, pastures, documents metadata, `farm_members`, `farm_invites`, and the rest), in an order that respects foreign keys in `supabase/migrations/`.
+- The `farms` row.
+- Optionally, orphaned `auth.users` records when you confirm that step.
+
+The script prints a line for each category and table it removed.
+
+### Backups and privacy wording
+
+Supabase project **backups** (and any copies you keep from `scripts/backup-db.sh`) may still hold deleted data for their retention period. If you tell a farmer their data is gone, say that operational backups may retain copies until those backups expire, unless you have removed or overwritten them.
+
 ## Database backup (`scripts/backup-db.sh`)
 
 **When to run it:** from your own machine, once a week, and again before every migration, before you delete data, and before the isolation test (`npm run test:isolation`). The dump contains farmer records, emails, and password hashes. Keep it outside this repo.
