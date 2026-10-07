@@ -17,12 +17,16 @@ const SEGMENTS: { value: Farm['segment']; label: string }[] = [
   { value: 'both', label: 'Both' },
 ];
 
+const WEIGHT_UNITS: Farm['weightUnit'][] = ['lb', 'kg'];
+
 export default function CreateFarmScreen() {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const { farms, activeFarm, isLoading: farmsLoading, refreshFarms } =
     useFarm();
   const [name, setName] = useState('');
   const [segment, setSegment] = useState<Farm['segment']>('meat');
+  const [weightUnit, setWeightUnit] = useState<Farm['weightUnit']>('lb');
+  const [currency, setCurrency] = useState('USD');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -59,6 +63,8 @@ export default function CreateFarmScreen() {
       const farmId = await createFarm({
         name: name.trim(),
         segment,
+        weightUnit,
+        currency: currency.trim().toUpperCase() || 'USD',
       });
       setActiveFarmId(farmId);
       await refreshFarms();
@@ -114,6 +120,38 @@ export default function CreateFarmScreen() {
                   selected ? 'text-bloodline-700' : 'text-gray-700'
                 }`}>
                 {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Input
+        label="Currency"
+        value={currency}
+        onChangeText={setCurrency}
+        placeholder="USD"
+        autoCapitalize="characters"
+      />
+
+      <Text className="text-sm font-medium text-gray-700 mb-2">Weight unit</Text>
+      <View className="flex-row gap-2 mb-6">
+        {WEIGHT_UNITS.map((unit) => {
+          const selected = weightUnit === unit;
+          return (
+            <Pressable
+              key={unit}
+              onPress={() => setWeightUnit(unit)}
+              className={`flex-1 rounded-xl border px-3 py-3 items-center ${
+                selected
+                  ? 'border-bloodline-600 bg-bloodline-50'
+                  : 'border-gray-300 bg-white'
+              }`}>
+              <Text
+                className={`font-medium ${
+                  selected ? 'text-bloodline-700' : 'text-gray-700'
+                }`}>
+                {unit}
               </Text>
             </Pressable>
           );

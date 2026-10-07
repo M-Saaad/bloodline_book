@@ -56,7 +56,7 @@ export function formatMonthDay(iso: string): string {
   if (!parsed) {
     return iso;
   }
-  return parsed.toLocaleDateString('en-US', {
+  return parsed.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
   });

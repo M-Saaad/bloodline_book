@@ -7,6 +7,7 @@ import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { formatDisplayDate } from '@/lib/dates';
 import { deleteWeighSession } from '@/lib/db/weights';
 import { useFarm } from '@/providers/FarmProvider';
 
@@ -60,7 +61,7 @@ export default function WeighSessionScreen() {
         contentContainerClassName="p-4 gap-4 pb-8">
         <Card>
           <Text className="text-xl font-bold text-gray-900">
-            {String(session.date)}
+            {formatDisplayDate(String(session.date))}
           </Text>
           <Text className="text-gray-600 capitalize mt-1">
             {String(session.weigh_point).replace(/_/g, ' ')}

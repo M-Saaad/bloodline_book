@@ -95,8 +95,11 @@ export function withdrawalBadgeLabel(
   kind: 'meat' | 'milk',
   clearDate: string,
 ): string {
-  const label = kind === 'meat' ? 'Meat' : 'Milk';
-  return `${label} withdrawal until ${formatMonthDay(clearDate)}`;
+  const when = formatMonthDay(clearDate);
+  if (kind === 'meat') {
+    return `Safe to sell from ${when}`;
+  }
+  return `Safe to milk from ${when}`;
 }
 
 export function meatSaleWarning(
@@ -105,7 +108,7 @@ export function meatSaleWarning(
   productName: string | null,
 ): string {
   const product = productName?.trim() ? ` (${productName.trim()})` : '';
-  return `${animalName} is in meat withdrawal until ${formatMonthDay(clearDate)}${product}. Continue?`;
+  return `${animalName} is not safe for meat before ${formatMonthDay(clearDate)}${product}. Continue?`;
 }
 
 export type WithdrawalSource = {

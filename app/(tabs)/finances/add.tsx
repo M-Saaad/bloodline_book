@@ -10,6 +10,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { createTransaction } from '@/lib/db/transactions';
+import { formatFarmCurrency } from '@/lib/format/money';
 import type { Transaction } from '@/lib/types/finances';
 import { formatTransactionKind } from '@/lib/ui/finance-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -75,6 +76,12 @@ export default function AddTransactionScreen() {
     return null;
   }
 
+  const parsedPreview = Number.parseFloat(amount);
+  const amountPreview =
+    !Number.isNaN(parsedPreview) && parsedPreview > 0
+      ? formatFarmCurrency(parsedPreview, activeFarm.currency)
+      : null;
+
   return (
     <HandWriteBlocked>
     <FormKeyboardScreen contentContainerClassName="p-4">
@@ -86,9 +93,16 @@ export default function AddTransactionScreen() {
         onChange={setTransactionDate}
         maximumDate={new Date()}
       />
-      <Text className="text-sm text-gray-600 mb-4">
-        Currency: {activeFarm.currency}
-      </Text>
+      {amountPreview ? (
+        <Text className="text-sm text-gray-700 mb-4">
+          Preview: {kind === 'expense' ? '−' : '+'}
+          {amountPreview}
+        </Text>
+      ) : (
+        <Text className="text-sm text-gray-600 mb-4">
+          Amounts use your farm currency ({activeFarm.currency}).
+        </Text>
+      )}
 
       <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
       <View className="flex-row gap-2 mb-4">
