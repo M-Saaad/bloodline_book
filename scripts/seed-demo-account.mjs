@@ -2,11 +2,12 @@
  * Creates a demo user + farm with sample herd data using the public anon key.
  * Requires EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env.
  *
- * The demo password comes from the shell variable DEMO_PASSWORD only.
- * Never put it in .env, EXPO_PUBLIC_*, or this repo.
+ * Demo credentials come from the shell only: DEMO_EMAIL and DEMO_PASSWORD.
+ * Never put them in .env, EXPO_PUBLIC_*, or this repo.
  *
  * Usage: node scripts/seed-demo-account.mjs --yes-live
- *        node scripts/seed-demo-account.mjs --yes-live --reset
+ *        node scripts/seed-demo-account.mjs --reset
+ *        node scripts/seed-demo-account.mjs --yes-live --reset --yes
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -14,7 +15,6 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const DEMO_EMAIL = 'demo@bloodlinebook.test';
 const FARM_NAME = 'Willow Creek Demo';
 
 /** Child tables an owner may delete (RLS DELETE policies require role owner). */
@@ -45,7 +45,7 @@ function loadEnv() {
       const eq = trimmed.indexOf('=');
       if (eq === -1) continue;
       const key = trimmed.slice(0, eq);
-      if (key === 'DEMO_PASSWORD') {
+      if (key === 'DEMO_PASSWORD' || key === 'DEMO_EMAIL') {
         continue;
       }
       const value = trimmed.slice(eq + 1);
@@ -78,15 +78,17 @@ const url =
 const anonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const demoEmail = process.env.DEMO_EMAIL ?? '';
 const demoPassword = process.env.DEMO_PASSWORD ?? '';
 const yesLive = process.argv.includes('--yes-live');
 const reset = process.argv.includes('--reset');
+const yesConfirm = process.argv.includes('--yes');
 
-function hostFromUrl(value) {
+function parseProjectUrl(value) {
   try {
-    return new URL(value).host;
+    return new URL(value);
   } catch {
-    return '';
+    return null;
   }
 }
 
@@ -95,16 +97,18 @@ if (!url || !anonKey) {
   process.exit(1);
 }
 
-const host = hostFromUrl(url);
-if (!host) {
+const projectUrl = parseProjectUrl(url);
+if (!projectUrl) {
   console.error('EXPO_PUBLIC_SUPABASE_URL is not a valid URL.');
   process.exit(1);
 }
 
-console.log(host);
+console.log(`Supabase project URL: ${projectUrl.href}`);
 
-if (!yesLive) {
-  console.error('Re-run with --yes-live to seed the live project.');
+if (!demoEmail) {
+  console.error(
+    'DEMO_EMAIL is missing. Export it in the shell. Do not put it in .env or EXPO_PUBLIC_*.',
+  );
   process.exit(1);
 }
 
@@ -115,11 +119,57 @@ if (!demoPassword) {
   process.exit(1);
 }
 
+function printResetDryRun() {
+  console.log('');
+  console.log('Dry run (--reset without --yes). No data was changed.');
+  console.log('');
+  console.log(`Would sign in as: ${demoEmail}`);
+  console.log(
+    `Would look up a farm named "${FARM_NAME}" owned by that user.`,
+  );
+  console.log(
+    'If found, would clear animal parent links, then delete rows in this order (owner DELETE RLS):',
+  );
+  console.log('  - animals: set dam_id, sire_id, litter_id to null (UPDATE)');
+  for (const table of DELETE_ORDER) {
+    console.log(`  - ${table}`);
+  }
+  console.log(
+    `  - farms row named "${FARM_NAME}" (may fail: no DELETE policy on farms for the anon key)`,
+  );
+  console.log('');
+  console.log(
+    'Then would run the normal seed (skip insert if the farm still exists).',
+  );
+  console.log('');
+  console.log(
+    'To perform reset and re-seed on the live project, re-run with --yes-live --reset --yes',
+  );
+  console.log('(with DEMO_EMAIL and DEMO_PASSWORD still exported).');
+}
+
+if (reset && !yesConfirm) {
+  printResetDryRun();
+  process.exit(0);
+}
+
+if (reset && !yesLive) {
+  console.error(
+    'Reset that changes data requires --yes-live as well as --reset --yes.',
+  );
+  process.exit(1);
+}
+
+if (!yesLive) {
+  console.error('Re-run with --yes-live to seed the live project.');
+  process.exit(1);
+}
+
 const supabase = createClient(url, anonKey);
 
 async function ensureSession() {
   const signIn = await supabase.auth.signInWithPassword({
-    email: DEMO_EMAIL,
+    email: demoEmail,
     password: demoPassword,
   });
   if (!signIn.error && signIn.data.session) {
@@ -127,7 +177,7 @@ async function ensureSession() {
   }
 
   const signUp = await supabase.auth.signUp({
-    email: DEMO_EMAIL,
+    email: demoEmail,
     password: demoPassword,
   });
   if (signUp.error) {
@@ -138,7 +188,7 @@ async function ensureSession() {
   }
 
   const retry = await supabase.auth.signInWithPassword({
-    email: DEMO_EMAIL,
+    email: demoEmail,
     password: demoPassword,
   });
   if (retry.error || !retry.data.session) {
@@ -162,7 +212,7 @@ async function farmAlreadySeeded() {
 
 async function signInOnly() {
   const signIn = await supabase.auth.signInWithPassword({
-    email: DEMO_EMAIL,
+    email: demoEmail,
     password: demoPassword,
   });
   if (signIn.error || !signIn.data.session || !signIn.data.user) {
@@ -185,7 +235,7 @@ async function assertDemoOwner(farmId, userId) {
   }
   if (!data || data.role !== 'owner' || data.user_id !== userId) {
     throw new Error(
-      `Refusing to reset: ${FARM_NAME} is not owned by ${DEMO_EMAIL}.`,
+      `Refusing to reset: ${FARM_NAME} is not owned by ${demoEmail}.`,
     );
   }
 }
@@ -736,7 +786,7 @@ run()
     console.log('');
     console.log('Demo account ready');
     console.log('--------------------');
-    console.log(`Email:    ${DEMO_EMAIL}`);
+    console.log(`Email:    ${demoEmail}`);
     console.log('Password: set in the shell as DEMO_PASSWORD (not printed)');
     console.log(`Farm:     ${FARM_NAME} (${farmId})`);
     if (skipped) {

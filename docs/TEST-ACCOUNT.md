@@ -7,10 +7,10 @@ Use this account to explore Bloodline Book with pre-loaded herd data. Safe for d
 | Field | Value |
 |-------|--------|
 | **Email** | `demo@bloodlinebook.test` |
-| **Password** | Set by the repo owner and kept outside this repo |
+| **Password** | In the repo owner’s password manager (not in git) |
 | **Farm name** | Willow Creek Demo |
 
-The password is **not** stored in git, `.env`, or any `EXPO_PUBLIC_*` variable. The owner exports it in the shell as `DEMO_PASSWORD` when seeding or signing in for a demo. Ask the owner for it. Do not commit it.
+The email and password are **not** stored in git, `.env`, or any `EXPO_PUBLIC_*` variable. The owner keeps them in a password manager and exports them in the shell as `DEMO_EMAIL` and `DEMO_PASSWORD` when seeding or signing in for a demo.
 
 Sign in with email and password (no magic link). Email confirmation is disabled on dev Supabase projects.
 
@@ -29,19 +29,32 @@ After sign-in, open **Today**, **More → Tasks** (Open / Done), **Breeding cale
 
 ## Refresh or recreate data
 
-From the repo root (uses the anon key in `.env`; run `bash scripts/setup-env.sh` first on Cloud Agent). The script prints only the Supabase host and refuses to write unless `--yes-live` is passed.
+From the repo root (uses the anon key in `.env`; run `bash scripts/setup-env.sh` first on Cloud Agent). The script prints the Supabase project URL and refuses to write unless `--yes-live` is passed.
 
 ```bash
-export DEMO_PASSWORD='the-password-kept-outside-the-repo'
+export DEMO_EMAIL='demo@bloodlinebook.test'
+export DEMO_PASSWORD='…from password manager…'
 npm run seed:demo -- --yes-live
 ```
 
 If a farm named `Willow Creek Demo` already exists for this user, the script leaves it unchanged.
 
-To delete that farm's rows and seed it again, pass `--reset`. The script signs in as the demo user and only deletes the farm named `Willow Creek Demo` that this user owns. `farms` has no DELETE policy, so the anon key cannot remove the farm row itself. If that happens, the script stops, lists what is left, and prints SQL to run in the Supabase SQL editor. It does not seed a second copy while the old farm row remains.
+To delete that farm’s rows and seed it again, pass `--reset`. Without `--yes`, the script only prints what it would do (dry run; no database changes). With `--yes-live --reset --yes`, it signs in as the demo user and only deletes the farm named `Willow Creek Demo` that this user owns. `farms` has no DELETE policy, so the anon key cannot remove the farm row itself. If that happens, the script stops, lists what is left, and prints SQL to run in the Supabase SQL editor. It does not seed a second copy while the old farm row remains.
+
+Dry run (safe; does not connect for writes):
 
 ```bash
-npm run seed:demo -- --yes-live --reset
+export DEMO_EMAIL='demo@bloodlinebook.test'
+export DEMO_PASSWORD='…from password manager…'
+npm run seed:demo -- --reset
+```
+
+Reset and re-seed on the live project:
+
+```bash
+export DEMO_EMAIL='demo@bloodlinebook.test'
+export DEMO_PASSWORD='…from password manager…'
+npm run seed:demo -- --yes-live --reset --yes
 ```
 
 ## Backend
