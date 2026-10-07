@@ -201,6 +201,123 @@ On Windows, point Task Scheduler at Git Bash with the same command, for example:
 
 Paths with spaces are fine. Quote them.
 
+## Off-site encrypted backup (`scripts/backup-offsite.sh`)
+
+**When to run it:** after `scripts/backup-db.sh` on a schedule, or instead of copying the backup folder by hand. The script runs `backup-db.sh`, encrypts the three SQL files for that run, uploads them with `rclone`, checks remote file sizes, keeps the newest **8** complete sets on the remote, and deletes the local **plaintext** SQL files for that set. Encrypted blobs may remain in `BACKUP_DIR` until you remove them.
+
+This repository is public. Do **not** add a GitHub Actions workflow that uploads backups. Use your own machine, a private cron host, or a Cursor Cloud Agent secret set on a manual schedule.
+
+The script never reads `.env`, never prints `SUPABASE_DB_URL` or `BACKUP_PASSPHRASE`, and refuses to run when `BACKUP_DIR` is inside this git checkout (same rule as `backup-db.sh`).
+
+### One-time setup
+
+1. **Create a private bucket** on [Backblaze B2](https://www.backblaze.com/b2/cloud-storage.html) or [Cloudflare R2](https://developers.cloudflare.com/r2/). Block public access. Use a dedicated bucket for Bloodline backups only.
+
+2. **Create an access key** limited to that bucket (read, write, list, delete on that bucket prefix only). Do not reuse keys from the app or from Supabase.
+
+3. **Install tools** on the machine that will run backups: PostgreSQL client (`pg_dump`, `psql`), `rclone`, and either [`age`](https://github.com/FiloSottile/age) or OpenSSL. The script prefers `age` when it is on `PATH`; otherwise it uses `openssl enc -aes-256-cbc -pbkdf2 -salt`.
+
+4. **Configure rclone only with environment variables** (no `rclone.conf` in this repo). The remote name is always `offsite`. Examples:
+
+   **Cloudflare R2**
+
+   ```bash
+   export RCLONE_CONFIG_OFFSITE_TYPE=s3
+   export RCLONE_CONFIG_OFFSITE_PROVIDER=Cloudflare
+   export RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID='your-r2-access-key-id'
+   export RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY='your-r2-secret'
+   export RCLONE_CONFIG_OFFSITE_ENDPOINT='https://<account-id>.r2.cloudflarestorage.com'
+   export RCLONE_CONFIG_OFFSITE_ACL=private
+   export BACKUP_REMOTE_PATH='offsite:your-bucket-name/bloodline'
+   ```
+
+   **Backblaze B2 (S3-compatible API)**
+
+   ```bash
+   export RCLONE_CONFIG_OFFSITE_TYPE=s3
+   export RCLONE_CONFIG_OFFSITE_PROVIDER=Other
+   export RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID='your-b2-key-id'
+   export RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY='your-b2-application-key'
+   export RCLONE_CONFIG_OFFSITE_ENDPOINT='https://s3.<region>.backblazeb2.com'
+   export RCLONE_CONFIG_OFFSITE_ACL=private
+   export BACKUP_REMOTE_PATH='offsite:your-bucket-name/bloodline'
+   ```
+
+   Adjust `BACKUP_REMOTE_PATH` to your bucket and folder. The part before the colon must be `offsite`.
+
+5. **Cursor secrets (or your shell profile on a private host)** — store these outside the repo; never commit values:
+
+   | Secret | Purpose |
+   |--------|---------|
+   | `SUPABASE_DB_URL` | Session pooler URI for `backup-db.sh` |
+   | `BACKUP_DIR` | Absolute path **outside** this repository |
+   | `BACKUP_PASSPHRASE` | Encrypts every backup file (long random string) |
+   | `BACKUP_REMOTE_PATH` | e.g. `offsite:my-bucket/bloodline` |
+   | `RCLONE_CONFIG_OFFSITE_TYPE` | `s3` for B2 or R2 |
+   | `RCLONE_CONFIG_OFFSITE_PROVIDER` | `Cloudflare` or `Other` (B2) |
+   | `RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID` | Bucket-scoped key |
+   | `RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY` | Bucket-scoped secret |
+   | `RCLONE_CONFIG_OFFSITE_ENDPOINT` | Provider endpoint URL |
+   | `RCLONE_CONFIG_OFFSITE_ACL` | `private` |
+
+   Add any other `RCLONE_CONFIG_OFFSITE_*` options your provider requires. Test with `rclone lsd "$BACKUP_REMOTE_PATH"` before the first backup.
+
+6. **Rehearse restore once** from a copy you download from the bucket (see below). A backup you have never restored is only a hope.
+
+### Run
+
+```bash
+set -a
+# shellcheck disable=SC1090
+source "$HOME/.config/bloodline/db-url.env"
+set +a
+export BACKUP_DIR="$HOME/bloodline-backups"
+export BACKUP_PASSPHRASE='your-long-random-passphrase'
+# export RCLONE_CONFIG_OFFSITE_* and BACKUP_REMOTE_PATH as above
+bash /path/to/bloodline_book/scripts/backup-offsite.sh
+```
+
+Run weekly (or use the same cron as `backup-db.sh` but call `backup-offsite.sh` instead of `backup-db.sh` alone). Run again before migrations, bulk deletes, and `npm run test:isolation`.
+
+### Download, decrypt, and restore
+
+1. Download the three encrypted files for one timestamp from the bucket (rclone, provider UI, or CLI). Example:
+
+   ```bash
+   export BACKUP_REMOTE_PATH='offsite:your-bucket/bloodline'
+   mkdir -p "$HOME/bloodline-restore-incoming"
+   rclone copy "$BACKUP_REMOTE_PATH" "$HOME/bloodline-restore-incoming" \
+     --include 'bloodline-*-20260101T120000Z.sql.*'
+   ```
+
+2. **Decrypt** each file into a directory that is **not** inside this git repo (for example `$HOME/bloodline-backups`):
+
+   **If the files end in `.age` (age):**
+
+   ```bash
+   export BACKUP_PASSPHRASE='same passphrase used at backup time'
+   age -d -p -o "$HOME/bloodline-backups/bloodline-schema-20260101T120000Z.sql" \
+     "$HOME/bloodline-restore-incoming/bloodline-schema-20260101T120000Z.sql.age"
+   # repeat for auth and data
+   ```
+
+   **If the files end in `.enc` (OpenSSL):**
+
+   ```bash
+   export BACKUP_PASSPHRASE='same passphrase used at backup time'
+   openssl enc -d -aes-256-cbc -pbkdf2 \
+     -in "$HOME/bloodline-restore-incoming/bloodline-schema-20260101T120000Z.sql.enc" \
+     -out "$HOME/bloodline-backups/bloodline-schema-20260101T120000Z.sql" \
+     -pass env:BACKUP_PASSPHRASE
+   # repeat for auth and data
+   ```
+
+3. **Restore** with `scripts/restore-db.sh` into a **scratch** Supabase project first (see [Test a restore](#test-a-restore)). Only use [Disaster recovery in place](#disaster-recovery-in-place) when you intend to rebuild the farmer project.
+
+4. **Rehearsal:** at least once, download a set from the remote (not only from local disk), decrypt it, and run a scratch restore. Confirm goats and auth work, then delete the scratch project. Update your calendar when you last rehearsed.
+
+Plaintext SQL after decrypt still contains emails and password hashes. Keep it out of the repo and off sync folders.
+
 ### Restore (`scripts/restore-db.sh`)
 
 Restore only into a scratch project. The script reads `RESTORE_DB_URL` and `BACKUP_DIR` from the shell. Pass a timestamp to choose a set, or pass nothing to use the newest complete set.

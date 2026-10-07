@@ -6,6 +6,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRET="super-secret-password"
+OFFSITE_PASS="offsite-test-passphrase-not-real"
 URL="postgresql://postgres:${SECRET}@db.example.test:5432/postgres"
 STAMP="20260101T000000Z"
 TMP="$(mktemp -d)"
@@ -61,6 +62,34 @@ assert_no_secret() {
   if [[ "$OUT" == *"postgresql://"* ]]; then
     fail "${label}: output contained a database URL"
   fi
+}
+
+assert_no_offsite_secret() {
+  local label="$1"
+  if [[ "$OUT" == *"$OFFSITE_PASS"* ]]; then
+    fail "${label}: output contained BACKUP_PASSPHRASE"
+  fi
+}
+
+ensure_rclone() {
+  if command -v rclone >/dev/null 2>&1; then
+    return 0
+  fi
+  local rclone_bin="$TMP/rclone-bin"
+  mkdir -p "$rclone_bin"
+  if [[ ! -x "$rclone_bin/rclone" ]]; then
+    if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then
+      fail "rclone is not installed and curl/unzip are unavailable to fetch a test binary"
+    fi
+    curl -fsSL "https://downloads.rclone.org/rclone-current-linux-amd64.zip" -o "$TMP/rclone.zip" \
+      || fail "could not download rclone for off-site backup tests"
+    unzip -q -j "$TMP/rclone.zip" "rclone-*-linux-amd64/rclone" -d "$rclone_bin" \
+      || fail "could not unpack rclone for off-site backup tests"
+    chmod +x "$rclone_bin/rclone"
+  fi
+  PATH="$rclone_bin:$PATH"
+  export PATH
+  command -v rclone >/dev/null 2>&1 || fail "rclone is required for off-site backup dry-run tests"
 }
 
 write_backup() {
@@ -355,5 +384,79 @@ set -e
 assert_eq "$STATUS" "0" "--url-var status"
 assert_no_secret "--url-var"
 assert_grep "^# host=db\\.other\\.test timestamp=" "--url-var host"
+
+# backup-offsite.sh: dry-run with fake SQL, local rclone remote, no database.
+ensure_rclone
+OFFSITE_BACKUP="$TMP/offsite-backup"
+OFFSITE_REMOTE="$TMP/offsite-remote"
+mkdir -p "$OFFSITE_BACKUP" "$OFFSITE_REMOTE"
+printf '%s\n' '-- schema fixture' >"$OFFSITE_BACKUP/bloodline-schema-${STAMP}.sql"
+printf '%s\n' '-- auth fixture' >"$OFFSITE_BACKUP/bloodline-auth-${STAMP}.sql"
+printf '%s\n' '-- data fixture with content' >"$OFFSITE_BACKUP/bloodline-data-${STAMP}.sql"
+
+set +e
+OUT="$(
+  PATH="$TMP/rclone-bin:$PATH" \
+    BACKUP_PASSPHRASE="$OFFSITE_PASS" \
+    BACKUP_DIR="$OFFSITE_BACKUP" \
+    BACKUP_OFFSITE_SKIP_DUMP=yes \
+    BACKUP_OFFSITE_STAMP="$STAMP" \
+    BACKUP_REMOTE_PATH="offsite:${OFFSITE_REMOTE}" \
+    RCLONE_CONFIG_OFFSITE_TYPE=local \
+    bash "$ROOT/scripts/backup-offsite.sh" 2>&1
+)"
+STATUS=$?
+set -e
+assert_eq "$STATUS" "0" "backup-offsite dry-run status"
+assert_no_offsite_secret "backup-offsite dry-run"
+assert_grep "Off-site backup complete" "backup-offsite dry-run"
+for plain in schema auth data; do
+  if [[ -f "$OFFSITE_BACKUP/bloodline-${plain}-${STAMP}.sql" ]]; then
+    fail "backup-offsite dry-run: plaintext bloodline-${plain}-${STAMP}.sql was not removed"
+  fi
+done
+enc_count=0
+for enc in "$OFFSITE_BACKUP"/bloodline-*-"${STAMP}".sql.*; do
+  [[ -f "$enc" ]] && enc_count=$((enc_count + 1))
+done
+if ((enc_count != 3)); then
+  fail "backup-offsite dry-run: expected 3 encrypted files locally, got ${enc_count}"
+fi
+remote_enc=0
+for enc in "$OFFSITE_REMOTE"/bloodline-*-"${STAMP}".sql.*; do
+  [[ -f "$enc" ]] && remote_enc=$((remote_enc + 1))
+done
+if ((remote_enc != 3)); then
+  fail "backup-offsite dry-run: expected 3 encrypted files on remote, got ${remote_enc}"
+fi
+
+set +e
+OUT="$(
+  PATH="$TMP/rclone-bin:$PATH" \
+    BACKUP_PASSPHRASE="$OFFSITE_PASS" \
+    BACKUP_DIR="$ROOT/backups-inside-repo" \
+    BACKUP_OFFSITE_SKIP_DUMP=yes \
+    BACKUP_REMOTE_PATH="offsite:${OFFSITE_REMOTE}" \
+    RCLONE_CONFIG_OFFSITE_TYPE=local \
+    bash "$ROOT/scripts/backup-offsite.sh" 2>&1
+)"
+STATUS=$?
+set -e
+assert_eq "$STATUS" "1" "backup-offsite inside-repo status"
+assert_grep "inside the git repository" "backup-offsite inside-repo"
+assert_no_offsite_secret "backup-offsite inside-repo"
+
+set +e
+OUT="$(
+  BACKUP_DIR="$OFFSITE_BACKUP" \
+    BACKUP_OFFSITE_SKIP_DUMP=yes \
+    BACKUP_REMOTE_PATH="offsite:${OFFSITE_REMOTE}" \
+    RCLONE_CONFIG_OFFSITE_TYPE=local \
+    bash "$ROOT/scripts/backup-offsite.sh" 2>&1
+)"
+STATUS=$?
+set -e
+assert_eq "$STATUS" "1" "backup-offsite missing passphrase status"
+assert_grep "BACKUP_PASSPHRASE is not set" "backup-offsite missing passphrase"
 
 echo "assert-restore-guards: ok"
