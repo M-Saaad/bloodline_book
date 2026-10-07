@@ -42,10 +42,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setIsLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setIsLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, nextSession) => {
