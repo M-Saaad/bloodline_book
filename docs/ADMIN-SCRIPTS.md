@@ -57,11 +57,27 @@ If `redirect_to` is missing or wrong, set **Site URL** / **Redirect URLs** in Su
 
 **When to use it:** A farmer asks for a copy of their herd records, and there is no in-app export button yet. This is how you honour that request.
 
-The script writes one CSV per farm-scoped table under `exports/<farm-slug>-<YYYY-MM-DD>/`. Foreign-key ids stay in their original columns. Where it is straightforward, a readable name (and tag, for goats) is added in the next column — for example `animal_id` plus `animal_name` and `animal_tag`.
+The script discovers farm-scoped tables from `supabase/migrations/` (any table with a `farm_id` column) and writes one CSV per table under `exports/<farm-slug>-<YYYY-MM-DD>/`. Foreign-key ids stay in their original columns. Where it is straightforward, a readable name (and tag, for goats) is added in the next column — for example `animal_id` plus `animal_name` and `animal_tag`.
 
 It does **not** export `farm_members` or `farm_invites`. Those tables hold other people’s email addresses.
 
-`exports/` is gitignored. Do not commit the files. Send them to the farmer through a channel you already use for support, then delete the folder from this machine.
+`exports/` is gitignored. Do not commit the files.
+
+### Send the files safely
+
+Until the app has an in-app export, this is how you honour a farmer’s data request. Treat the CSVs like any other sensitive herd record.
+
+1. Zip the export folder with a password. On macOS or Linux, for example:
+
+   ```bash
+   zip -er willow-creek-export.zip exports/willow-creek-2026-10-07
+   ```
+
+   (`zip` prompts for the password interactively; do not put the password in shell history.)
+
+2. Send the zip through your usual support channel (email attachment, ticket, etc.).
+3. Send the zip password **separately** — another message, another channel, or after the farmer confirms they received the file.
+4. When the farmer confirms they have the data, delete the zip and the `exports/` folder from your machine.
 
 ### Run
 
