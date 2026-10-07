@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapAnimal, mapKiddingEvent } from '@/lib/db/mappers';
+import { formatDisplayDate } from '@/lib/dates';
 import { litterSummaryLabel } from '@/lib/domain/kidding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
@@ -68,7 +69,7 @@ export default function KiddingSummaryScreen() {
         <Text className="text-xl font-bold text-gray-900 mb-1">
           {litterSummaryLabel(kidding.kidsBorn, alive)}
         </Text>
-        <Text className="text-gray-600">{kidding.kidDate}</Text>
+        <Text className="text-gray-600">{formatDisplayDate(kidding.kidDate)}</Text>
       </Card>
 
       {(kidRows ?? []).length === 0 ? (
@@ -90,7 +91,9 @@ export default function KiddingSummaryScreen() {
               </Text>
               <Text className="text-gray-600 capitalize mt-1">
                 {kid.sex}
-                {weight != null ? ` · ${weight} ${unit ?? ''}` : ' · no birth weight'}
+                {weight != null
+                  ? ` · ${weight} ${unit ?? activeFarm.weightUnit}`
+                  : ' · no birth weight'}
               </Text>
             </Pressable>
           );

@@ -1,5 +1,5 @@
 import * as Linking from 'expo-linking';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { Platform, Pressable, ScrollView, Text } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -22,6 +22,12 @@ export default function HelpScreen() {
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4 gap-4">
       <Card>
+        {Platform.OS === 'web' ? (
+          <Text className="text-base text-gray-700 mb-4">
+            On iPhone, tap Share, then Add to Home Screen, and open the app from
+            there. Wait for All saved before closing it.
+          </Text>
+        ) : null}
         <Text className="text-base text-gray-700 mb-4">
           If the app says changes are not saved, take a screenshot and send it
           to us.

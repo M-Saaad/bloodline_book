@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { todayIso } from '@/lib/dates';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapTask } from '@/lib/db/mappers';
 import { setTaskCompleted } from '@/lib/db/documents';
 import { taskTitleWithGoatName } from '@/lib/domain/health';
@@ -173,7 +173,7 @@ export default function TasksScreen() {
                 </Text>
                 {item.dueDate ? (
                   <Text className="text-gray-500 text-sm mt-1">
-                    Due {item.dueDate}
+                    Due {formatDisplayDate(item.dueDate)}
                   </Text>
                 ) : null}
               </View>

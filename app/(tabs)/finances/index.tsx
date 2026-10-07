@@ -8,6 +8,8 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapTransaction } from '@/lib/db/mappers';
+import { formatDisplayDate } from '@/lib/dates';
+import { formatFarmCurrency } from '@/lib/format/money';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function FinancesScreen() {
@@ -46,6 +48,7 @@ export default function FinancesScreen() {
   }
 
   const currency = activeFarm.currency;
+  const formatMoney = (amount: number) => formatFarmCurrency(amount, currency);
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -54,19 +57,19 @@ export default function FinancesScreen() {
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-600">Revenue</Text>
             <Text className="text-green-700 font-semibold">
-              {currency} {revenue.toFixed(2)}
+              {formatMoney(revenue)}
             </Text>
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-600">Expenses</Text>
             <Text className="text-red-700 font-semibold">
-              {currency} {expenses.toFixed(2)}
+              {formatMoney(expenses)}
             </Text>
           </View>
           <View className="flex-row justify-between pt-2 border-t border-gray-100">
             <Text className="text-gray-900 font-medium">Net</Text>
             <Text className="text-gray-900 font-bold">
-              {currency} {(revenue - expenses).toFixed(2)}
+              {formatMoney(revenue - expenses)}
             </Text>
           </View>
         </Card>
@@ -104,13 +107,15 @@ export default function FinancesScreen() {
               />
             </View>
             <View className="flex-row justify-between">
-              <Text className="text-gray-500">{item.date}</Text>
+              <Text className="text-gray-500">
+                {formatDisplayDate(item.date)}
+              </Text>
               <Text
                 className={`font-semibold ${
                   item.kind === 'revenue' ? 'text-green-700' : 'text-red-700'
                 }`}>
                 {item.kind === 'revenue' ? '+' : '-'}
-                {currency} {item.amount.toFixed(2)}
+                {formatMoney(item.amount)}
               </Text>
             </View>
             {item.notes ? (

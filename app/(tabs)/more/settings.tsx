@@ -6,6 +6,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { updateFarmSettings } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
+import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
 
 const WEIGHT_UNITS: Farm['weightUnit'][] = ['lb', 'kg'];
@@ -74,6 +75,17 @@ export default function SettingsScreen() {
       weaning = Number.parseInt(weaningDays, 10);
       if (!Number.isFinite(weaning) || weaning <= 0) {
         setErrorMessage('Enter weaning days as a positive number, or leave it blank to turn weaning reminders off.');
+        return;
+      }
+    }
+
+    if (weightUnit !== activeFarm.weightUnit) {
+      const proceed = await confirmAction(
+        'Change weight unit?',
+        'Existing weights keep the unit they were entered in. Only new weights use the updated farm default.',
+        'Change unit',
+      );
+      if (!proceed) {
         return;
       }
     }

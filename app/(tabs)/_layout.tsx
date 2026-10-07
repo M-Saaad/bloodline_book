@@ -1,5 +1,6 @@
 import { router, Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RequireAuth } from '@/components/RequireAuth';
 import { syncBadgeHeaderRight } from '@/components/SyncBadge';
@@ -14,6 +15,12 @@ function TabIcon({ label }: { label: string }) {
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const webTabBarStyle =
+    Platform.OS === 'web'
+      ? { paddingBottom: Math.max(insets.bottom, 8) }
+      : undefined;
+
   return (
     <RequireAuth>
     <Tabs
@@ -24,6 +31,7 @@ export default function TabLayout() {
         headerTintColor: '#752c26',
         headerTitleStyle: { fontWeight: '600' },
         headerRight: syncBadgeHeaderRight(),
+        tabBarStyle: webTabBarStyle,
       }}>
       <Tabs.Screen
         name="dashboard"

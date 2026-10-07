@@ -10,7 +10,7 @@ import { DateField } from '@/components/ui/DateField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { todayIso } from '@/lib/dates';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
 import { startOrAppendWeighSession } from '@/lib/db/weights';
 import { animalMatchesSearch, formatLivestockRowTitle } from '@/lib/domain/animals';
@@ -399,7 +399,7 @@ export default function WeighDayScreen() {
               </Text>
               <Text className="text-gray-800 mt-2">
                 {last
-                  ? `Last ${last.value} ${last.unit} on ${last.date}`
+                  ? `Last ${last.value} ${last.unit} on ${formatDisplayDate(last.date)}`
                   : 'No earlier weight'}
               </Text>
               <Text className="text-5xl font-bold text-gray-900 text-center mt-6">
@@ -459,19 +459,27 @@ export default function WeighDayScreen() {
                         : herdRowSubtitle(item)}
                     </Text>
                   </View>
-                  <TextInput
-                    value={drafts[item.id] ?? (saved[item.id] != null ? String(saved[item.id]) : '')}
-                    onChangeText={(value) =>
-                      setDrafts((currentDrafts) => ({
-                        ...currentDrafts,
-                        [item.id]: value,
-                      }))
-                    }
-                    keyboardType="decimal-pad"
-                    placeholder="0"
-                    className="w-28 min-h-[48px] border border-gray-300 rounded-xl px-3 text-right text-xl bg-white text-gray-900"
-                    placeholderTextColor="#4b5563"
-                  />
+                  <View className="flex-row items-center gap-2">
+                    <TextInput
+                      value={
+                        drafts[item.id] ??
+                        (saved[item.id] != null ? String(saved[item.id]) : '')
+                      }
+                      onChangeText={(value) =>
+                        setDrafts((currentDrafts) => ({
+                          ...currentDrafts,
+                          [item.id]: value,
+                        }))
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      className="w-28 min-h-[48px] border border-gray-300 rounded-xl px-3 text-right text-xl bg-white text-gray-900"
+                      placeholderTextColor="#4b5563"
+                    />
+                    <Text className="text-gray-700 font-medium w-8">
+                      {activeFarm.weightUnit}
+                    </Text>
+                  </View>
                 </View>
               )}
             />

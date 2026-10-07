@@ -46,7 +46,7 @@
     "web": "bash scripts/setup-env.sh && expo start --web",
     "build:web": "bash scripts/vercel-build.sh",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/assert-jwt-sanitize.mjs && node scripts/assert-upload-errors.mjs && node scripts/assert-land-domain.mjs && node scripts/assert-breeding-health-domain.mjs && node scripts/assert-phase5.mjs && node scripts/assert-phase6.mjs && node scripts/assert-phase7.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-phase8-11.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-trial-fixes.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-animal-picker.mjs && bash scripts/assert-restore-guards.sh",
+    "test": "node scripts/assert-jwt-sanitize.mjs && node scripts/assert-upload-errors.mjs && node scripts/assert-land-domain.mjs && node scripts/assert-breeding-health-domain.mjs && node scripts/assert-phase5.mjs && node scripts/assert-phase6.mjs && node scripts/assert-phase7.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-phase8-11.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-trial-fixes.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-animal-picker.mjs && node --experimental-strip-types --import ./scripts/register-alias.mjs scripts/assert-units-audit.mjs && bash scripts/assert-restore-guards.sh",
     "test:phase7:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 node scripts/phase7-thorough-test.mjs",
     "seed:demo": "node scripts/seed-demo-account.mjs",
     "test:isolation": "node scripts/assert-farm-isolation.mjs"
