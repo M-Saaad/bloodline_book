@@ -1,12 +1,16 @@
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { Pressable, ScrollView, Text } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { databaseTarget } from '@/lib/config/database';
 import {
   SUPPORT_EMAIL,
   SUPPORT_WHATSAPP_URL,
 } from '@/lib/config/support';
+
+const appVersion = Constants.expoConfig?.version ?? 'unknown';
 
 async function openEmail() {
   await Linking.openURL(`mailto:${SUPPORT_EMAIL}`);
@@ -45,6 +49,10 @@ export default function HelpScreen() {
           }}
         />
       </Card>
+
+      <Text className="text-center text-xs text-gray-500">
+        Version {appVersion} · {databaseTarget}
+      </Text>
     </ScrollView>
   );
 }
