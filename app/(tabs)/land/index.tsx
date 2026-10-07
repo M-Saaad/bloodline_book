@@ -166,11 +166,11 @@ export default function LandScreen() {
                   {formatDisplayDate(item.date)}
                 </Text>
               </View>
-              <Text className="text-gray-700">
-                {item.quantity != null
-                  ? `${item.quantity} ${item.unit}`
-                  : item.unit}
-              </Text>
+              {item.quantity != null ? (
+                <Text className="text-gray-700">
+                  {item.quantity} {item.unit}
+                </Text>
+              ) : null}
             </View>
           ))
         )}

@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -16,12 +17,16 @@ const SEGMENTS: { value: Farm['segment']; label: string }[] = [
   { value: 'both', label: 'Both' },
 ];
 
+const WEIGHT_UNITS: Farm['weightUnit'][] = ['lb', 'kg'];
+
 export default function CreateFarmScreen() {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const { farms, activeFarm, isLoading: farmsLoading, refreshFarms } =
     useFarm();
   const [name, setName] = useState('');
   const [segment, setSegment] = useState<Farm['segment']>('meat');
+  const [weightUnit, setWeightUnit] = useState<Farm['weightUnit']>('lb');
+  const [currency, setCurrency] = useState('USD');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -58,6 +63,8 @@ export default function CreateFarmScreen() {
       const farmId = await createFarm({
         name: name.trim(),
         segment,
+        weightUnit,
+        currency: currency.trim().toUpperCase() || 'USD',
       });
       setActiveFarmId(farmId);
       await refreshFarms();
@@ -72,9 +79,7 @@ export default function CreateFarmScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="px-6 py-8">
+    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
       <Text className="text-2xl font-bold text-bloodline-800 mb-2">
         Set up your farm
       </Text>
@@ -91,7 +96,13 @@ export default function CreateFarmScreen() {
         placeholder="e.g. Red Oak Goat Farm"
       />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Segment</Text>
+      <Text className="text-sm font-medium text-gray-700 mb-1">
+        What do you raise?
+      </Text>
+      <Text className="text-sm text-gray-500 mb-3">
+        This sets which breed list you see. You cannot change it later in
+        Settings.
+      </Text>
       <View className="flex-row gap-2 mb-6">
         {SEGMENTS.map((option) => {
           const selected = segment === option.value;
@@ -115,11 +126,43 @@ export default function CreateFarmScreen() {
         })}
       </View>
 
+      <Input
+        label="Currency"
+        value={currency}
+        onChangeText={setCurrency}
+        placeholder="USD"
+        autoCapitalize="characters"
+      />
+
+      <Text className="text-sm font-medium text-gray-700 mb-2">Weight unit</Text>
+      <View className="flex-row gap-2 mb-6">
+        {WEIGHT_UNITS.map((unit) => {
+          const selected = weightUnit === unit;
+          return (
+            <Pressable
+              key={unit}
+              onPress={() => setWeightUnit(unit)}
+              className={`flex-1 rounded-xl border px-3 py-3 items-center ${
+                selected
+                  ? 'border-bloodline-600 bg-bloodline-50'
+                  : 'border-gray-300 bg-white'
+              }`}>
+              <Text
+                className={`font-medium ${
+                  selected ? 'text-bloodline-700' : 'text-gray-700'
+                }`}>
+                {unit}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Button
         title={loading ? 'Creating…' : 'Create Farm'}
         onPress={handleCreate}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

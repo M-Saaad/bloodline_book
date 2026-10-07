@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 
+import { WebUploadQueueWarning } from '@/components/WebUploadQueueWarning';
 import { ConfirmDialogHost } from '@/components/ui/ConfirmDialogHost';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { FarmProvider } from '@/providers/FarmProvider';
@@ -40,6 +41,7 @@ export default function RootLayout() {
       <PowerSyncProvider>
         <FarmProvider>
           <ConfirmDialogHost />
+          <WebUploadQueueWarning />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />

@@ -1,12 +1,14 @@
 import { useStatus } from '@powersync/react';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { type Href, router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { TEAM_INVITES_ENABLED } from '@/lib/config/features';
+import { countUploadFailures } from '@/lib/powersync/upload-failures';
 import {
   disconnectAndClearPowerSync,
   disconnectPowerSync,
@@ -17,14 +19,23 @@ import { useFarmRole } from '@/hooks/useFarmRole';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
 
-const MENU_ITEMS = [
-  { title: 'Health Log', route: '/(tabs)/more/health' as const },
-  { title: 'Breeding & Kidding', route: '/(tabs)/more/breeding' as const },
-  { title: 'Settings', route: '/(tabs)/more/settings' as const },
-  { title: 'Help', route: '/(tabs)/more/help' as const },
-  { title: 'Tasks', route: '/(tabs)/more/tasks' as const },
-  { title: 'Changes not saved', route: '/(tabs)/more/changes-not-saved' as const },
+type MenuItem = { title: string; route: Href };
+
+const BASE_MENU_ITEMS: MenuItem[] = [
+  { title: 'Health Log', route: '/(tabs)/more/health' },
+  { title: 'Breeding & Kidding', route: '/(tabs)/more/breeding' },
+  { title: 'Settings', route: '/(tabs)/more/settings' },
+  ...(TEAM_INVITES_ENABLED
+    ? [{ title: 'Team', route: '/(tabs)/more/team' as Href }]
+    : []),
+  { title: 'Help', route: '/(tabs)/more/help' },
+  { title: 'Tasks', route: '/(tabs)/more/tasks' },
 ];
+
+const CHANGES_NOT_SAVED_ITEM: MenuItem = {
+  title: 'Changes not saved',
+  route: '/(tabs)/more/changes-not-saved',
+};
 
 function changesPhrase(count: number): string {
   return `${count} ${count === 1 ? 'change' : 'changes'}`;
@@ -44,6 +55,25 @@ export default function MoreScreen() {
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [signOutMessage, setSignOutMessage] = useState('');
   const [pendingQueueCount, setPendingQueueCount] = useState(0);
+  const [showChangesNotSaved, setShowChangesNotSaved] = useState(false);
+
+  const refreshUploadState = useCallback(async () => {
+    const [failureCount, stats] = await Promise.all([
+      countUploadFailures(),
+      powersync.getUploadQueueStats(),
+    ]);
+    setShowChangesNotSaved(failureCount > 0 || stats.count > 0);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshUploadState();
+    }, [refreshUploadState]),
+  );
+
+  const menuItems = showChangesNotSaved
+    ? [...BASE_MENU_ITEMS, CHANGES_NOT_SAVED_ITEM]
+    : BASE_MENU_ITEMS;
 
   async function handleSignOut() {
     setSignOutMessage('');
@@ -121,9 +151,9 @@ export default function MoreScreen() {
       )}
 
       <Card>
-        {MENU_ITEMS.map((item) => (
+        {menuItems.map((item) => (
           <Pressable
-            key={item.route}
+            key={item.title}
             onPress={() => router.push(item.route)}
             className="py-3 border-b border-gray-100 active:bg-gray-50">
             <Text className="text-base font-medium text-gray-900">

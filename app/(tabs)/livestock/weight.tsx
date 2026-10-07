@@ -10,7 +10,7 @@ import { DateField } from '@/components/ui/DateField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { todayIso } from '@/lib/dates';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
 import { startOrAppendWeighSession } from '@/lib/db/weights';
 import { animalMatchesSearch, formatLivestockRowTitle } from '@/lib/domain/animals';
@@ -26,7 +26,7 @@ import type { WeighSession } from '@/lib/types/weight';
 import { useFarm } from '@/providers/FarmProvider';
 
 const WEIGH_POINTS: { value: WeighSession['weighPoint']; label: string }[] = [
-  { value: 'ad_hoc', label: 'Ad hoc' },
+  { value: 'ad_hoc', label: 'Any time' },
   { value: 'birth', label: 'Birth' },
   { value: '30_day', label: '30 day' },
   { value: '60_day', label: '60 day' },
@@ -305,7 +305,7 @@ export default function WeighDayScreen() {
         <EmptyState
           title="No animals to weigh"
           description="Add animals before running weigh day."
-          actionLabel="Add Animal"
+          actionLabel="Add goat"
           onAction={() => router.push('/(tabs)/livestock/add')}
         />
       </HandWriteBlocked>
@@ -321,7 +321,7 @@ export default function WeighDayScreen() {
             Saved on this phone.
           </Text>
           <Text className="text-lg text-gray-800 mt-3">
-            It will sync when you have a signal.
+            They will upload when you have internet.
           </Text>
           <Text className="text-gray-700 mt-3">
             {count} weight{count === 1 ? '' : 's'} recorded.
@@ -363,7 +363,7 @@ export default function WeighDayScreen() {
           </Text>
           <View className="flex-row gap-2 mt-3">
             <ModeButton
-              label="One at a time"
+              label="One by one"
               selected={mode === 'chute'}
               onPress={() => setMode('chute')}
             />
@@ -375,7 +375,7 @@ export default function WeighDayScreen() {
           </View>
           {savedOnPhone ? (
             <Text className="text-gray-900 font-medium mt-3">
-              Saved on this phone. Waiting for signal.
+              Saved on this phone. Waiting for internet.
             </Text>
           ) : null}
           <FormMessage message={errorMessage} tone="error" />
@@ -399,7 +399,7 @@ export default function WeighDayScreen() {
               </Text>
               <Text className="text-gray-800 mt-2">
                 {last
-                  ? `Last ${last.value} ${last.unit} on ${last.date}`
+                  ? `Last ${last.value} ${last.unit} on ${formatDisplayDate(last.date)}`
                   : 'No earlier weight'}
               </Text>
               <Text className="text-5xl font-bold text-gray-900 text-center mt-6">
@@ -459,19 +459,27 @@ export default function WeighDayScreen() {
                         : herdRowSubtitle(item)}
                     </Text>
                   </View>
-                  <TextInput
-                    value={drafts[item.id] ?? (saved[item.id] != null ? String(saved[item.id]) : '')}
-                    onChangeText={(value) =>
-                      setDrafts((currentDrafts) => ({
-                        ...currentDrafts,
-                        [item.id]: value,
-                      }))
-                    }
-                    keyboardType="decimal-pad"
-                    placeholder="0"
-                    className="w-28 min-h-[48px] border border-gray-300 rounded-xl px-3 text-right text-xl bg-white text-gray-900"
-                    placeholderTextColor="#4b5563"
-                  />
+                  <View className="flex-row items-center gap-2">
+                    <TextInput
+                      value={
+                        drafts[item.id] ??
+                        (saved[item.id] != null ? String(saved[item.id]) : '')
+                      }
+                      onChangeText={(value) =>
+                        setDrafts((currentDrafts) => ({
+                          ...currentDrafts,
+                          [item.id]: value,
+                        }))
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      className="w-28 min-h-[48px] border border-gray-300 rounded-xl px-3 text-right text-xl bg-white text-gray-900"
+                      placeholderTextColor="#4b5563"
+                    />
+                    <Text className="text-gray-700 font-medium w-8">
+                      {activeFarm.weightUnit}
+                    </Text>
+                  </View>
                 </View>
               )}
             />

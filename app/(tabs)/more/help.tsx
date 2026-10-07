@@ -1,12 +1,17 @@
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { Pressable, ScrollView, Text } from 'react-native';
+import { router } from 'expo-router';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { databaseTarget } from '@/lib/config/database';
 import {
   SUPPORT_EMAIL,
   SUPPORT_WHATSAPP_URL,
 } from '@/lib/config/support';
+
+const appVersion = Constants.expoConfig?.version ?? 'unknown';
 
 async function openEmail() {
   await Linking.openURL(`mailto:${SUPPORT_EMAIL}`);
@@ -22,6 +27,12 @@ export default function HelpScreen() {
       className="flex-1 bg-gray-50"
       contentContainerClassName="p-4 gap-4">
       <Card>
+        {Platform.OS === 'web' ? (
+          <Text className="text-base text-gray-700 mb-4">
+            On iPhone, tap Share, then Add to Home Screen, and open the app from
+            there. Wait for All saved before closing it.
+          </Text>
+        ) : null}
         <Text className="text-base text-gray-700 mb-4">
           If the app says changes are not saved, take a screenshot and send it
           to us.
@@ -44,7 +55,19 @@ export default function HelpScreen() {
             void openWhatsApp();
           }}
         />
+
+        <View className="mt-4 pt-4 border-t border-gray-200">
+          <Button
+            title="View changes not saved"
+            variant="outline"
+            onPress={() => router.push('/(tabs)/more/changes-not-saved')}
+          />
+        </View>
       </Card>
+
+      <Text className="text-center text-xs text-gray-500">
+        Version {appVersion} · {databaseTarget}
+      </Text>
     </ScrollView>
   );
 }

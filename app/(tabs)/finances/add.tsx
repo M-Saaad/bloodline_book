@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
@@ -9,7 +10,9 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { createTransaction } from '@/lib/db/transactions';
+import { formatFarmCurrency } from '@/lib/format/money';
 import type { Transaction } from '@/lib/types/finances';
+import { formatTransactionKind } from '@/lib/ui/finance-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const KIND_OPTIONS: Transaction['kind'][] = ['expense', 'revenue'];
@@ -73,11 +76,15 @@ export default function AddTransactionScreen() {
     return null;
   }
 
+  const parsedPreview = Number.parseFloat(amount);
+  const amountPreview =
+    !Number.isNaN(parsedPreview) && parsedPreview > 0
+      ? formatFarmCurrency(parsedPreview, activeFarm.currency)
+      : null;
+
   return (
     <HandWriteBlocked>
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4">
+    <FormKeyboardScreen contentContainerClassName="p-4">
       <FormMessage message={errorMessage} tone="error" />
 
       <DateField
@@ -86,9 +93,16 @@ export default function AddTransactionScreen() {
         onChange={setTransactionDate}
         maximumDate={new Date()}
       />
-      <Text className="text-sm text-gray-600 mb-4">
-        Currency: {activeFarm.currency}
-      </Text>
+      {amountPreview ? (
+        <Text className="text-sm text-gray-700 mb-4">
+          Preview: {kind === 'expense' ? '−' : '+'}
+          {amountPreview}
+        </Text>
+      ) : (
+        <Text className="text-sm text-gray-600 mb-4">
+          Amounts use your farm currency ({activeFarm.currency}).
+        </Text>
+      )}
 
       <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
       <View className="flex-row gap-2 mb-4">
@@ -105,7 +119,7 @@ export default function AddTransactionScreen() {
               className={`font-medium ${
                 kind === option ? 'text-bloodline-700' : 'text-gray-700'
               }`}>
-              {option}
+              {formatTransactionKind(option)}
             </Text>
           </Pressable>
         ))}
@@ -161,7 +175,7 @@ export default function AddTransactionScreen() {
         onPress={handleSave}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }
