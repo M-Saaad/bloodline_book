@@ -89,7 +89,7 @@ export default function SignUpScreen() {
         className="mt-2"
       />
 
-      <Text className="text-base text-gray-500 leading-6 mt-4">
+      <Text className="text-sm text-gray-500 leading-5 mt-4">
         Your herd records belong to you. They are stored with Supabase in{' '}
         {DATA_REGION}. They are never sold or shared. Email {SUPPORT_EMAIL} any
         time to get a full export or have everything deleted.
