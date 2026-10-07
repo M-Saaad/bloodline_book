@@ -36,13 +36,13 @@ export async function disconnectPowerSync(): Promise<void> {
   await powersync.disconnect();
 }
 
-/** Wipes local replica (IndexedDB on web) and reconnects. Use after sign-out or stale sync. */
+/** Wipes the local replica. Only for an explicit sign-out after the user confirms. */
 export async function disconnectAndClearPowerSync(): Promise<void> {
   await powersync.disconnectAndClear();
 }
 
 export async function reconnectPowerSync(): Promise<void> {
-  await powersync.disconnectAndClear();
+  await powersync.disconnect();
   await preparePowerSync();
   await connectPowerSyncBackend();
 }

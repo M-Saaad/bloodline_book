@@ -29,12 +29,13 @@ export async function disconnectPowerSync(): Promise<void> {
   await powersync.disconnect();
 }
 
+/** Wipes the local replica. Only for an explicit sign-out after the user confirms. */
 export async function disconnectAndClearPowerSync(): Promise<void> {
   await powersync.disconnectAndClear();
 }
 
 export async function reconnectPowerSync(): Promise<void> {
-  await powersync.disconnectAndClear();
+  await powersync.disconnect();
   await preparePowerSync();
   await connectPowerSyncBackend();
 }
