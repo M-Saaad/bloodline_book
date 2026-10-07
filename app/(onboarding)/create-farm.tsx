@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -72,9 +73,7 @@ export default function CreateFarmScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="px-6 py-8">
+    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
       <Text className="text-2xl font-bold text-bloodline-800 mb-2">
         Set up your farm
       </Text>
@@ -91,7 +90,13 @@ export default function CreateFarmScreen() {
         placeholder="e.g. Red Oak Goat Farm"
       />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Segment</Text>
+      <Text className="text-sm font-medium text-gray-700 mb-1">
+        What do you raise?
+      </Text>
+      <Text className="text-sm text-gray-500 mb-3">
+        This sets which breed list you see. You cannot change it later in
+        Settings.
+      </Text>
       <View className="flex-row gap-2 mb-6">
         {SEGMENTS.map((option) => {
           const selected = segment === option.value;
@@ -120,6 +125,6 @@ export default function CreateFarmScreen() {
         onPress={handleCreate}
         disabled={loading}
       />
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

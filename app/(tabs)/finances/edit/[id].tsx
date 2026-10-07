@@ -1,6 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -15,6 +17,7 @@ import {
   updateTransaction,
 } from '@/lib/db/transactions';
 import type { Transaction } from '@/lib/types/finances';
+import { formatTransactionKind } from '@/lib/ui/finance-labels';
 
 const KIND_OPTIONS: Transaction['kind'][] = ['expense', 'revenue'];
 
@@ -116,9 +119,7 @@ export default function EditTransactionScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4">
+      <FormKeyboardScreen contentContainerClassName="p-4">
         <FormMessage message={errorMessage} tone="error" />
 
         <DateField
@@ -138,7 +139,7 @@ export default function EditTransactionScreen() {
                   ? 'border-bloodline-600 bg-bloodline-50'
                   : 'border-gray-300 bg-white'
               }`}>
-              <Text className="font-medium">{option}</Text>
+              <Text className="font-medium">{formatTransactionKind(option)}</Text>
             </Pressable>
           ))}
         </View>
@@ -180,7 +181,7 @@ export default function EditTransactionScreen() {
             router.back();
           }}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

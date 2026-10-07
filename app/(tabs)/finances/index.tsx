@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapTransaction } from '@/lib/db/mappers';
+import { formatTransactionKind } from '@/lib/ui/finance-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function FinancesScreen() {
@@ -52,7 +53,7 @@ export default function FinancesScreen() {
       <View className="px-4 py-3">
         <Card className="mb-3">
           <View className="flex-row justify-between mb-2">
-            <Text className="text-gray-600">Revenue</Text>
+            <Text className="text-gray-600">Income</Text>
             <Text className="text-green-700 font-semibold">
               {currency} {revenue.toFixed(2)}
             </Text>
@@ -99,7 +100,7 @@ export default function FinancesScreen() {
                 {item.category}
               </Text>
               <Badge
-                label={item.kind}
+                label={formatTransactionKind(item.kind)}
                 tone={item.kind === 'revenue' ? 'success' : 'warning'}
               />
             </View>

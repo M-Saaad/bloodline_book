@@ -1,14 +1,17 @@
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
-import { normalizeAuthEmail } from '@/lib/auth/email';
+import { AUTH_PASSWORD_HINT, mapAuthErrorMessage } from '@/lib/auth/errors';
+import { isAcceptableAuthEmail, normalizeAuthEmail } from '@/lib/auth/email';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function SignInScreen() {
+  const { notice } = useLocalSearchParams<{ notice?: string }>();
   const { signIn, requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +19,9 @@ export default function SignInScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+
+  const noticeMessage =
+    typeof notice === 'string' && notice.trim() ? notice.trim() : '';
 
   async function handleSignIn() {
     setErrorMessage('');
@@ -31,9 +37,7 @@ export default function SignInScreen() {
       await signIn(email.trim(), password);
       router.replace('/');
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Sign in failed. Try again.',
-      );
+      setErrorMessage(mapAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -48,26 +52,24 @@ export default function SignInScreen() {
       setErrorMessage('Enter your email first, then tap Forgot password.');
       return;
     }
+    if (!isAcceptableAuthEmail(normalized)) {
+      setErrorMessage('Enter the full email address you use to sign in.');
+      return;
+    }
 
     setResetLoading(true);
     try {
       await requestPasswordReset(normalized);
       setResetSent(true);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Could not send reset email. Try again.',
-      );
+      setErrorMessage(mapAuthErrorMessage(error));
     } finally {
       setResetLoading(false);
     }
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="px-6 py-8">
+    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
       <Text className="text-3xl font-bold text-bloodline-800 mb-2">
         Bloodline Book
       </Text>
@@ -76,6 +78,9 @@ export default function SignInScreen() {
       </Text>
 
       <FormMessage message={errorMessage} tone="error" />
+      {noticeMessage ? (
+        <FormMessage message={noticeMessage} tone="success" />
+      ) : null}
       {resetSent ? (
         <FormMessage
           message="Check your email for a password reset link."
@@ -96,11 +101,15 @@ export default function SignInScreen() {
         value={password}
         onChangeText={setPassword}
         placeholder="••••••••"
+        hint={AUTH_PASSWORD_HINT}
         secureTextEntry
         autoCapitalize="none"
       />
 
-      <Pressable onPress={handleForgotPassword} disabled={resetLoading} className="mb-3">
+      <Pressable
+        onPress={handleForgotPassword}
+        disabled={resetLoading}
+        className="mb-3 min-h-[44px] justify-center">
         <Text className="text-bloodline-600 font-semibold text-sm">
           {resetLoading ? 'Sending reset email…' : 'Forgot password?'}
         </Text>
@@ -121,6 +130,6 @@ export default function SignInScreen() {
           </Pressable>
         </Link>
       </View>
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

@@ -193,6 +193,27 @@ export function targetRegisteredKidCount(
   return kidsSurviving ?? kidsBorn;
 }
 
+export function formatBreedingStatus(status: BreedingStatus): string {
+  switch (status) {
+    case 'bred':
+      return 'Bred';
+    case 'confirmed':
+      return 'Confirmed pregnant';
+    case 'open':
+      return 'Open';
+    case 'kidded':
+      return 'Kidded';
+    case 'dry':
+      return 'Dry';
+    case 'lost':
+      return 'Lost';
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
 export function validateKiddingCounts(
   kidsBorn: number,
   kidsSurviving?: number,

@@ -1,10 +1,16 @@
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import {
+  AUTH_PASSWORD_HINT,
+  mapAuthErrorMessage,
+} from '@/lib/auth/errors';
+import { isAcceptableAuthEmail, normalizeAuthEmail } from '@/lib/auth/email';
 import { DATA_REGION, SUPPORT_EMAIL } from '@/lib/config/support';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -14,14 +20,18 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   async function handleSignUp() {
     setErrorMessage('');
-    setSuccessMessage('');
 
     if (!email || !password) {
       setErrorMessage('Enter your email and password.');
+      return;
+    }
+
+    const normalized = normalizeAuthEmail(email);
+    if (!isAcceptableAuthEmail(normalized)) {
+      setErrorMessage('Enter a valid email address (for example you@farm.com).');
       return;
     }
 
@@ -39,22 +49,22 @@ export default function SignUpScreen() {
         return;
       }
 
-      setSuccessMessage(
-        'Account created. Check your email to confirm, then sign in.',
-      );
+      router.replace({
+        pathname: '/(auth)/sign-in',
+        params: {
+          notice:
+            'Account created. Check your email to confirm your address, then sign in.',
+        },
+      });
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'Sign up failed. Try again.',
-      );
+      setErrorMessage(mapAuthErrorMessage(error));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="px-6 py-8">
+    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
       <Text className="text-2xl font-bold text-bloodline-800 mb-2">
         Create your account
       </Text>
@@ -63,7 +73,6 @@ export default function SignUpScreen() {
       </Text>
 
       <FormMessage message={errorMessage} tone="error" />
-      <FormMessage message={successMessage} tone="success" />
 
       <Input
         label="Email"
@@ -77,7 +86,8 @@ export default function SignUpScreen() {
         label="Password"
         value={password}
         onChangeText={setPassword}
-        placeholder="At least 8 characters"
+        placeholder="••••••••"
+        hint={AUTH_PASSWORD_HINT}
         secureTextEntry
         autoCapitalize="none"
       />
@@ -103,6 +113,6 @@ export default function SignUpScreen() {
           </Pressable>
         </Link>
       </View>
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

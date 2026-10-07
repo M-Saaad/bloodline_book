@@ -5,6 +5,15 @@ import {
   normalizeAuthEmail,
   recoveryParamsFromUrl,
 } from '../lib/auth/email.ts';
+import { mapAuthErrorMessage } from '../lib/auth/errors.ts';
+import { formatBreedingStatus } from '../lib/domain/breeding.ts';
+import {
+  uploadFailurePlainReason,
+  uploadFailureSummary,
+} from '../lib/domain/upload-failures.ts';
+import { formatFarmOperationType } from '../lib/ui/farm-labels.ts';
+import { formatTransactionKind } from '../lib/ui/finance-labels.ts';
+import { AuthError } from '@supabase/supabase-js';
 import { kidAnimalDefaultName } from '../lib/domain/breeding.ts';
 import {
   rememberAnimals,
@@ -109,6 +118,42 @@ assert.equal(isAcceptableAuthEmail("o'brien@farm.coop"), true);
 assert.equal(isAcceptableAuthEmail('farmer@my-farm.farm'), true);
 assert.equal(isAcceptableAuthEmail('not-an-email'), false);
 assert.equal(isAcceptableAuthEmail('farmer@gmail.com '), false);
+
+assert.equal(
+  mapAuthErrorMessage(
+    new AuthError('Invalid login credentials', 400, 'invalid_credentials'),
+  ),
+  'Wrong email or password',
+);
+assert.equal(
+  mapAuthErrorMessage(
+    new AuthError('User already registered', 400, 'user_already_exists'),
+  ),
+  'That email is already registered. Try signing in instead.',
+);
+assert.equal(
+  mapAuthErrorMessage(new AuthError('weak', 400, 'weak_password')),
+  'Password is too weak. Use at least 8 characters.',
+);
+assert.equal(
+  mapAuthErrorMessage(new TypeError('Network request failed')),
+  'You need an internet connection to sign in or create an account',
+);
+assert.equal(
+  mapAuthErrorMessage(new AuthError('something odd', 500, 'unknown')),
+  'Something went wrong, please try again',
+);
+
+assert.equal(formatBreedingStatus('confirmed'), 'Confirmed pregnant');
+assert.equal(formatBreedingStatus('open'), 'Open');
+assert.equal(formatFarmOperationType('meat'), 'Meat goats');
+assert.equal(formatTransactionKind('revenue'), 'Income');
+assert.equal(formatTransactionKind('expense'), 'Expense');
+assert.match(
+  uploadFailureSummary({ tableName: 'animals', errorCode: '42501' }),
+  /Animal/,
+);
+assert.equal(uploadFailurePlainReason('42501').includes('role'), true);
 
 const fromHash = recoveryParamsFromUrl(
   'bloodlinebook://reset-password#access_token=aaa&refresh_token=bbb&type=recovery',

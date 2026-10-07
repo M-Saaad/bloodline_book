@@ -345,7 +345,7 @@ export default function LivestockListScreen() {
                 ? 'Add your first goat to start tracking weights and records.'
                 : 'Try another search term or filter.'
             }
-            actionLabel={listIsUnfiltered ? 'Add Animal' : undefined}
+            actionLabel={listIsUnfiltered ? 'Add goat' : undefined}
             onAction={
               listIsUnfiltered
                 ? () => router.push('/(tabs)/livestock/add')
@@ -396,7 +396,7 @@ export default function LivestockListScreen() {
         <Pressable
           onPress={() => router.push('/(tabs)/livestock/add')}
           accessibilityRole="button"
-          accessibilityLabel="Add animal"
+          accessibilityLabel="Add goat"
           className="absolute right-4 h-14 w-14 rounded-full bg-bloodline-600 items-center justify-center"
           style={{ bottom: Math.max(insets.bottom, 16) + 12 }}>
           <Text className="text-white text-3xl leading-8">+</Text>
