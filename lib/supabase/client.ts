@@ -2,20 +2,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupportedStorage } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
+import { selectAuthStorageKind } from '@/lib/supabase/auth-storage';
 import {
   isValidSupabaseProjectUrl,
   normalizeSupabaseUrl,
   sanitizeSupabaseJwtKey,
 } from '@/lib/supabase/config';
 
+const memoryAuthStorage: SupportedStorage = {
+  getItem: async () => null,
+  setItem: async () => undefined,
+  removeItem: async () => undefined,
+};
+
 const authStorage: SupportedStorage =
-  typeof window === 'undefined'
-    ? {
-        getItem: async () => null,
-        setItem: async () => undefined,
-        removeItem: async () => undefined,
-      }
-    : AsyncStorage;
+  selectAuthStorageKind(Platform.OS, typeof window !== 'undefined') ===
+  'async-storage'
+    ? AsyncStorage
+    : memoryAuthStorage;
 
 const resolvedSupabaseUrl =
   process.env.EXPO_PUBLIC_SUPABASE_URL ??

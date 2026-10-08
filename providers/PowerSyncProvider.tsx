@@ -1,10 +1,9 @@
 import { PowerSyncContext } from '@powersync/react';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 
 import { isPowerSyncConfigured } from '@/lib/powersync/config';
 import {
   connectPowerSyncBackend,
-  disconnectAndClearPowerSync,
   disconnectPowerSync,
   preparePowerSync,
   powersync,
@@ -12,15 +11,18 @@ import {
 import { useAuth } from '@/providers/AuthProvider';
 
 export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
-  const { session, isConfigured } = useAuth();
-  const connectedUserIdRef = useRef<string | null>(null);
+  const { session, isConfigured, isLoading } = useAuth();
+  const userId = session?.user.id ?? null;
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
     let cancelled = false;
 
     async function connect() {
-      if (!isConfigured || !session) {
-        connectedUserIdRef.current = null;
+      if (!isConfigured || userId == null) {
         try {
           await disconnectPowerSync();
         } catch {
@@ -37,14 +39,6 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const userId = session.user.id;
-        if (
-          connectedUserIdRef.current != null &&
-          connectedUserIdRef.current !== userId
-        ) {
-          await disconnectAndClearPowerSync();
-        }
-        connectedUserIdRef.current = userId;
         await preparePowerSync();
         if (!cancelled) {
           await connectPowerSyncBackend();
@@ -54,13 +48,12 @@ export function PowerSyncProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    connect();
+    void connect();
 
     return () => {
       cancelled = true;
-      disconnectPowerSync().catch(() => undefined);
     };
-  }, [session, isConfigured]);
+  }, [userId, isConfigured, isLoading]);
 
   return (
     <PowerSyncContext.Provider value={powersync}>
