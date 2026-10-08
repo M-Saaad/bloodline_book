@@ -72,6 +72,8 @@ Store prod credentials as EAS secrets for the `production` profile.
 
 ## Pilot builds
 
+**Agent runbook:** step-by-step build, versioning, and verification — [ANDROID-PILOT-RELEASE.md](ANDROID-PILOT-RELEASE.md).
+
 The `pilot` profile builds an installable Android APK for pilot farmers. It sets `distribution` to `internal`, `android.buildType` to `apk`, and the same database target as `production`: `DATABASE_TARGET` and `EXPO_PUBLIC_DATABASE_TARGET` are `production`. It also sets `environment` to `production`. EAS CLI 16 and later (this repo requires `>= 16.0.0`) accepts that key, so the build reads variables from the EAS production environment. An internal profile that omits `environment` loads the preview environment instead.
 
 `app.config.ts` does not define the Supabase URL, the anon key, or the PowerSync URL. `.env.production.example` names the variables a production build reads. `scripts/setup-env.sh` only writes a local `.env` for the current shell; EAS Build does not run it, so the `_PROD` and `NEXT_PUBLIC_*` aliases that script accepts are not what the APK reads. Create these names in the EAS production environment. Do not commit values, and do not put them in `eas.json`. Use plain text or sensitive visibility so Expo can inline them; secret visibility is not substituted into `EXPO_PUBLIC_*` client code.
