@@ -45,7 +45,7 @@ export default function CreateFarmScreen() {
   if (farmsLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#ca4034" />
+        <ActivityIndicator size="large" color="#a52f1a" />
       </View>
     );
   }

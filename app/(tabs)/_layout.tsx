@@ -25,11 +25,11 @@ export default function TabLayout() {
     <RequireAuth>
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#ca4034',
-        tabBarInactiveTintColor: '#6b7280',
-        headerStyle: { backgroundColor: '#fdf4f3' },
-        headerTintColor: '#752c26',
-        headerTitleStyle: { fontWeight: '600' },
+        tabBarActiveTintColor: '#a52f1a',
+        tabBarInactiveTintColor: '#5a4b46',
+        headerStyle: { backgroundColor: '#f6f2ee' },
+        headerTintColor: '#5e1a0e',
+        headerTitleStyle: { fontWeight: '800' },
         headerRight: syncBadgeHeaderRight(),
         tabBarStyle: webTabBarStyle,
       }}>

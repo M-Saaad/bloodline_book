@@ -15,7 +15,7 @@ export default function Root({ children }: { children: ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#ca4034" />
+        <meta name="theme-color" content="#a52f1a" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Bloodline Book" />
         <link rel="manifest" href="/manifest.json" />
@@ -44,7 +44,7 @@ body,
 }
 body {
   overflow: hidden;
-  background-color: #fdf4f3;
+  background-color: #f6f2ee;
 }
 #root {
   display: flex;

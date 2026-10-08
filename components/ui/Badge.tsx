@@ -5,20 +5,24 @@ interface BadgeProps {
   tone?: 'default' | 'success' | 'warning' | 'danger';
 }
 
+// Status is shown with a symbol, a word and a color, never color alone.
+// `danger` is near black on purpose: red is the brand color, so it cannot mean stop.
 const toneClasses = {
-  default: 'bg-gray-100 text-gray-700',
-  success: 'bg-green-100 text-green-800',
-  warning: 'bg-amber-100 text-amber-800',
-  danger: 'bg-red-100 text-red-800',
+  default: { bg: 'bg-gray-100', text: 'text-gray-700', symbol: '' },
+  success: { bg: 'bg-[#ddf0e4]', text: 'text-[#0f5a33]', symbol: '✓ ' },
+  warning: { bg: 'bg-[#fff1cc]', text: 'text-[#7a4300]', symbol: '◔ ' },
+  danger: { bg: 'bg-stop', text: 'text-white', symbol: '⚠ ' },
 };
 
 export function Badge({ label, tone = 'default' }: BadgeProps) {
-  const classes = toneClasses[tone];
-  const [bg, text] = classes.split(' ');
+  const { bg, text, symbol } = toneClasses[tone];
 
   return (
-    <View className={`rounded-full px-2 py-0.5 ${bg}`}>
-      <Text className={`text-xs font-medium ${text}`}>{label}</Text>
+    <View className={`rounded-full px-3 py-1 ${bg}`}>
+      <Text className={`text-sm font-bold ${text}`}>
+        {symbol}
+        {label}
+      </Text>
     </View>
   );
 }
