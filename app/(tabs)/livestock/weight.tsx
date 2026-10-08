@@ -10,8 +10,13 @@ import { DateField } from '@/components/ui/DateField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { useLocalHerd } from '@/hooks/useLocalHerd';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
+import {
+  preferLocalRows,
+  shouldShowReplicaLoading,
+} from '@/lib/domain/offline-replica';
 import { startOrAppendWeighSession } from '@/lib/db/weights';
 import { animalMatchesSearch, formatLivestockRowTitle } from '@/lib/domain/animals';
 import {
@@ -39,7 +44,7 @@ type WeighMode = 'chute' | 'list';
 
 export default function WeighDayScreen() {
   const { animalId: focusAnimalId } = useLocalSearchParams<{ animalId?: string }>();
-  const { activeFarm } = useFarm();
+  const { activeFarm, hasSyncedBefore } = useFarm();
   const [sessionDate, setSessionDate] = useState(todayIso);
   const [weighPoint, setWeighPoint] =
     useState<WeighSession['weighPoint']>('ad_hoc');
@@ -65,6 +70,10 @@ export default function WeighDayScreen() {
          ORDER BY COALESCE(name, tag_number, id)`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
+  );
+  const { animals: localHerd, resolved: localHerdResolved } = useLocalHerd(
+    activeFarm?.id,
+    'active',
   );
 
   const { data: pastureRows } = useQuery(
@@ -93,9 +102,13 @@ export default function WeighDayScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const animals = useMemo(
+  const queriedAnimals = useMemo(
     () => (data ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
     [data],
+  );
+  const animals = useMemo(
+    () => preferLocalRows(queriedAnimals, localHerd),
+    [queriedAnimals, localHerd],
   );
   const pastures = useMemo(
     () =>
@@ -295,7 +308,13 @@ export default function WeighDayScreen() {
     return null;
   }
 
-  if (isLoading) {
+  const showAnimalLoading = shouldShowReplicaLoading({
+    hasSynced: hasSyncedBefore,
+    localRowCount: animals.length,
+    localQueryLoading: isLoading && !localHerdResolved,
+  });
+
+  if (showAnimalLoading) {
     return <LoadingState message="Loading animals…" />;
   }
 

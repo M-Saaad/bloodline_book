@@ -262,6 +262,7 @@ assert_grep "public base tables: 0" "empty target tables"
 assert_grep "auth.users rows: 0" "empty target users"
 assert_grep "Filtered CREATE SCHEMA public;" "empty target schema filter notice"
 assert_grep "Publication powersync: not found" "empty target publication"
+assert_grep "re-check the powersync publication and the PowerSync connection" "empty target powersync reminder"
 assert_no_secret "empty target"
 assert_eq "$(file_restores)" "3" "empty target applies schema, auth, and data"
 grep -qxF 'CREATE SCHEMA public;' "$TMP/backup/bloodline-schema-${STAMP}.sql" \
@@ -448,7 +449,8 @@ assert_no_offsite_secret "backup-offsite inside-repo"
 
 set +e
 OUT="$(
-  BACKUP_DIR="$OFFSITE_BACKUP" \
+  env -u BACKUP_PASSPHRASE \
+    BACKUP_DIR="$OFFSITE_BACKUP" \
     BACKUP_OFFSITE_SKIP_DUMP=yes \
     BACKUP_REMOTE_PATH="offsite:${OFFSITE_REMOTE}" \
     RCLONE_CONFIG_OFFSITE_TYPE=local \

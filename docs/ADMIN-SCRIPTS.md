@@ -326,7 +326,7 @@ It will not restore into the live project when `SUPABASE_DB_URL` is set. A match
 
 A restore loads the public schema, then `auth.users` and `auth.identities`, then public table data (`psql -v ON_ERROR_STOP=1`). Schema restore skips the exact line `CREATE SCHEMA public;` when the backup contains it (Supabase already has `public`); the on-disk backup is unchanged. It then prints row counts for `auth.users` and for each `public` table that has rows.
 
-After the schema load, if a publication named `powersync` exists and is not `FOR ALL TABLES`, the script adds every base table in `public` to it. If that publication is missing, or it is `FOR ALL TABLES`, the script prints what it found and does not change it.
+After the schema load, if a publication named `powersync` exists and is not `FOR ALL TABLES`, the script adds every base table in `public` to it. If that publication is missing, or it is `FOR ALL TABLES`, the script prints what it found and does not change it. When the restore finishes, it prints a reminder to re-check the publication and the PowerSync connection. The SQL for that check is in [After a restore: reconnect PowerSync](#after-a-restore-reconnect-powersync).
 
 A restore does not recreate Supabase project settings, auth provider settings, PowerSync config (the PowerSync instance, sync rules, or API keys), or anything outside `public` plus `auth.users` and `auth.identities`. The schema file does restore non-internal triggers on `auth.users` whose function is in `public`, including the invite trigger, when that trigger existed at backup time.
 
@@ -482,3 +482,95 @@ A restore does not recreate:
 - auth tables other than `auth.users` and `auth.identities` (sessions and refresh tokens are not in the dump, so farmers sign in again)
 
 The schema file does recreate non-internal triggers on `auth.users` whose function is in `public`, including `on_auth_user_created_accept_invites`, when that trigger was present for the backup. The auth and public data files still set `session_replication_role` to `replica`, so those triggers do not fire while the rows are loaded.
+
+## After a restore: reconnect PowerSync
+
+`scripts/restore-db.sh` prints a reminder when it finishes. A restore does not recreate the PowerSync service, the sync rules, or the password stored in the PowerSync connection. Dropping and recreating `public` removes a publication that listed individual tables. A publication that is `FOR ALL TABLES` keeps that setting, and new tables join it. A password reset does not update the connection PowerSync already saved.
+
+Phones that have synced before still show the farm and the herd from the local database while sync is down. New changes stay on the phone until replication is connected again.
+
+Run the SQL below in `psql` against the farmer database (`SUPABASE_DB_URL`). It does not print the connection string or the role password. It is safe to run more than once. It does not set a password. If `powersync_role` is missing, it stops. Create that role with a password in the Supabase SQL editor (see `supabase/README.md`), then run this again.
+
+The publication block creates `powersync` for the synced `public` tables when the publication is missing. Those tables are the ones in `powersync/sync-rules.yaml`: `farms`, `farm_members`, `breeds`, `animals`, `weigh_sessions`, `weight_logs`, `transactions`, `farm_invites`, `documents`, `tasks`, `kidding_events`, `breeding_events`, `health_records`, `pastures`, `grazing_records`, `feed_logs`. If the publication exists and is not `FOR ALL TABLES`, missing tables from that list are added. If it is `FOR ALL TABLES`, it is left as it is. An active replication slot is left in place. The last statement drops only inactive slots whose names start with `powersync` and that still hold WAL. A slot that is streaming when that statement runs is not dropped. If the grants disconnect a replica, that slot is inactive and is removed so the next connection can create a fresh one. Run that statement on its own, outside a `BEGIN` block.
+
+```sql
+DO $$
+DECLARE
+  pub_all boolean;
+  tbl text;
+  synced text[] := ARRAY[
+    'farms',
+    'farm_members',
+    'breeds',
+    'animals',
+    'weigh_sessions',
+    'weight_logs',
+    'transactions',
+    'farm_invites',
+    'documents',
+    'tasks',
+    'kidding_events',
+    'breeding_events',
+    'health_records',
+    'pastures',
+    'grazing_records',
+    'feed_logs'
+  ];
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'powersync_role') THEN
+    RAISE EXCEPTION 'powersync_role does not exist';
+  END IF;
+
+  EXECUTE 'ALTER ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN';
+  EXECUTE 'GRANT SELECT ON ALL TABLES IN SCHEMA public TO powersync_role';
+  EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO powersync_role';
+
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'powersync') THEN
+    EXECUTE
+      'CREATE PUBLICATION powersync FOR TABLE '
+      || (
+        SELECT string_agg(format('public.%I', name), ', ' ORDER BY name)
+        FROM unnest(synced) AS name
+      );
+    RETURN;
+  END IF;
+
+  SELECT p.puballtables INTO pub_all
+  FROM pg_publication p
+  WHERE p.pubname = 'powersync';
+
+  IF pub_all THEN
+    RETURN;
+  END IF;
+
+  FOREACH tbl IN ARRAY synced LOOP
+    IF to_regclass(format('public.%I', tbl)) IS NULL THEN
+      RAISE EXCEPTION 'synced table public.% is missing', tbl;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_tables
+      WHERE pubname = 'powersync'
+        AND schemaname = 'public'
+        AND tablename = tbl
+    ) THEN
+      EXECUTE format('ALTER PUBLICATION powersync ADD TABLE public.%I', tbl);
+    END IF;
+  END LOOP;
+END $$;
+
+SELECT pg_drop_replication_slot(slot_name)
+FROM pg_replication_slots
+WHERE slot_name LIKE 'powersync%'
+  AND NOT active
+  AND restart_lsn IS NOT NULL;
+```
+
+Then re-check, still with `SELECT` only:
+
+- `pg_publication`: a row named `powersync`, and whether `puballtables` is true
+- `pg_publication_tables`: the synced `public` tables above are present
+- `pg_replication_slots`: any `powersync` slot, and whether it is active
+- `powersync_role`: `rolreplication` is true, `has_table_privilege` is true for every `public` base table, and `pg_default_acl` for the table owner grants `SELECT` to `powersync_role`
+
+If the database password changed, update the PowerSync connection with the new password. Do not paste the password into this repo, a shell log, or a ticket. The direct host `db.<project-ref>.supabase.co` is often IPv6-only. A pooler URI is the right string for `psql` and `pg_dump`. Logical replication still uses the direct host from PowerSync.
