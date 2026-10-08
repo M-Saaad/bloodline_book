@@ -12,6 +12,8 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarmRole } from '@/hooks/useFarmRole';
+import { useLocalHerd } from '@/hooks/useLocalHerd';
+import { preferLocalRows } from '@/lib/domain/offline-replica';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { setTaskCompleted } from '@/lib/db/documents';
 import { mapAnimal, mapBreedingEvent, mapHealthRecord, mapTask } from '@/lib/db/mappers';
@@ -44,7 +46,7 @@ export default function DashboardScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const { data: taskRows, isLoading: tasksLoading } = useQuery(
+  const { data: taskRows } = useQuery(
     activeFarm
       ? `SELECT * FROM tasks WHERE farm_id = ? AND completed = 0`
       : 'SELECT 1 WHERE 0',
@@ -73,7 +75,7 @@ export default function DashboardScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const { data: recentSessions, isLoading: sessionsLoading } = useQuery(
+  const { data: recentSessions } = useQuery(
     activeFarm
       ? `SELECT * FROM weigh_sessions WHERE farm_id = ?
          ORDER BY date DESC LIMIT 3`
@@ -81,9 +83,17 @@ export default function DashboardScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const animals = useMemo(
+  const { animals: localHerd, resolved: localHerdResolved } = useLocalHerd(
+    activeFarm?.id,
+    'all',
+  );
+  const queriedAnimals = useMemo(
     () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
     [animalRows],
+  );
+  const animals = useMemo(
+    () => preferLocalRows(queriedAnimals, localHerd),
+    [queriedAnimals, localHerd],
   );
   const labels = useMemo(() => {
     const map = new Map<string, string>();
@@ -190,7 +200,8 @@ export default function DashboardScreen() {
     );
   }
 
-  const loading = animalsLoading || tasksLoading || sessionsLoading;
+  const herdStillReading =
+    animals.length === 0 && (animalsLoading || !localHerdResolved);
   const activeCount = animals.filter((animal) => animal.status === 'active').length;
   const doesBred = new Set(
     (breedingRows ?? []).map((row) => String((row as { dam_id: string }).dam_id)),
@@ -244,7 +255,7 @@ export default function DashboardScreen() {
       <Text className="text-2xl font-bold text-gray-900">{activeFarm.name}</Text>
       <Text className="text-gray-500 -mt-2">Today · {formatDisplayDate(today)}</Text>
 
-      {animals.length === 0 && !loading ? (
+      {animals.length === 0 && !herdStillReading ? (
         <Card>
           <Text className="text-lg font-semibold text-gray-900 mb-2">Start here</Text>
           <Text className="text-gray-600 mb-3">

@@ -2,12 +2,18 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 
 import { SUPPORT_EMAIL } from '@/lib/config/support';
+import { shouldRouteToCreateFarm } from '@/lib/domain/offline-replica';
 import { useFarm } from '@/providers/FarmProvider';
 import { useAuth } from '@/providers/AuthProvider';
 
 export default function IndexScreen() {
   const { isLoading: authLoading, session, isConfigured } = useAuth();
-  const { farms, activeFarm, isLoading: farmsLoading } = useFarm();
+  const {
+    farms,
+    activeFarm,
+    isLoading: farmsLoading,
+    localFarmsResolved,
+  } = useFarm();
 
   if (!isConfigured) {
     return (
@@ -37,7 +43,13 @@ export default function IndexScreen() {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
-  if (farms.length === 0 && !activeFarm) {
+  if (
+    shouldRouteToCreateFarm({
+      localFarmsResolved,
+      farmCount: farms.length,
+      hasActiveFarm: activeFarm != null,
+    })
+  ) {
     return <Redirect href="/(onboarding)/create-farm" />;
   }
 

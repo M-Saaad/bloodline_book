@@ -30,6 +30,11 @@ import {
   statusBadgeTone,
 } from '@/lib/ui/animal-labels';
 import { useFarmRole } from '@/hooks/useFarmRole';
+import { useLocalHerd } from '@/hooks/useLocalHerd';
+import {
+  preferLocalRows,
+  shouldShowReplicaLoading,
+} from '@/lib/domain/offline-replica';
 import type { Animal } from '@/lib/types/animals';
 import { useFarm } from '@/providers/FarmProvider';
 
@@ -60,7 +65,11 @@ const LIFECYCLE_FILTERS: { value: HerdLifecycleFilter; label: string }[] = [
 ];
 
 export default function LivestockListScreen() {
-  const { activeFarm, isLoading: farmLoading } = useFarm();
+  const {
+    activeFarm,
+    isLoading: farmLoading,
+    hasSyncedBefore,
+  } = useFarm();
   const { isHand } = useFarmRole();
   const params = useLocalSearchParams<{ status?: string }>();
   const initialStatus = parseHerdStatusFilter(params.status);
@@ -99,6 +108,10 @@ export default function LivestockListScreen() {
         : [];
 
   const { data, isLoading: animalsLoading } = useQuery(querySql, queryParams);
+  const { animals: localHerd, resolved: localHerdResolved } = useLocalHerd(
+    activeFarm?.id,
+    statusFilter,
+  );
 
   const { data: healthRows } = useQuery(
     activeFarm
@@ -205,12 +218,18 @@ export default function LivestockListScreen() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [grazingRows]);
 
-  const animals = useMemo(() => {
-    const mapped = (data ?? []).map((row) =>
-      mapAnimal(row as Record<string, unknown>),
-    );
+  const queriedAnimals = useMemo(
+    () =>
+      (data ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
+    [data],
+  );
+  const herdSource = useMemo(
+    () => preferLocalRows(queriedAnimals, localHerd),
+    [queriedAnimals, localHerd],
+  );
 
-    return mapped.filter((animal) => {
+  const animals = useMemo(() => {
+    return herdSource.filter((animal) => {
       if (sexFilter !== 'all' && animal.sex !== sexFilter) {
         return false;
       }
@@ -232,7 +251,7 @@ export default function LivestockListScreen() {
       return animalMatchesSearch(animal, searchQuery);
     }).sort(compareHerdOrder);
   }, [
-    data,
+    herdSource,
     lifecycleFilter,
     pastureByAnimal.pastureIds,
     pastureFilter,
@@ -242,7 +261,13 @@ export default function LivestockListScreen() {
     withdrawalOnly,
   ]);
 
-  if (farmLoading || (activeFarm && animalsLoading)) {
+  const showHerdLoading = shouldShowReplicaLoading({
+    hasSynced: hasSyncedBefore,
+    localRowCount: herdSource.length,
+    localQueryLoading: animalsLoading && !localHerdResolved,
+  });
+
+  if (farmLoading || (activeFarm && showHerdLoading)) {
     return <LoadingState message="Loading livestock…" />;
   }
 

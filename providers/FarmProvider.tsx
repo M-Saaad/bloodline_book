@@ -16,6 +16,7 @@ import {
   getFarmsForUserFromSupabase,
 } from '@/lib/db/farms';
 import { mapFarm } from '@/lib/db/mappers';
+import { shouldShowReplicaLoading } from '@/lib/domain/offline-replica';
 import { reconnectPowerSync } from '@/lib/powersync/system';
 import { useUiStore } from '@/lib/store/ui';
 import type { Farm } from '@/lib/types/tenancy';
@@ -25,6 +26,10 @@ interface FarmContextValue {
   farms: Farm[];
   activeFarm: Farm | null;
   isLoading: boolean;
+  /** True once a direct local read or the watched query has answered. */
+  localFarmsResolved: boolean;
+  /** True after this device has finished a sync at least once. */
+  hasSyncedBefore: boolean | undefined;
   setActiveFarmId: (farmId: string) => void;
   refreshFarms: () => Promise<void>;
 }
@@ -47,15 +52,22 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
   const [bootstrapFarms, setBootstrapFarms] = useState<Farm[] | null>(null);
+  const [readLocalFarms, setReadLocalFarms] = useState<Farm[] | null>(null);
   const staleSyncRecoveryAttemptedRef = useRef(false);
+  const signedIn = Boolean(session);
 
   const syncStatus = useStatus();
   const farmStreamStatus = useSyncStream({ name: FARMS_SYNC_STREAM });
   const farmDataStreamSynced =
     farmStreamStatus?.subscription?.hasSynced === true;
+  const hasSyncedBefore =
+    syncStatus.hasSynced === true || farmDataStreamSynced
+      ? true
+      : syncStatus.hasSynced;
 
   const {
     data: farmRows,
+    isLoading: farmsQueryLoading,
     isFetching: farmsQueryFetching,
     refresh,
   } = useQuery<Record<string, unknown>>(
@@ -64,10 +76,21 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     user ? FARMS_QUERY_OPTIONS : undefined,
   );
 
-  const localFarms = useMemo(
+  const queryFarms = useMemo(
     () => (user ? (farmRows ?? []).map(mapFarm) : []),
     [farmRows, user],
   );
+  const localFarms = useMemo(() => {
+    if (queryFarms.length > 0) {
+      return queryFarms;
+    }
+    if (readLocalFarms && readLocalFarms.length > 0) {
+      return readLocalFarms;
+    }
+    return queryFarms;
+  }, [queryFarms, readLocalFarms]);
+  const localFarmsResolved =
+    !user || readLocalFarms !== null || !farmsQueryLoading;
 
   const farms = useMemo(() => {
     if (localFarms.length > 0) {
@@ -82,7 +105,14 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     !syncStatus.connecting;
 
   const isLoading = Boolean(
-    session && user && localFarms.length === 0 && bootstrapFarms === null,
+    session &&
+      user &&
+      shouldShowReplicaLoading({
+        hasSynced: hasSyncedBefore,
+        localRowCount: localFarms.length,
+        localQueryLoading: !localFarmsResolved,
+        emptyBootstrapPending: bootstrapFarms === null,
+      }),
   );
 
   const refreshFarms = useCallback(async () => {
@@ -94,6 +124,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     await refresh?.();
 
     const local = await getFarmsForUser(userId);
+    setReadLocalFarms(local);
     if (local.length > 0) {
       setBootstrapFarms(null);
       return;
@@ -110,7 +141,33 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     staleSyncRecoveryAttemptedRef.current = false;
     setBootstrapFarms(null);
+    setReadLocalFarms(null);
   }, [user?.id]);
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || !signedIn) {
+      return;
+    }
+
+    let cancelled = false;
+    getFarmsForUser(userId)
+      .then((rows) => {
+        if (!cancelled) {
+          setReadLocalFarms(rows);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Local farm read failed:', error);
+        if (!cancelled) {
+          setReadLocalFarms([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, user?.id]);
 
   useEffect(() => {
     const userId = user?.id;
@@ -220,10 +277,20 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       farms,
       activeFarm,
       isLoading,
+      localFarmsResolved,
+      hasSyncedBefore,
       setActiveFarmId,
       refreshFarms,
     }),
-    [farms, activeFarm, isLoading, setActiveFarmId, refreshFarms],
+    [
+      farms,
+      activeFarm,
+      isLoading,
+      localFarmsResolved,
+      hasSyncedBefore,
+      setActiveFarmId,
+      refreshFarms,
+    ],
   );
 
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
