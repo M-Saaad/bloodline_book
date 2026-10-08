@@ -28,6 +28,10 @@
 # FOR ALL TABLES, every base table in public is added to it. Otherwise the
 # script reports what it found and does not change publications.
 #
+# When the restore finishes, the script prints a reminder to re-check the
+# powersync publication and the PowerSync connection. See
+# docs/ADMIN-SCRIPTS.md, "After a restore: reconnect PowerSync".
+#
 # A restore does not recreate Supabase-managed objects:
 #   - project settings
 #   - auth provider settings (providers, email templates, redirect URLs)
@@ -484,6 +488,7 @@ main() {
 
   echo "Row counts:"
   print_row_counts
+  echo "After a restore, re-check the powersync publication and the PowerSync connection. Sync does not resume until both are in place. See docs/ADMIN-SCRIPTS.md, section \"After a restore: reconnect PowerSync\"."
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
