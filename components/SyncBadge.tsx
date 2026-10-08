@@ -60,14 +60,15 @@ export function SyncBadge() {
     ],
   );
 
-  const toneClass =
+  // Icon + word + color, never color alone. Black means a problem needs you.
+  const tone =
     badge.kind === 'not_saved'
-      ? 'text-red-700 bg-red-50 border-red-200'
+      ? { box: 'bg-stop border-stop', text: 'text-white', symbol: '⚠' }
       : badge.kind === 'offline_waiting'
-        ? 'text-amber-800 bg-amber-50 border-amber-200'
+        ? { box: 'bg-[#fff1cc] border-[#e5c77a]', text: 'text-[#6b3a00]', symbol: '◔' }
         : badge.kind === 'saving'
-          ? 'text-bloodline-800 bg-bloodline-50 border-bloodline-200'
-          : 'text-gray-700 bg-white border-gray-200';
+          ? { box: 'bg-[#e1edf8] border-[#b9d3ec]', text: 'text-[#17476f]', symbol: '↻' }
+          : { box: 'bg-[#ddf0e4] border-[#b7dcc4]', text: 'text-[#0f5a33]', symbol: '✓' };
 
   function handlePress() {
     if (badge.kind === 'not_saved') {
@@ -81,10 +82,12 @@ export function SyncBadge() {
     <Pressable
       onPress={pressable ? handlePress : undefined}
       disabled={!pressable}
-      className={`rounded-full border px-2.5 py-1 mr-2 ${toneClass}`}
+      className={`rounded-full border px-3 py-1.5 mr-2 ${tone.box}`}
       accessibilityRole={pressable ? 'button' : 'text'}
       accessibilityLabel={badge.label}>
-      <Text className="text-xs font-semibold text-gray-800">{badge.label}</Text>
+      <Text className={`text-sm font-bold ${tone.text}`}>
+        {tone.symbol} {badge.label}
+      </Text>
     </Pressable>
   );
 }

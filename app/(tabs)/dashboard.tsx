@@ -191,7 +191,7 @@ export default function DashboardScreen() {
 
   if (!activeFarm) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-paper">
         <EmptyState
           title="No farm selected"
           description="Create or select a farm to see what needs doing."
@@ -214,6 +214,13 @@ export default function DashboardScreen() {
     }
     return sum + Number((row as { kids_born: number }).kids_born ?? 0);
   }, 0);
+
+  // What the hero card counts: due or overdue tasks, kidding soon, FAMACHA rechecks and the herd flag.
+  const needCount =
+    partitioned.dueNow.length +
+    kiddingSoon.length +
+    partitioned.famachaSoon.length +
+    (herdFlag ? 1 : 0);
 
   const withdrawalRows = [...withdrawals.entries()].flatMap(([animalId, badge]) => {
     const rows: {
@@ -249,15 +256,34 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4 pb-8">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="p-5 gap-4 pb-10">
       <EnvironmentBadge />
       {isHand ? <ReadOnlyFarmBanner /> : null}
-      <Text className="text-2xl font-bold text-gray-900">{activeFarm.name}</Text>
-      <Text className="text-gray-500 -mt-2">Today · {formatDisplayDate(today)}</Text>
+      <Text className="text-3xl font-extrabold text-ink">{activeFarm.name}</Text>
+      <Text className="text-base text-gray-500 -mt-2">
+        Today · {formatDisplayDate(today)}
+      </Text>
+
+      {animals.length > 0 ? (
+        <View className="rounded-[26px] bg-bloodline-900 p-5">
+          <Text className="text-3xl font-extrabold text-white">
+            {needCount === 0
+              ? 'Nothing urgent today'
+              : needCount === 1
+                ? '1 thing needs you today'
+                : `${needCount} things need you today`}
+          </Text>
+          <Text className="text-base text-bloodline-100 mt-1">
+            {needCount === 0
+              ? 'Good time to weigh or check your herd.'
+              : 'Start with the first card below.'}
+          </Text>
+        </View>
+      ) : null}
 
       {animals.length === 0 && !herdStillReading ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">Start here</Text>
+          <Text className="text-xl font-extrabold text-ink mb-2">Start here</Text>
           <Text className="text-gray-600 mb-3">
             Add your goats, then run your first Weigh Day.
           </Text>
@@ -279,7 +305,7 @@ export default function DashboardScreen() {
 
       {partitioned.dueNow.length > 0 ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">
+          <Text className="text-xl font-extrabold text-ink mb-2">
             Overdue and due today
           </Text>
           {partitioned.dueNow.map((task) => (
@@ -296,7 +322,7 @@ export default function DashboardScreen() {
 
       {partitioned.undated.length > 0 ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">No date</Text>
+          <Text className="text-xl font-extrabold text-ink mb-2">No date</Text>
           {partitioned.undated.map((task) => (
             <TaskRow
               key={task.id}
@@ -311,16 +337,18 @@ export default function DashboardScreen() {
 
       {withdrawalRows.length > 0 ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">In withdrawal</Text>
+          <Text className="text-xl font-extrabold text-ink mb-2">In withdrawal</Text>
           {withdrawalRows.map((row) => (
             <Pressable
               key={row.key}
               onPress={() => router.push(`/(tabs)/livestock/${row.animalId}`)}
-              className="py-2 border-b border-gray-100">
-              <Text className="text-gray-900 font-medium">
+              className="py-3 border-b border-gray-100">
+              <Text className="text-[17px] text-ink font-bold">
                 {labels.get(row.animalId) ?? 'Goat'}
               </Text>
-              <Text className="text-amber-800 text-sm mt-1">{row.label}</Text>
+              <View className="self-start mt-2 rounded-full bg-stop px-3 py-1">
+                <Text className="text-sm font-bold text-white">⚠ {row.label}</Text>
+              </View>
             </Pressable>
           ))}
         </Card>
@@ -328,18 +356,18 @@ export default function DashboardScreen() {
 
       {kiddingSoon.length > 0 ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">Kidding soon</Text>
+          <Text className="text-xl font-extrabold text-ink mb-2">Kidding soon</Text>
           {kiddingSoon.map((item) => (
             <Pressable
               key={item.event.id}
               onPress={() =>
                 router.push(`/(tabs)/more/breeding/edit-breeding/${item.event.id}`)
               }
-              className="py-2 border-b border-gray-100">
-              <Text className="text-gray-900 font-medium">
+              className="py-3 border-b border-gray-100">
+              <Text className="text-[17px] text-ink font-bold">
                 {labels.get(item.event.damId) ?? 'Doe'}
               </Text>
-              <Text className="text-gray-600 text-sm mt-1">
+              <Text className="text-base text-gray-500 mt-1">
                 {item.category === 'past_due' ? 'Past due · ' : ''}
                 {item.window
                   ? formatDueWindowPhrase(item.window.windowStart, item.window.windowEnd)
@@ -352,9 +380,9 @@ export default function DashboardScreen() {
 
       {partitioned.famachaSoon.length > 0 || herdFlag ? (
         <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-2">FAMACHA</Text>
+          <Text className="text-xl font-extrabold text-ink mb-2">FAMACHA</Text>
           {herdFlag ? (
-            <Text className="text-amber-800 mb-2">
+            <Text className="text-base font-semibold text-[#7a4300] mb-2">
               {famachaHerdFlagMessage(herdFlag.high, herdFlag.scored)}
             </Text>
           ) : null}
@@ -373,7 +401,7 @@ export default function DashboardScreen() {
       {partitioned.comingWeek.length > 0 ? (
         <Card>
           <Pressable onPress={() => setWeekOpen((value) => !value)}>
-            <Text className="text-lg font-semibold text-gray-900">
+            <Text className="text-xl font-extrabold text-ink">
               Coming this week ({partitioned.comingWeek.length})
               {weekOpen ? '' : ' · show'}
             </Text>
@@ -393,7 +421,7 @@ export default function DashboardScreen() {
       ) : null}
 
       <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">Quick actions</Text>
+        <Text className="text-xl font-extrabold text-ink mb-3">Quick actions</Text>
         <FarmWriteGate>
           <View className="gap-2">
             <Button
@@ -420,7 +448,7 @@ export default function DashboardScreen() {
       </Card>
 
       <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-2">Herd</Text>
+        <Text className="text-xl font-extrabold text-ink mb-2">Herd</Text>
         <Pressable
           onPress={() =>
             router.push({
@@ -428,7 +456,7 @@ export default function DashboardScreen() {
               params: { status: 'all' },
             })
           }>
-          <Text className="text-gray-700">
+          <Text className="text-[17px] text-gray-700">
             {activeCount} active goats · {doesBred} does bred · {kidsBornThisYear}{' '}
             kids born this year
           </Text>
@@ -436,7 +464,7 @@ export default function DashboardScreen() {
       </Card>
 
       <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
+        <Text className="text-xl font-extrabold text-ink mb-3">
           Recent weigh sessions
         </Text>
         {(recentSessions ?? []).length === 0 ? (
@@ -454,8 +482,8 @@ export default function DashboardScreen() {
                 onPress={() =>
                   router.push(`/(tabs)/livestock/weigh-session/${session.id}`)
                 }
-                className="flex-row justify-between py-2 border-b border-gray-100">
-                <Text className="text-gray-800">{session.date}</Text>
+                className="flex-row justify-between py-3 border-b border-gray-100">
+                <Text className="text-[17px] text-ink">{session.date}</Text>
                 <Badge label={session.weigh_point.replace('_', ' ')} />
               </Pressable>
             );
@@ -478,15 +506,15 @@ function TaskRow({
   onTick: () => void;
 }) {
   return (
-    <View className="flex-row items-start py-2 border-b border-gray-100">
+    <View className="flex-row items-start py-3 border-b border-gray-100">
       <Pressable
         onPress={onTick}
         accessibilityLabel="Complete task"
-        className="w-7 h-7 rounded-full border-2 border-gray-400 mr-3 mt-0.5"
+        className="w-9 h-9 rounded-full border-2 border-bloodline-600 mr-3"
       />
       <Pressable onPress={onOpen} className="flex-1">
-        <Text className="text-gray-900 font-medium">{title}</Text>
-        {detail ? <Text className="text-gray-500 text-sm mt-1">{detail}</Text> : null}
+        <Text className="text-[17px] text-ink font-bold">{title}</Text>
+        {detail ? <Text className="text-base text-gray-500 mt-1">{detail}</Text> : null}
       </Pressable>
     </View>
   );

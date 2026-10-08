@@ -11,15 +11,15 @@ interface ButtonProps {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-bloodline-600 active:bg-bloodline-700',
-  secondary: 'bg-gray-200 active:bg-gray-300',
-  outline: 'border border-bloodline-600 bg-transparent active:bg-bloodline-50',
+  primary: 'bg-bloodline-600 border-2 border-bloodline-600 active:bg-bloodline-700',
+  secondary: 'bg-bloodline-100 border-2 border-bloodline-100 active:bg-bloodline-200',
+  outline: 'bg-white border-2 border-bloodline-600 active:bg-bloodline-50',
 };
 
 const textClasses: Record<ButtonVariant, string> = {
   primary: 'text-white',
-  secondary: 'text-gray-900',
-  outline: 'text-bloodline-700',
+  secondary: 'text-bloodline-900',
+  outline: 'text-bloodline-600',
 };
 
 export function Button({
@@ -33,10 +33,11 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={`rounded-xl px-4 py-3 items-center ${variantClasses[variant]} ${
+      accessibilityRole="button"
+      className={`min-h-[56px] rounded-2xl px-5 py-3 items-center justify-center ${variantClasses[variant]} ${
         disabled ? 'opacity-50' : ''
       } ${className}`}>
-      <Text className={`font-semibold text-base ${textClasses[variant]}`}>
+      <Text className={`font-extrabold text-lg ${textClasses[variant]}`}>
         {title}
       </Text>
     </Pressable>

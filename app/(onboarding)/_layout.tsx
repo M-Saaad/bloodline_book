@@ -9,8 +9,8 @@ export default function OnboardingLayout() {
       screenOptions={{
         headerShown: true,
         title: 'Setup',
-        headerStyle: { backgroundColor: '#fdf4f3' },
-        headerTintColor: '#752c26',
+        headerStyle: { backgroundColor: '#f6f2ee' },
+        headerTintColor: '#5e1a0e',
       }}>
       <Stack.Screen name="create-farm" options={{ title: 'Create Farm' }} />
     </Stack>
