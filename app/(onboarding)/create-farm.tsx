@@ -2,6 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { BrandMark } from '@/components/BrandMark';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -92,6 +93,9 @@ export default function CreateFarmScreen() {
         />
       }>
       <View className="px-1 mb-5">
+        <View className="mb-4">
+          <BrandMark size={72} />
+        </View>
         <Text className="text-[15px] font-extrabold tracking-widest text-bloodline-600">
           STEP 1 OF 1
         </Text>
