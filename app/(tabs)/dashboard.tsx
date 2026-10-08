@@ -1,14 +1,17 @@
 import { useQuery } from '@powersync/react';
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { SyncBadge } from '@/components/SyncBadge';
 import { Badge } from '@/components/ui/Badge';
+import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Chevron, ListCard, ListRow } from '@/components/ui/ListRow';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarmRole } from '@/hooks/useFarmRole';
@@ -248,6 +251,28 @@ export default function DashboardScreen() {
     return rows;
   });
 
+  const goatParts = (animalId: string, fallback: string) => {
+    const animal = animals.find((a) => a.id === animalId);
+    const name = animal?.name?.trim() ?? '';
+    const tag = animal?.tagNumber?.trim() ?? '';
+    if (name && tag) {
+      return { name, tag: `#${tag}` };
+    }
+    return { name: labels.get(animalId) ?? fallback, tag: '' };
+  };
+
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const longDate = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+  const choreTasks = [...partitioned.dueNow, ...partitioned.undated];
+  const doTodayCount =
+    kiddingSoon.length + withdrawalRows.length + partitioned.famachaSoon.length;
+
   async function tickTask(taskId: string) {
     if (!canWrite) {
       return;
@@ -256,46 +281,69 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-paper" contentContainerClassName="p-5 gap-4 pb-10">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-6 gap-4 pb-10">
+      <Stack.Screen options={{ headerShown: false }} />
       <EnvironmentBadge />
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1 pr-3">
+          <Text className="text-[15px] font-semibold text-gray-500">
+            {longDate} · {activeFarm.name}
+          </Text>
+          <Text className="text-[32px] leading-[37px] font-extrabold text-ink mt-0.5">
+            {greeting}
+          </Text>
+        </View>
+        <SyncBadge />
+      </View>
       {isHand ? <ReadOnlyFarmBanner /> : null}
-      <Text className="text-3xl font-extrabold text-ink">{activeFarm.name}</Text>
-      <Text className="text-base text-gray-500 -mt-2">
-        Today · {formatDisplayDate(today)}
-      </Text>
 
       {animals.length > 0 ? (
-        <View className="rounded-[26px] bg-bloodline-900 p-5">
-          <Text className="text-3xl font-extrabold text-white">
-            {needCount === 0
-              ? 'Nothing urgent today'
-              : needCount === 1
-                ? '1 thing needs you today'
-                : `${needCount} things need you today`}
-          </Text>
-          <Text className="text-base text-bloodline-100 mt-1">
-            {needCount === 0
-              ? 'Good time to weigh or check your herd.'
-              : 'Start with the first card below.'}
-          </Text>
+        <View className="rounded-[22px] bg-bloodline-900 px-5 py-4 flex-row items-center gap-4">
+          {needCount > 0 ? (
+            <Text className="text-[56px] leading-[60px] font-extrabold text-white">
+              {needCount}
+            </Text>
+          ) : null}
+          <View className="flex-1">
+            <Text className="text-[19px] font-bold text-white">
+              {needCount === 0
+                ? 'Nothing urgent today'
+                : needCount === 1
+                  ? 'thing needs you today'
+                  : 'things need you today'}
+            </Text>
+            <Text className="text-[15px] text-bloodline-100 mt-0.5">
+              {needCount === 0
+                ? 'Good time to weigh or check your herd.'
+                : withdrawals.size > 0
+                  ? `${withdrawals.size} ${withdrawals.size === 1 ? 'goat is' : 'goats are'} in withdrawal`
+                  : 'Start with the first card below.'}
+            </Text>
+          </View>
         </View>
       ) : null}
 
       {animals.length === 0 && !herdStillReading ? (
         <Card>
-          <Text className="text-xl font-extrabold text-ink mb-2">Start here</Text>
-          <Text className="text-gray-600 mb-3">
-            Add your goats, then run your first Weigh Day.
-          </Text>
+          <View className="items-center py-1">
+            <View className="w-16 h-16 rounded-full bg-bloodline-100 items-center justify-center">
+              <Text className="text-3xl text-bloodline-600">＋</Text>
+            </View>
+            <Text className="text-[22px] font-extrabold text-ink mt-3">Start here</Text>
+            <Text className="text-base leading-[22px] text-gray-500 text-center mt-1.5 mb-4">
+              Add your goats, then run your first Weigh Day.
+            </Text>
+          </View>
           <FarmWriteGate>
             <View className="gap-2">
               <Button
                 title="Add goat"
                 onPress={() => router.push('/(tabs)/livestock/add')}
+                className="h-[60px]"
               />
               <Button
                 title="Weigh Day"
-                variant="secondary"
+                variant="outline"
                 onPress={() => router.push('/(tabs)/livestock/weight')}
               />
             </View>
@@ -303,11 +351,90 @@ export default function DashboardScreen() {
         </Card>
       ) : null}
 
-      {partitioned.dueNow.length > 0 ? (
-        <Card>
-          <Text className="text-xl font-extrabold text-ink mb-2">
-            Overdue and due today
-          </Text>
+      {herdFlag ? (
+        <Banner
+          tone="amber"
+          title="FAMACHA"
+          message={famachaHerdFlagMessage(herdFlag.high, herdFlag.scored)}
+        />
+      ) : null}
+
+      {doTodayCount > 0 ? (
+        <View className="gap-2.5">
+          <Text className="text-xl font-extrabold text-ink">Do today</Text>
+
+          {kiddingSoon.map((item) => {
+            const goat = goatParts(item.event.damId, 'Doe');
+            return (
+              <TodayCard
+                key={item.event.id}
+                symbol="◔"
+                tile="bg-[#fff1cc]"
+                tileText="text-[#7a4300]"
+                name={goat.name}
+                tag={goat.tag}
+                detail={
+                  (item.category === 'past_due' ? 'Past due · ' : '') +
+                  (item.window
+                    ? formatDueWindowPhrase(item.window.windowStart, item.window.windowEnd)
+                    : '')
+                }
+                pill={item.category === 'past_due' ? 'Past due' : 'Kidding soon'}
+                pillBox="bg-[#fff1cc]"
+                pillText="text-[#7a4300]"
+                pillSymbol="◔ "
+                onPress={() =>
+                  router.push(`/(tabs)/more/breeding/edit-breeding/${item.event.id}`)
+                }
+              />
+            );
+          })}
+
+          {withdrawalRows.map((row) => {
+            const goat = goatParts(row.animalId, 'Goat');
+            return (
+              <TodayCard
+                key={row.key}
+                symbol="⚠"
+                tile="bg-stop"
+                tileText="text-white"
+                name={goat.name}
+                tag={goat.tag}
+                detail={row.label}
+                pill="In withdrawal"
+                pillBox="bg-stop"
+                pillText="text-white"
+                pillSymbol="⚠ "
+                onPress={() => router.push(`/(tabs)/livestock/${row.animalId}`)}
+              />
+            );
+          })}
+
+          {partitioned.famachaSoon.map((task) => (
+            <TodayCard
+              key={task.id}
+              symbol="♡"
+              tile="bg-bloodline-100"
+              tileText="text-[#7a200f]"
+              name={shownTaskTitle(task)}
+              tag=""
+              detail={
+                task.dueDate ? `FAMACHA recheck · Due ${formatDisplayDate(task.dueDate)}` : 'FAMACHA recheck'
+              }
+              pill="FAMACHA"
+              pillBox="bg-bloodline-100"
+              pillText="text-[#7a200f]"
+              pillSymbol=""
+              onPress={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
+              onTick={() => tickTask(task.id)}
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {choreTasks.length > 0 ? (
+        <View>
+          <Text className="text-xl font-extrabold text-ink mb-1">Chores</Text>
           {partitioned.dueNow.map((task) => (
             <TaskRow
               key={task.id}
@@ -317,90 +444,24 @@ export default function DashboardScreen() {
               onTick={() => tickTask(task.id)}
             />
           ))}
-        </Card>
-      ) : null}
-
-      {partitioned.undated.length > 0 ? (
-        <Card>
-          <Text className="text-xl font-extrabold text-ink mb-2">No date</Text>
           {partitioned.undated.map((task) => (
             <TaskRow
               key={task.id}
               title={shownTaskTitle(task)}
-              detail="No due date"
+              detail="No date"
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
               onTick={() => tickTask(task.id)}
             />
           ))}
-        </Card>
-      ) : null}
-
-      {withdrawalRows.length > 0 ? (
-        <Card>
-          <Text className="text-xl font-extrabold text-ink mb-2">In withdrawal</Text>
-          {withdrawalRows.map((row) => (
-            <Pressable
-              key={row.key}
-              onPress={() => router.push(`/(tabs)/livestock/${row.animalId}`)}
-              className="py-3 border-b border-gray-100">
-              <Text className="text-[17px] text-ink font-bold">
-                {labels.get(row.animalId) ?? 'Goat'}
-              </Text>
-              <View className="self-start mt-2 rounded-full bg-stop px-3 py-1">
-                <Text className="text-sm font-bold text-white">⚠ {row.label}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </Card>
-      ) : null}
-
-      {kiddingSoon.length > 0 ? (
-        <Card>
-          <Text className="text-xl font-extrabold text-ink mb-2">Kidding soon</Text>
-          {kiddingSoon.map((item) => (
-            <Pressable
-              key={item.event.id}
-              onPress={() =>
-                router.push(`/(tabs)/more/breeding/edit-breeding/${item.event.id}`)
-              }
-              className="py-3 border-b border-gray-100">
-              <Text className="text-[17px] text-ink font-bold">
-                {labels.get(item.event.damId) ?? 'Doe'}
-              </Text>
-              <Text className="text-base text-gray-500 mt-1">
-                {item.category === 'past_due' ? 'Past due · ' : ''}
-                {item.window
-                  ? formatDueWindowPhrase(item.window.windowStart, item.window.windowEnd)
-                  : ''}
-              </Text>
-            </Pressable>
-          ))}
-        </Card>
-      ) : null}
-
-      {partitioned.famachaSoon.length > 0 || herdFlag ? (
-        <Card>
-          <Text className="text-xl font-extrabold text-ink mb-2">FAMACHA</Text>
-          {herdFlag ? (
-            <Text className="text-base font-semibold text-[#7a4300] mb-2">
-              {famachaHerdFlagMessage(herdFlag.high, herdFlag.scored)}
-            </Text>
-          ) : null}
-          {partitioned.famachaSoon.map((task) => (
-            <TaskRow
-              key={task.id}
-              title={shownTaskTitle(task)}
-              detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
-              onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={() => tickTask(task.id)}
-            />
-          ))}
-        </Card>
+        </View>
       ) : null}
 
       {partitioned.comingWeek.length > 0 ? (
-        <Card>
-          <Pressable onPress={() => setWeekOpen((value) => !value)}>
+        <View>
+          <Pressable
+            onPress={() => setWeekOpen((value) => !value)}
+            accessibilityRole="button"
+            className="min-h-[52px] justify-center">
             <Text className="text-xl font-extrabold text-ink">
               Coming this week ({partitioned.comingWeek.length})
               {weekOpen ? '' : ' · show'}
@@ -417,7 +478,7 @@ export default function DashboardScreen() {
                 />
               ))
             : null}
-        </Card>
+        </View>
       ) : null}
 
       <Card>
@@ -447,50 +508,116 @@ export default function DashboardScreen() {
         </FarmWriteGate>
       </Card>
 
-      <Card>
+      <View>
         <Text className="text-xl font-extrabold text-ink mb-2">Herd</Text>
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/livestock',
-              params: { status: 'all' },
-            })
-          }>
-          <Text className="text-[17px] text-gray-700">
-            {activeCount} active goats · {doesBred} does bred · {kidsBornThisYear}{' '}
-            kids born this year
-          </Text>
-        </Pressable>
-      </Card>
+        <ListCard>
+          <ListRow
+            title={`${activeCount} active goats`}
+            subtitle={`${doesBred} does bred · ${kidsBornThisYear} kids born this year`}
+            right={<Chevron />}
+            last
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/livestock',
+                params: { status: 'all' },
+              })
+            }
+          />
+        </ListCard>
+      </View>
 
-      <Card>
-        <Text className="text-xl font-extrabold text-ink mb-3">
-          Recent weigh sessions
-        </Text>
+      <View>
+        <Text className="text-xl font-extrabold text-ink mb-2">Recent weigh sessions</Text>
         {(recentSessions ?? []).length === 0 ? (
-          <Text className="text-gray-500">No weigh sessions yet.</Text>
+          <Text className="text-base text-gray-500">No weigh sessions yet.</Text>
         ) : (
-          (recentSessions ?? []).map((row) => {
-            const session = row as {
-              id: string;
-              date: string;
-              weigh_point: string;
-            };
-            return (
-              <Pressable
-                key={session.id}
-                onPress={() =>
-                  router.push(`/(tabs)/livestock/weigh-session/${session.id}`)
-                }
-                className="flex-row justify-between py-3 border-b border-gray-100">
-                <Text className="text-[17px] text-ink">{session.date}</Text>
-                <Badge label={session.weigh_point.replace('_', ' ')} />
-              </Pressable>
-            );
-          })
+          <ListCard>
+            {(recentSessions ?? []).map((row, index, all) => {
+              const session = row as {
+                id: string;
+                date: string;
+                weigh_point: string;
+              };
+              return (
+                <ListRow
+                  key={session.id}
+                  title={session.date}
+                  right={<Badge label={session.weigh_point.replace('_', ' ')} />}
+                  last={index === all.length - 1}
+                  onPress={() =>
+                    router.push(`/(tabs)/livestock/weigh-session/${session.id}`)
+                  }
+                />
+              );
+            })}
+          </ListCard>
         )}
-      </Card>
+      </View>
     </ScrollView>
+  );
+}
+
+function TodayCard({
+  symbol,
+  tile,
+  tileText,
+  name,
+  tag,
+  detail,
+  pill,
+  pillBox,
+  pillText,
+  pillSymbol,
+  onPress,
+  onTick,
+}: {
+  symbol: string;
+  tile: string;
+  tileText: string;
+  name: string;
+  tag: string;
+  detail: string;
+  pill: string;
+  pillBox: string;
+  pillText: string;
+  pillSymbol: string;
+  onPress: () => void;
+  onTick?: () => void;
+}) {
+  return (
+    <View className="flex-row items-center gap-3.5 bg-white border border-gray-200 rounded-[20px] px-4 py-3.5 min-h-[84px]">
+      <Pressable onPress={onPress} className="flex-1 flex-row items-center gap-3.5">
+        <View className={`w-[52px] h-[52px] rounded-2xl items-center justify-center ${tile}`}>
+          <Text className={`text-2xl font-bold ${tileText}`}>{symbol}</Text>
+        </View>
+        <View className="flex-1">
+          <Text className="text-lg font-bold text-ink">
+            {name}
+            {tag ? <Text className="text-bloodline-600 font-semibold"> {tag}</Text> : null}
+          </Text>
+          <Text className="text-base text-gray-500">{detail}</Text>
+          <View className={`self-start rounded-full px-3 py-1 mt-1.5 ${pillBox}`}>
+            <Text className={`text-sm font-bold ${pillText}`}>
+              {pillSymbol}
+              {pill}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+      {onTick ? <CheckCircle onPress={onTick} /> : null}
+    </View>
+  );
+}
+
+function CheckCircle({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel="Complete task"
+      accessibilityRole="button"
+      className="w-12 h-12 items-center justify-center">
+      <View className="w-8 h-8 rounded-full border-[2.5px] border-bloodline-600 bg-white" />
+    </Pressable>
   );
 }
 
@@ -506,15 +633,15 @@ function TaskRow({
   onTick: () => void;
 }) {
   return (
-    <View className="flex-row items-start py-3 border-b border-gray-100">
-      <Pressable
-        onPress={onTick}
-        accessibilityLabel="Complete task"
-        className="w-9 h-9 rounded-full border-2 border-bloodline-600 mr-3"
-      />
-      <Pressable onPress={onOpen} className="flex-1">
-        <Text className="text-[17px] text-ink font-bold">{title}</Text>
-        {detail ? <Text className="text-base text-gray-500 mt-1">{detail}</Text> : null}
+    <View className="flex-row items-center gap-2 min-h-[56px]">
+      <CheckCircle onPress={onTick} />
+      <Pressable onPress={onOpen} className="flex-1 flex-row items-center gap-2 min-h-[52px]">
+        <Text className="flex-1 text-[17px] font-medium text-ink">{title}</Text>
+        {detail ? (
+          <View className="rounded-full bg-gray-100 px-2.5 py-1">
+            <Text className="text-[13px] font-bold text-gray-500">{detail}</Text>
+          </View>
+        ) : null}
       </Pressable>
     </View>
   );

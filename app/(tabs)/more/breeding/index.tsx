@@ -1,17 +1,21 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
+import { goatParts, ScreenHeading, SectionTitle } from '@/components/breeding/parts';
+import { breedingStatusTone } from '@/components/breeding/status';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { Chevron, ListCard, ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { formatDisplayDate } from '@/lib/dates';
+import { formatDisplayDate, todayIso } from '@/lib/dates';
 import {
   formatBreedingStatus,
   formatDueWindowPhrase,
+  kiddingSoonCategory,
   resolveBreedingWindow,
 } from '@/lib/domain/breeding';
 import {
@@ -62,10 +66,10 @@ export default function BreedingScreen() {
   );
 
   const animalLabels = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { name: string; tag: string | null }>();
     for (const row of animalRows ?? []) {
       const animal = mapAnimal(row as Record<string, unknown>);
-      map.set(animal.id, animalDisplayLabel(animal));
+      map.set(animal.id, goatParts(animal));
     }
     return map;
   }, [animalRows]);
@@ -105,7 +109,7 @@ export default function BreedingScreen() {
 
   if (queryError) {
     return (
-      <View className="flex-1 bg-gray-50 p-4">
+      <View className="flex-1 bg-paper p-4">
         <FormMessage
           message={
             queryError instanceof Error
@@ -119,25 +123,35 @@ export default function BreedingScreen() {
   }
 
   const isEmpty = breedingEvents.length === 0 && kiddingEvents.length === 0;
+  const today = todayIso();
+  const openCount = breedingEvents.filter((event) =>
+    isBreedingOpenForKidding(event.status),
+  ).length;
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="pb-8">
-      <View className="px-4 py-3 gap-2">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pb-10 gap-3">
+      <ScreenHeading
+        title="Breeding"
+        subtitle={`${openCount} open breeding${openCount === 1 ? '' : 's'}`}
+      />
+      <View className="flex-row gap-2.5 mt-1">
         <Button
-          title="Log Breeding"
+          title="Log breeding"
+          className="flex-1"
           onPress={() => router.push('/(tabs)/more/breeding/add-breeding')}
         />
         <Button
-          title="Log Kidding"
+          title="Log kidding"
           variant="outline"
+          className="flex-1"
           onPress={() => router.push('/(tabs)/more/breeding/add-kidding')}
         />
-        <Button
-          title="Breeding Calendar"
-          variant="secondary"
-          onPress={() => router.push('/(tabs)/more/breeding/calendar')}
-        />
       </View>
+      <Button
+        title="Breeding calendar"
+        variant="secondary"
+        onPress={() => router.push('/(tabs)/more/breeding/calendar')}
+      />
 
       {isEmpty ? (
         <EmptyState
@@ -149,73 +163,81 @@ export default function BreedingScreen() {
       ) : null}
 
       {breedingEvents.length > 0 ? (
-        <View className="px-4 mt-2">
-          <Text className="text-sm font-semibold text-gray-500 uppercase mb-2">
-            Breedings
-          </Text>
-          {breedingEvents.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() =>
-                router.push(`/(tabs)/more/breeding/edit-breeding/${item.id}`)
-              }
-              className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-              <View className="flex-row justify-between items-start">
-                <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
-                  {animalLabels.get(item.damId) ?? 'Dam'}
-                </Text>
-                <Badge label={formatBreedingStatus(item.status)} tone="default" />
-              </View>
-              <Text className="text-gray-600 text-sm mt-1">
-                {item.exposureEndDate
+        <View>
+          <SectionTitle>Bred does</SectionTitle>
+          <ListCard>
+            {breedingEvents.map((item, index) => {
+              const dam = animalLabels.get(item.damId);
+              const window = resolveBreedingWindow(item, activeFarm.gestationDays);
+              const category =
+                window && isBreedingOpenForKidding(item.status)
+                  ? kiddingSoonCategory(window.windowStart, window.windowEnd, today)
+                  : null;
+              const sire = item.sireId
+                ? animalLabels.get(item.sireId)?.name || 'Sire'
+                : item.sireExternalName;
+              const subtitle =
+                (item.exposureEndDate
                   ? `Exposed ${formatDisplayDate(item.bredDate)}–${formatDisplayDate(item.exposureEndDate)}`
-                  : `Bred ${formatDisplayDate(item.bredDate)}`}
-                {(() => {
-                  const window = resolveBreedingWindow(
-                    item,
-                    activeFarm.gestationDays,
-                  );
-                  return window
-                    ? ` · ${formatDueWindowPhrase(window.windowStart, window.windowEnd)}`
-                    : '';
-                })()}
-              </Text>
-              {item.sireId || item.sireExternalName ? (
-                <Text className="text-gray-600 text-sm mt-1">
-                  Sire:{' '}
-                  {item.sireId
-                    ? animalLabels.get(item.sireId) ?? 'Sire'
-                    : item.sireExternalName}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
+                  : `Bred ${formatDisplayDate(item.bredDate)}`) +
+                (window
+                  ? ` · ${formatDueWindowPhrase(window.windowStart, window.windowEnd)}`
+                  : '') +
+                (sire ? ` · Sire ${sire}` : '');
+              return (
+                <ListRow
+                  key={item.id}
+                  title={dam?.name ?? 'Dam'}
+                  tag={dam?.tag}
+                  subtitle={subtitle}
+                  last={index === breedingEvents.length - 1}
+                  onPress={() =>
+                    router.push(`/(tabs)/more/breeding/edit-breeding/${item.id}`)
+                  }
+                  right={
+                    category === 'soon' ? (
+                      <Badge label="Kidding soon" tone="warning" />
+                    ) : category === 'past_due' ? (
+                      <Badge label="Past due" tone="danger" />
+                    ) : (
+                      <Badge
+                        label={formatBreedingStatus(item.status)}
+                        tone={breedingStatusTone(item.status)}
+                      />
+                    )
+                  }
+                />
+              );
+            })}
+          </ListCard>
         </View>
       ) : null}
 
       {kiddingEvents.length > 0 ? (
-        <View className="px-4 mt-4">
-          <Text className="text-sm font-semibold text-gray-500 uppercase mb-2">
-            Kiddings
-          </Text>
-          {kiddingEvents.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() =>
-                router.push(`/(tabs)/more/breeding/edit-kidding/${item.id}`)
-              }
-              className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-              <Text className="text-lg font-semibold text-gray-900">
-                {animalLabels.get(item.damId) ?? 'Dam'}
-              </Text>
-              <Text className="text-gray-600 text-sm mt-1">
-                {formatDisplayDate(item.kidDate)} · {item.kidsBorn} born
-                {item.kidsSurviving != null
-                  ? ` · ${item.kidsSurviving} surviving`
-                  : ''}
-              </Text>
-            </Pressable>
-          ))}
+        <View>
+          <SectionTitle>Recent kiddings</SectionTitle>
+          <ListCard>
+            {kiddingEvents.map((item, index) => {
+              const dam = animalLabels.get(item.damId);
+              return (
+                <ListRow
+                  key={item.id}
+                  title={dam?.name ?? 'Dam'}
+                  tag={dam?.tag}
+                  subtitle={`${formatDisplayDate(item.kidDate)} · ${item.kidsBorn} born${
+                    item.kidsSurviving != null
+                      ? ` · ${item.kidsSurviving} surviving`
+                      : ''
+                  }`}
+                  last={index === kiddingEvents.length - 1}
+                  onPress={() =>
+                    router.push(`/(tabs)/more/breeding/edit-kidding/${item.id}`)
+                  }
+                  right={<Chevron />}
+                />
+              );
+            })}
+          </ListCard>
         </View>
       ) : null}
     </ScrollView>

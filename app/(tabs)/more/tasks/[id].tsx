@@ -1,13 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { LoadingState } from '@/components/ui/LoadingState';
 import {
   deleteTask,
@@ -107,20 +110,35 @@ export default function TaskDetailScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-8"
+        footer={
+          <Button
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={saving}
+            className="min-h-[60px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
         <Pressable
           onPress={toggleCompleted}
-          className={`w-10 h-10 rounded-full border-2 mb-4 items-center justify-center ${
-            completed
-              ? 'border-green-600 bg-green-600'
-              : 'border-gray-400 bg-white'
-          }`}>
-          {completed ? (
-            <Text className="text-white font-bold">✓</Text>
-          ) : null}
+          accessibilityRole="button"
+          accessibilityLabel={completed ? 'Mark task incomplete' : 'Mark task done'}
+          className="flex-row items-center gap-3.5 bg-white border border-gray-200 rounded-[22px] px-4 py-3.5 min-h-[72px] mb-4">
+          <View
+            className={`w-12 h-12 rounded-full border-[3px] items-center justify-center ${
+              completed
+                ? 'border-[#0f5a33] bg-[#0f5a33]'
+                : 'border-bloodline-600 bg-white'
+            }`}>
+            {completed ? (
+              <Text className="text-white text-2xl font-extrabold">✓</Text>
+            ) : null}
+          </View>
+          <Text className="text-lg font-extrabold text-ink">
+            {completed ? 'Done' : 'Mark as done'}
+          </Text>
         </Pressable>
         <Input label="Title" value={title} onChangeText={setTitle} />
         <DateField
@@ -128,28 +146,21 @@ export default function TaskDetailScreen() {
           value={dueDate}
           onChange={setDueDate}
           optional
+          placeholder="No due date"
         />
-        <Text className="text-sm font-medium text-gray-700 mb-2">Priority</Text>
-        <View className="flex-row gap-2 mb-4">
-          {PRIORITIES.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setPriority(option)}
-              className={`flex-1 rounded-xl border py-3 items-center capitalize ${
-                priority === option
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text className="font-medium">{option}</Text>
-            </Pressable>
-          ))}
+        <FieldLabel>How important?</FieldLabel>
+        <View className="mb-4">
+          <Segmented
+            value={priority}
+            onChange={setPriority}
+            options={PRIORITIES.map((option) => ({
+              value: option,
+              label: `${option.charAt(0).toUpperCase()}${option.slice(1)}`,
+            }))}
+          />
         </View>
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-        />
         <DeleteRecordButton
+          title="Delete task"
           confirmTitle="Delete task?"
           confirmMessage="This task will be permanently removed."
           onDelete={async () => {
@@ -160,7 +171,7 @@ export default function TaskDetailScreen() {
             router.back();
           }}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

@@ -1,7 +1,9 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
+
+import { Banner } from '@/components/ui/Banner';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
@@ -115,23 +117,27 @@ export default function ResetPasswordScreen() {
 
   if (!ready) {
     return (
-      <FormKeyboardScreen contentContainerClassName="px-6 py-8">
+      <FormKeyboardScreen contentContainerClassName="px-5 pt-5 pb-8">
         <FormMessage message={linkError} tone="error" />
-        <Text className="text-gray-700">
-          Open the password reset link from your email to continue.
-        </Text>
+        <Banner
+          tone="amber"
+          title="Link did not work?"
+          message="Open the password reset link from your email to continue."
+        />
       </FormKeyboardScreen>
     );
   }
 
   return (
-    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
-      <Text className="text-2xl font-bold text-bloodline-800 mb-2">
-        Choose a new password
-      </Text>
-      <Text className="text-gray-600 mb-6">
-        This link expires soon. Pick a password you have not used here before.
-      </Text>
+    <FormKeyboardScreen contentContainerClassName="px-5 pt-5 pb-8">
+      <View className="px-1 mb-5">
+        <Text className="text-[30px] leading-9 font-extrabold text-ink mb-2">
+          Choose a new password
+        </Text>
+        <Text className="text-[17px] leading-6 text-gray-500">
+          This link expires soon. Pick a password you have not used here before.
+        </Text>
+      </View>
 
       <FormMessage message={errorMessage} tone="error" />
 

@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { Banner } from '@/components/ui/Banner';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { updateFarmSettings } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { confirmAction } from '@/lib/ui/confirm';
@@ -118,55 +121,69 @@ export default function SettingsScreen() {
   }
 
   return (
-    <FormKeyboardScreen contentContainerClassName="p-4">
+    <FormKeyboardScreen
+      contentContainerClassName="px-5 pt-2 pb-8"
+      footer={
+        <Button
+          title={loading ? 'Saving…' : 'Save settings'}
+          onPress={handleSave}
+          disabled={loading}
+          className="h-[60px]"
+        />
+      }>
       <FormMessage message={errorMessage} tone="error" />
-      <FormMessage message={successMessage} tone="success" />
+      {successMessage ? (
+        <View className="mb-4">
+          <Banner
+            tone="green"
+            title="Settings saved"
+            message="Your changes are on this phone and uploading."
+          />
+        </View>
+      ) : null}
 
       <Input label="Farm name" value={name} onChangeText={setName} />
-      <Input
-        label="Currency"
-        value={currency}
-        onChangeText={setCurrency}
-        placeholder="USD"
-        autoCapitalize="characters"
-      />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">
-        Weight unit
-      </Text>
-      <View className="flex-row gap-2 mb-6">
-        {WEIGHT_UNITS.map((unit) => (
-          <Pressable
-            key={unit}
-            onPress={() => setWeightUnit(unit)}
-            className={`flex-1 rounded-xl border px-3 py-3 items-center ${
-              weightUnit === unit
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`font-medium ${
-                weightUnit === unit ? 'text-bloodline-700' : 'text-gray-700'
-              }`}>
-              {unit}
-            </Text>
-          </Pressable>
-        ))}
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Input
+            label="Currency"
+            value={currency}
+            onChangeText={setCurrency}
+            placeholder="USD"
+            autoCapitalize="characters"
+          />
+        </View>
+        <View className="flex-1">
+          <FieldLabel>Weight unit</FieldLabel>
+          <Segmented
+            options={WEIGHT_UNITS.map((unit) => ({ value: unit, label: unit }))}
+            value={weightUnit}
+            onChange={setWeightUnit}
+          />
+        </View>
       </View>
 
-      <Input
-        label="Gestation (days)"
-        value={gestationDays}
-        onChangeText={setGestationDays}
-        keyboardType="numeric"
-      />
-      <Input
-        label="Wean at (days)"
-        value={weaningDays}
-        onChangeText={setWeaningDays}
-        keyboardType="numeric"
-        placeholder="Blank turns weaning reminders off"
-      />
+      <View className="flex-row gap-3 mt-4">
+        <View className="flex-1">
+          <Input
+            label="Gestation (days)"
+            value={gestationDays}
+            onChangeText={setGestationDays}
+            keyboardType="numeric"
+          />
+        </View>
+        <View className="flex-1">
+          <Input
+            label="Wean at (days)"
+            value={weaningDays}
+            onChangeText={setWeaningDays}
+            keyboardType="numeric"
+            placeholder="Off"
+            hint="Blank turns weaning reminders off"
+          />
+        </View>
+      </View>
       <Input
         label="FAMACHA recheck (days)"
         value={famachaRecheckDays}
@@ -174,15 +191,13 @@ export default function SettingsScreen() {
         keyboardType="numeric"
       />
 
-      <Text className="text-sm text-gray-500 mb-4">
-        Operation type: {formatFarmOperationType(activeFarm.segment)} (read-only)
+      <Text className="text-base text-gray-500">
+        Operation type:{' '}
+        <Text className="font-bold text-ink">
+          {formatFarmOperationType(activeFarm.segment)}
+        </Text>{' '}
+        (read-only)
       </Text>
-
-      <Button
-        title={loading ? 'Saving…' : 'Save Settings'}
-        onPress={handleSave}
-        disabled={loading}
-      />
     </FormKeyboardScreen>
   );
 }

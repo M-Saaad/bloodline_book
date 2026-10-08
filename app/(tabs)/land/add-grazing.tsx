@@ -1,13 +1,15 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
 import { Button } from '@/components/ui/Button';
-import { ChoicePickerField } from '@/components/ui/ChoicePickerField';
+import { Chip, ChipRow } from '@/components/ui/Chip';
 import { DateField } from '@/components/ui/DateField';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
@@ -144,68 +146,79 @@ export default function AddGrazingScreen() {
 
   return (
     <HandWriteBlocked>
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4"
-      keyboardShouldPersistTaps="handled">
-      <FormMessage message={errorMessage} tone="error" />
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-6"
+        footer={
+          <Button
+            className="min-h-[60px]"
+            title={
+              loading
+                ? 'Saving…'
+                : selectedIds.length > 0
+                  ? `Move ${selectedIds.length} goat${selectedIds.length === 1 ? '' : 's'}`
+                  : 'Move goats'
+            }
+            onPress={handleSave}
+            disabled={loading || pastures.length === 0}
+          />
+        }>
+        <FormMessage message={errorMessage} tone="error" />
 
-      <ChoicePickerField
-        label="Pasture"
-        options={pastures.map((pasture) => ({
-          id: pasture.id,
-          label: pasture.name,
-        }))}
-        value={pastureId}
-        onChange={setPastureId}
-        emptyMessage="Add a pasture before moving animals."
-      />
+        <View className="mb-4">
+          <FieldLabel>Move to</FieldLabel>
+          {pastures.length === 0 ? (
+            <Text className="text-[17px] text-gray-500">
+              Add a pasture before moving animals.
+            </Text>
+          ) : (
+            <ChipRow>
+              {pastures.map((pasture) => (
+                <Chip
+                  key={pasture.id}
+                  label={pasture.name}
+                  selected={pastureId === pasture.id}
+                  onPress={() => setPastureId(pasture.id)}
+                />
+              ))}
+            </ChipRow>
+          )}
+        </View>
 
-      <DateField
-        label="Moved in"
-        value={startDate}
-        onChange={setStartDate}
-        maximumDate={new Date()}
-      />
+        <DateField
+          label="Moved in"
+          value={startDate}
+          onChange={setStartDate}
+          maximumDate={new Date()}
+        />
 
-      <AnimalMultiSelectField
-        label="Animals"
-        animals={animals}
-        selectedIds={selectedIds}
-        onChange={setSelectedIds}
-        pastureByAnimalId={pastureNameByAnimal}
-        disabled={alreadyHere}
-        quickChips={pastures.map((pasture) => ({
-          id: pasture.id,
-          label: pasture.name,
-          match: (animal) =>
-            openGrazing.some(
-              (stay) =>
-                stay.animalId === animal.id && stay.pastureId === pasture.id,
-            ),
-        }))}
-        emptyMessage="Add active goats on the Livestock tab first."
-      />
+        <AnimalMultiSelectField
+          label="Pick goats"
+          animals={animals}
+          selectedIds={selectedIds}
+          onChange={setSelectedIds}
+          pastureByAnimalId={pastureNameByAnimal}
+          disabled={alreadyHere}
+          quickChips={pastures.map((pasture) => ({
+            id: pasture.id,
+            label: pasture.name,
+            match: (animal) =>
+              openGrazing.some(
+                (stay) =>
+                  stay.animalId === animal.id && stay.pastureId === pasture.id,
+              ),
+          }))}
+          emptyMessage="Add active goats on the Livestock tab first."
+        />
 
-      <Input
-        label="Notes"
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Optional"
-      />
-
-      <Button
-        title={
-          loading
-            ? 'Saving…'
-            : selectedIds.length > 0
-              ? `Move ${selectedIds.length} goat${selectedIds.length === 1 ? '' : 's'}`
-              : 'Move Animals'
-        }
-        onPress={handleSave}
-        disabled={loading || pastures.length === 0}
-      />
-    </ScrollView>
+        <Input
+          label="Notes"
+          optional
+          multiline
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Optional"
+        />
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

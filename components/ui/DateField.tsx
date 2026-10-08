@@ -34,7 +34,7 @@ export interface DateFieldProps {
 }
 
 const fieldClassName =
-  'border border-gray-300 rounded-xl px-4 py-3 text-base bg-white text-gray-900';
+  'border border-gray-300 rounded-[18px] px-4 h-14 justify-center text-lg bg-white text-ink';
 
 export function DateField({
   label,
@@ -69,14 +69,14 @@ export function DateField({
 
   return (
     <View className="mb-4">
-      <View className="flex-row items-center justify-between mb-1">
-        <Text className="text-sm font-medium text-gray-700">{label}</Text>
+      <View className="flex-row items-center justify-between mb-2">
+        <Text className="text-base font-bold text-ink">{label}{optional ? <Text className="font-medium text-gray-500"> optional</Text> : null}</Text>
         {optional && value ? (
           <Pressable
             onPress={() => onChange('')}
             accessibilityRole="button"
             hitSlop={8}>
-            <Text className="text-sm font-medium text-bloodline-600">Clear</Text>
+            <Text className="text-base font-bold text-bloodline-600">Clear</Text>
           </Pressable>
         ) : null}
       </View>
@@ -86,7 +86,7 @@ export function DateField({
         accessibilityRole="button"
         className={fieldClassName}>
         <Text
-          className={`text-base ${value ? 'text-gray-900' : 'text-gray-400'}`}>
+          className={`text-lg ${value ? 'text-ink' : 'text-gray-500'}`}>
           {displayValue || placeholder}
         </Text>
       </Pressable>
@@ -138,8 +138,8 @@ export function DateField({
               )}
               <Pressable
                 onPress={closePicker}
-                className="mt-4 bg-bloodline-600 rounded-xl py-3 items-center">
-                <Text className="text-white font-semibold">Done</Text>
+                className="mt-4 bg-bloodline-600 rounded-2xl h-14 items-center justify-center">
+                <Text className="text-white text-lg font-extrabold">Done</Text>
               </Pressable>
             </Pressable>
           </Pressable>

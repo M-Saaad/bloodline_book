@@ -10,11 +10,12 @@ export default function AuthLayout() {
         headerShown: true,
         headerStyle: { backgroundColor: '#f6f2ee' },
         headerTintColor: '#5e1a0e',
-        headerTitleStyle: { fontWeight: '600' },
+        headerTitleStyle: { fontWeight: '800', fontSize: 20 },
+        headerShadowVisible: false,
       }}>
-      <Stack.Screen name="sign-in" options={{ title: 'Sign In' }} />
-      <Stack.Screen name="sign-up" options={{ title: 'Create Account' }} />
-      <Stack.Screen name="reset-password" options={{ title: 'Reset Password' }} />
+      <Stack.Screen name="sign-in" options={{ title: 'Sign In', headerShown: false }} />
+      <Stack.Screen name="sign-up" options={{ title: 'Create account' }} />
+      <Stack.Screen name="reset-password" options={{ title: 'New password' }} />
     </Stack>
     </RedirectIfSignedIn>
   );

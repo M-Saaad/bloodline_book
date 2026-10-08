@@ -1,11 +1,14 @@
 import { useStatus } from '@powersync/react';
-import { type Href, router, useFocusEffect } from 'expo-router';
+import { type Href, router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+
+import { SyncBadge } from '@/components/SyncBadge';
 
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Chevron } from '@/components/ui/ListRow';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { TEAM_INVITES_ENABLED } from '@/lib/config/features';
 import { countUploadFailures } from '@/lib/powersync/upload-failures';
@@ -19,22 +22,25 @@ import { useFarmRole } from '@/hooks/useFarmRole';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
 
-type MenuItem = { title: string; route: Href };
+type MenuItem = { title: string; route: Href; symbol: string };
 
 const BASE_MENU_ITEMS: MenuItem[] = [
-  { title: 'Health Log', route: '/(tabs)/more/health' },
-  { title: 'Breeding & Kidding', route: '/(tabs)/more/breeding' },
-  { title: 'Settings', route: '/(tabs)/more/settings' },
+  { title: 'Land', route: '/(tabs)/land', symbol: '⌂' },
+  { title: 'Money', route: '/(tabs)/finances', symbol: '＄' },
+  { title: 'Health log', route: '/(tabs)/more/health', symbol: '♡' },
+  { title: 'Tasks', route: '/(tabs)/more/tasks', symbol: '✓' },
+  { title: 'Papers', route: '/(tabs)/more/documents', symbol: '☰' },
+  { title: 'Settings', route: '/(tabs)/more/settings', symbol: '⋯' },
   ...(TEAM_INVITES_ENABLED
-    ? [{ title: 'Team', route: '/(tabs)/more/team' as Href }]
+    ? [{ title: 'Team', route: '/(tabs)/more/team' as Href, symbol: '☰' }]
     : []),
-  { title: 'Help', route: '/(tabs)/more/help' },
-  { title: 'Tasks', route: '/(tabs)/more/tasks' },
+  { title: 'Help', route: '/(tabs)/more/help', symbol: 'ⓘ' },
 ];
 
 const CHANGES_NOT_SAVED_ITEM: MenuItem = {
   title: 'Changes not saved',
   route: '/(tabs)/more/changes-not-saved',
+  symbol: '⚠',
 };
 
 function changesPhrase(count: number): string {
@@ -135,38 +141,55 @@ export default function MoreScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-6 pb-10 gap-3.5">
+      <Stack.Screen options={{ headerShown: false }} />
+      <View className="flex-row justify-between items-center">
+        <Text className="text-[32px] leading-[36px] font-extrabold text-ink">More</Text>
+        <SyncBadge />
+      </View>
+
       {isHand ? <ReadOnlyFarmBanner /> : null}
 
       {activeFarm && (
-        <Card>
-          <Text className="text-lg font-semibold text-gray-900 mb-1">
+        <Card className="px-[18px] py-4">
+          <Text className="text-[22px] font-extrabold text-ink">
             {activeFarm.name}
           </Text>
-          <Text className="text-gray-600 capitalize">
+          <Text className="text-base text-gray-500 mt-0.5 capitalize">
             {activeFarm.segment} · {activeFarm.currency} ·{' '}
             {activeFarm.weightUnit}
           </Text>
         </Card>
       )}
 
-      <Card>
-        {menuItems.map((item) => (
-          <Pressable
-            key={item.title}
-            onPress={() => router.push(item.route)}
-            className="py-3 border-b border-gray-100 active:bg-gray-50">
-            <Text className="text-base font-medium text-gray-900">
-              {item.title}
-            </Text>
-          </Pressable>
-        ))}
-      </Card>
+      <View className="bg-white border border-gray-200 rounded-[22px] overflow-hidden">
+        {menuItems.map((item, index) => {
+          const notSaved = item === CHANGES_NOT_SAVED_ITEM;
+          return (
+            <Pressable
+              key={item.title}
+              onPress={() => router.push(item.route)}
+              accessibilityRole="button"
+              className={`flex-row items-center gap-3 min-h-[68px] px-4 py-2.5 active:bg-gray-50 ${
+                index === menuItems.length - 1 ? '' : 'border-b border-gray-100'
+              }`}>
+              <Text
+                className={`w-7 text-center text-2xl ${notSaved ? 'text-ink' : 'text-bloodline-600'}`}>
+                {item.symbol}
+              </Text>
+              <Text className="flex-1 text-lg font-extrabold text-ink">
+                {item.title}
+              </Text>
+              <Chevron />
+            </Pressable>
+          );
+        })}
+      </View>
 
       <FormMessage message={signOutMessage} tone="error" />
 
       <Button
-        title={signOutBusy ? 'Signing out…' : 'Sign Out'}
+        title={signOutBusy ? 'Signing out…' : 'Sign out'}
         variant="outline"
         onPress={handleSignOut}
         disabled={signOutBusy}

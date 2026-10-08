@@ -2,7 +2,7 @@ import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
-import { Badge } from '@/components/ui/Badge';
+import { PageHeading } from '@/components/land/PageHeading';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -10,7 +10,6 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { mapTransaction } from '@/lib/db/mappers';
 import { formatDisplayDate } from '@/lib/dates';
 import { formatFarmCurrency } from '@/lib/format/money';
-import { formatTransactionKind } from '@/lib/ui/finance-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function FinancesScreen() {
@@ -38,7 +37,7 @@ export default function FinancesScreen() {
 
   if (!activeFarm) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-paper">
         <EmptyState title="No farm selected" />
       </View>
     );
@@ -51,79 +50,83 @@ export default function FinancesScreen() {
   const currency = activeFarm.currency;
   const formatMoney = (amount: number) => formatFarmCurrency(amount, currency);
 
-  return (
-    <View className="flex-1 bg-gray-50">
-      <View className="px-4 py-3">
-        <Card className="mb-3">
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-gray-600">Income</Text>
-            <Text className="text-green-700 font-semibold">
+  const header = (
+    <View className="gap-3.5 pb-3.5">
+      <PageHeading title="Money" subtitle="All entries" />
+      <Card className="px-[18px] py-[18px]">
+        <View className="flex-row">
+          <View className="flex-1">
+            <Text numberOfLines={1} adjustsFontSizeToFit className="text-[19px] font-extrabold text-[#0f5a33]">
               {formatMoney(revenue)}
             </Text>
+            <Text className="text-[15px] font-semibold text-gray-500">In</Text>
           </View>
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-gray-600">Expenses</Text>
-            <Text className="text-red-700 font-semibold">
+          <View className="flex-1">
+            <Text numberOfLines={1} adjustsFontSizeToFit className="text-[19px] font-extrabold text-ink">
               {formatMoney(expenses)}
             </Text>
+            <Text className="text-[15px] font-semibold text-gray-500">Out</Text>
           </View>
-          <View className="flex-row justify-between pt-2 border-t border-gray-100">
-            <Text className="text-gray-900 font-medium">Net</Text>
-            <Text className="text-gray-900 font-bold">
+          <View className="flex-1">
+            <Text numberOfLines={1} adjustsFontSizeToFit className="text-[19px] font-extrabold text-ink">
               {formatMoney(revenue - expenses)}
             </Text>
+            <Text className="text-[15px] font-semibold text-gray-500">Left over</Text>
           </View>
-        </Card>
-        <Button
-          title="Add Transaction"
-          onPress={() => router.push('/(tabs)/finances/add')}
-        />
-      </View>
+        </View>
+      </Card>
+      <Button
+        title="Add transaction"
+        onPress={() => router.push('/(tabs)/finances/add')}
+      />
+    </View>
+  );
 
+  return (
+    <View className="flex-1 bg-paper">
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
-        contentContainerClassName={
-          transactions.length === 0 ? 'flex-grow' : 'px-4 pb-6'
-        }
+        contentContainerClassName="px-5 pt-5 pb-10"
+        ListHeaderComponent={header}
         ListEmptyComponent={
           <EmptyState
             title="No transactions yet"
             description="Track feed, vet bills, sales, and other farm income and expenses."
-            actionLabel="Add Transaction"
+            actionLabel="Add transaction"
             onAction={() => router.push('/(tabs)/finances/add')}
           />
         }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push(`/(tabs)/finances/edit/${item.id}`)}
-            className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-            <View className="flex-row justify-between items-start mb-1">
-              <Text className="text-lg font-semibold text-gray-900 capitalize">
-                {item.category}
-              </Text>
-              <Badge
-                label={formatTransactionKind(item.kind)}
-                tone={item.kind === 'revenue' ? 'success' : 'warning'}
-              />
-            </View>
-            <View className="flex-row justify-between">
-              <Text className="text-gray-500">
-                {formatDisplayDate(item.date)}
-              </Text>
+        renderItem={({ item, index }) => {
+          const isIncome = item.kind === 'revenue';
+          const first = index === 0;
+          const last = index === transactions.length - 1;
+          return (
+            <Pressable
+              onPress={() => router.push(`/(tabs)/finances/edit/${item.id}`)}
+              accessibilityRole="button"
+              className={`flex-row items-center gap-3 min-h-[72px] px-4 py-2.5 bg-white border-x border-gray-200 active:bg-gray-50 ${
+                first ? 'border-t rounded-t-[22px]' : ''
+              } ${last ? 'border-b rounded-b-[22px]' : 'border-b border-b-gray-100'}`}>
+              <View className="flex-1">
+                <Text className="text-lg font-extrabold text-ink capitalize">
+                  {item.category}
+                </Text>
+                <Text className="text-[15px] text-gray-500 mt-0.5" numberOfLines={2}>
+                  {formatDisplayDate(item.date)}
+                  {item.notes ? ` · ${item.notes}` : ''}
+                </Text>
+              </View>
               <Text
-                className={`font-semibold ${
-                  item.kind === 'revenue' ? 'text-green-700' : 'text-red-700'
+                className={`text-[19px] font-extrabold ${
+                  isIncome ? 'text-[#0f5a33]' : 'text-ink'
                 }`}>
-                {item.kind === 'revenue' ? '+' : '-'}
+                {isIncome ? '+ ' : '- '}
                 {formatMoney(item.amount)}
               </Text>
-            </View>
-            {item.notes ? (
-              <Text className="text-gray-500 text-sm mt-2">{item.notes}</Text>
-            ) : null}
-          </Pressable>
-        )}
+            </Pressable>
+          );
+        }}
       />
     </View>
   );

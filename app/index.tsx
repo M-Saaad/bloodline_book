@@ -17,14 +17,14 @@ export default function IndexScreen() {
 
   if (!isConfigured) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50 px-6">
-        <Text className="text-2xl font-bold text-bloodline-800 mb-2">
+      <View className="flex-1 items-center justify-center bg-paper px-6">
+        <Text className="text-[30px] font-extrabold text-bloodline-900 mb-2">
           Bloodline Book
         </Text>
-        <Text className="text-center text-gray-600">
+        <Text className="text-center text-[17px] text-gray-500">
           This app is not set up yet. Try again later or contact support.
         </Text>
-        <Text className="text-center text-gray-600 mt-4">
+        <Text className="text-center text-[17px] text-gray-500 mt-4">
           {SUPPORT_EMAIL}
         </Text>
       </View>
@@ -33,7 +33,7 @@ export default function IndexScreen() {
 
   if (authLoading || (session && farmsLoading)) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
+      <View className="flex-1 items-center justify-center bg-paper">
         <ActivityIndicator size="large" color="#a52f1a" />
       </View>
     );

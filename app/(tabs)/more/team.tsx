@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { TEAM_INVITES_ENABLED } from '@/lib/config/features';
 import { mapFarmInvite, mapFarmMember } from '@/lib/db/mappers';
@@ -99,17 +101,17 @@ export default function TeamScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-2 pb-10 gap-4">
       <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">Members</Text>
+        <Text className="text-xl font-extrabold text-ink mb-3">Members</Text>
         {members.length === 0 ? (
-          <Text className="text-gray-500">No members found.</Text>
+          <Text className="text-base text-gray-500">No members found.</Text>
         ) : (
           members.map((member) => (
             <View
               key={`${member.farmId}-${member.userId}`}
               className="flex-row justify-between items-center py-2 border-b border-gray-100">
-              <Text className="text-gray-800 font-mono text-sm">
+              <Text className="text-[15px] text-ink font-mono">
                 {member.userId.slice(0, 8)}…
               </Text>
               <Badge label={member.role} />
@@ -119,11 +121,11 @@ export default function TeamScreen() {
       </Card>
 
       <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
+        <Text className="text-xl font-extrabold text-ink mb-3">
           Pending invites
         </Text>
         {invites.filter((i) => i.status === 'pending').length === 0 ? (
-          <Text className="text-gray-500 mb-3">No pending invites.</Text>
+          <Text className="text-base text-gray-500 mb-3">No pending invites.</Text>
         ) : (
           invites
             .filter((invite) => invite.status === 'pending')
@@ -132,8 +134,8 @@ export default function TeamScreen() {
                 key={invite.id}
                 className="flex-row justify-between items-center py-2 border-b border-gray-100">
                 <View>
-                  <Text className="text-gray-900">{invite.email}</Text>
-                  <Text className="text-gray-500 text-sm capitalize">
+                  <Text className="text-[17px] font-bold text-ink">{invite.email}</Text>
+                  <Text className="text-[15px] text-gray-500 capitalize">
                     {invite.role}
                   </Text>
                 </View>
@@ -141,7 +143,7 @@ export default function TeamScreen() {
                   title="Revoke"
                   variant="outline"
                   onPress={() => handleRevoke(invite.id)}
-                  className="px-3 py-1"
+                  className="px-4"
                 />
               </View>
             ))
@@ -149,7 +151,7 @@ export default function TeamScreen() {
       </Card>
 
       <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
+        <Text className="text-xl font-extrabold text-ink mb-3">
           Invite teammate
         </Text>
         <FormMessage message={errorMessage} tone="error" />
@@ -162,19 +164,19 @@ export default function TeamScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
-        <View className="flex-row gap-2 mb-4">
-          {(['manager', 'hand'] as const).map((option) => (
-            <Button
-              key={option}
-              title={option}
-              variant={role === option ? 'primary' : 'secondary'}
-              onPress={() => setRole(option)}
-              className="flex-1 capitalize"
-            />
-          ))}
+        <View className="mb-4">
+          <FieldLabel>Role</FieldLabel>
+          <Segmented
+            options={[
+              { value: 'manager', label: 'Manager' },
+              { value: 'hand', label: 'Hand' },
+            ]}
+            value={role}
+            onChange={setRole}
+          />
         </View>
         <Button
-          title={loading ? 'Sending…' : 'Send Invite'}
+          title={loading ? 'Sending…' : 'Send invite'}
           onPress={handleInvite}
           disabled={loading}
         />

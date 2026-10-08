@@ -1,14 +1,19 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
+import { breedingStatusTone } from '@/components/breeding/status';
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Chip, ChipRow } from '@/components/ui/Chip';
 import { DateField } from '@/components/ui/DateField';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -26,10 +31,11 @@ import {
 import { mapAnimal } from '@/lib/db/mappers';
 import {
   computeBreedingWindow,
+  formatBreedingStatus,
   formatDueWindowPhrase,
   isBreedingOpenForKidding,
 } from '@/lib/domain/breeding';
-import type { ConfirmMethod } from '@/lib/types/breeding';
+import type { BreedingStatus, ConfirmMethod } from '@/lib/types/breeding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
@@ -250,22 +256,40 @@ export default function EditBreedingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-8"
+        footer={
+          <Button
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={saving}
+            className="min-h-[60px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
-        <View className="flex-row items-center gap-2 mb-3">
-          <Badge label={status} />
+        <View className="flex-row items-center gap-3 mb-4">
+          <Badge
+            label={formatBreedingStatus(status as BreedingStatus)}
+            tone={breedingStatusTone(status as BreedingStatus)}
+          />
           {window ? (
-            <Text className="text-sm text-gray-600 flex-1">
+            <Text className="text-base font-semibold text-gray-500 flex-1">
               {formatDueWindowPhrase(window.windowStart, window.windowEnd)}
             </Text>
           ) : null}
         </View>
 
         {canChangeOutcome ? (
-          <View className="gap-2 mb-4">
+          <View className="gap-2.5 mb-5">
+            <Button
+              title="Log kidding"
+              onPress={() =>
+                router.push({
+                  pathname: '/(tabs)/more/breeding/add-kidding',
+                  params: { damId: damId ?? '', breedingId: id },
+                })
+              }
+            />
             <Button
               title="Confirm pregnant"
               variant="secondary"
@@ -275,35 +299,31 @@ export default function EditBreedingScreen() {
               }}
             />
             {showConfirm ? (
-              <View className="bg-white border border-gray-200 rounded-xl p-3">
+              <Card>
                 <DateField
                   label="Confirmed date"
                   value={confirmedDate}
                   onChange={setConfirmedDate}
                 />
-                <Text className="text-sm font-medium text-gray-700 mb-2">
-                  Method
-                </Text>
-                <View className="flex-row flex-wrap gap-2 mb-3">
-                  {METHODS.map((method) => (
-                    <Pressable
-                      key={method.value}
-                      onPress={() => setConfirmMethod(method.value)}
-                      className={`rounded-full border px-3 py-1.5 ${
-                        confirmMethod === method.value
-                          ? 'border-bloodline-600 bg-bloodline-50'
-                          : 'border-gray-300 bg-white'
-                      }`}>
-                      <Text className="text-sm text-gray-800">{method.label}</Text>
-                    </Pressable>
-                  ))}
+                <FieldLabel>Method</FieldLabel>
+                <View className="mb-4">
+                  <ChipRow>
+                    {METHODS.map((method) => (
+                      <Chip
+                        key={method.value}
+                        label={method.label}
+                        selected={confirmMethod === method.value}
+                        onPress={() => setConfirmMethod(method.value)}
+                      />
+                    ))}
+                  </ChipRow>
                 </View>
                 <Button
                   title={saving ? 'Saving…' : 'Save confirmation'}
                   onPress={handleConfirm}
                   disabled={saving}
                 />
-              </View>
+              </Card>
             ) : null}
             <Button title="Mark open (not pregnant)" variant="outline" onPress={handleOpen} />
             <Button
@@ -315,7 +335,7 @@ export default function EditBreedingScreen() {
               }}
             />
             {showLost ? (
-              <View className="bg-white border border-gray-200 rounded-xl p-3">
+              <Card>
                 <Input
                   label="What happened?"
                   value={lostNote}
@@ -327,17 +347,8 @@ export default function EditBreedingScreen() {
                   onPress={handleLost}
                   disabled={saving}
                 />
-              </View>
+              </Card>
             ) : null}
-            <Button
-              title="Log kidding"
-              onPress={() =>
-                router.push({
-                  pathname: '/(tabs)/more/breeding/add-kidding',
-                  params: { damId: damId ?? '', breedingId: id },
-                })
-              }
-            />
           </View>
         ) : null}
 
@@ -372,12 +383,7 @@ export default function EditBreedingScreen() {
             onChange={setExposureEnd}
           />
         ) : null}
-        <Input label="Notes" value={notes} onChangeText={setNotes} />
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-        />
+        <Input label="Notes" value={notes} onChangeText={setNotes} optional multiline />
         <DeleteRecordButton
           confirmTitle="Delete breeding?"
           confirmMessage="The open kidding task will be removed."
@@ -400,7 +406,7 @@ export default function EditBreedingScreen() {
             }
           }}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

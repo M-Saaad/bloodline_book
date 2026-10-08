@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { createTask } from '@/lib/db/documents';
 import type { FarmTask } from '@/lib/types/documents';
 import { useFarm } from '@/providers/FarmProvider';
@@ -56,11 +58,20 @@ export default function AddTaskScreen() {
 
   return (
     <HandWriteBlocked>
-    <FormKeyboardScreen contentContainerClassName="p-4">
+    <FormKeyboardScreen
+      contentContainerClassName="px-5 pt-2 pb-8"
+      footer={
+        <Button
+          title={loading ? 'Saving…' : 'Save task'}
+          onPress={handleSave}
+          disabled={loading}
+          className="min-h-[60px]"
+        />
+      }>
       <FormMessage message={errorMessage} tone="error" />
 
       <Input
-        label="Title"
+        label="What needs doing?"
         value={title}
         onChangeText={setTitle}
         placeholder="Check water troughs"
@@ -73,32 +84,17 @@ export default function AddTaskScreen() {
         placeholder="No due date"
       />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Priority</Text>
-      <View className="flex-row gap-2 mb-6">
-        {PRIORITIES.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setPriority(option)}
-            className={`flex-1 rounded-xl border px-3 py-3 items-center capitalize ${
-              priority === option
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`font-medium ${
-                priority === option ? 'text-bloodline-700' : 'text-gray-700'
-              }`}>
-              {option}
-            </Text>
-          </Pressable>
-        ))}
+      <FieldLabel>How important?</FieldLabel>
+      <View className="mb-4">
+        <Segmented
+          value={priority}
+          onChange={setPriority}
+          options={PRIORITIES.map((option) => ({
+            value: option,
+            label: `${option.charAt(0).toUpperCase()}${option.slice(1)}`,
+          }))}
+        />
       </View>
-
-      <Button
-        title={loading ? 'Saving…' : 'Save Task'}
-        onPress={handleSave}
-        disabled={loading}
-      />
     </FormKeyboardScreen>
     </HandWriteBlocked>
   );

@@ -1,11 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { createFarm } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { useUiStore } from '@/lib/store/ui';
@@ -44,7 +46,7 @@ export default function CreateFarmScreen() {
 
   if (farmsLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
+      <View className="flex-1 items-center justify-center bg-paper">
         <ActivityIndicator size="large" color="#a52f1a" />
       </View>
     );
@@ -79,13 +81,27 @@ export default function CreateFarmScreen() {
   }
 
   return (
-    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
-      <Text className="text-2xl font-bold text-bloodline-800 mb-2">
-        Set up your farm
-      </Text>
-      <Text className="text-gray-600 mb-8">
-        This creates your farm and makes you the owner.
-      </Text>
+    <FormKeyboardScreen
+      contentContainerClassName="px-5 pt-6 pb-8"
+      footer={
+        <Button
+          title={loading ? 'Creating…' : 'Create farm'}
+          onPress={handleCreate}
+          disabled={loading}
+          className="h-[60px]"
+        />
+      }>
+      <View className="px-1 mb-5">
+        <Text className="text-[15px] font-extrabold tracking-widest text-bloodline-600">
+          STEP 1 OF 1
+        </Text>
+        <Text className="text-[32px] leading-[36px] font-extrabold text-ink mt-1.5">
+          Set up your farm
+        </Text>
+        <Text className="text-[17px] leading-6 text-gray-500 mt-2">
+          This creates your farm and makes you the owner.
+        </Text>
+      </View>
 
       <FormMessage message={errorMessage} tone="error" />
 
@@ -96,73 +112,34 @@ export default function CreateFarmScreen() {
         placeholder="e.g. Red Oak Goat Farm"
       />
 
-      <Text className="text-sm font-medium text-gray-700 mb-1">
-        What do you raise?
-      </Text>
-      <Text className="text-sm text-gray-500 mb-3">
-        This sets which breed list you see. You cannot change it later in
-        Settings.
-      </Text>
-      <View className="flex-row gap-2 mb-6">
-        {SEGMENTS.map((option) => {
-          const selected = segment === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => setSegment(option.value)}
-              className={`flex-1 rounded-xl border px-3 py-3 items-center ${
-                selected
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`font-medium ${
-                  selected ? 'text-bloodline-700' : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View className="mb-5">
+        <FieldLabel>What do you raise?</FieldLabel>
+        <Segmented options={SEGMENTS} value={segment} onChange={setSegment} />
+        <Text className="text-[15px] leading-5 text-gray-500 mt-1.5">
+          This sets which breed list you see. You cannot change it later in
+          Settings.
+        </Text>
       </View>
 
-      <Input
-        label="Currency"
-        value={currency}
-        onChangeText={setCurrency}
-        placeholder="USD"
-        autoCapitalize="characters"
-      />
-
-      <Text className="text-sm font-medium text-gray-700 mb-2">Weight unit</Text>
-      <View className="flex-row gap-2 mb-6">
-        {WEIGHT_UNITS.map((unit) => {
-          const selected = weightUnit === unit;
-          return (
-            <Pressable
-              key={unit}
-              onPress={() => setWeightUnit(unit)}
-              className={`flex-1 rounded-xl border px-3 py-3 items-center ${
-                selected
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`font-medium ${
-                  selected ? 'text-bloodline-700' : 'text-gray-700'
-                }`}>
-                {unit}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View className="flex-row gap-3">
+        <View className="flex-1">
+          <Input
+            label="Currency"
+            value={currency}
+            onChangeText={setCurrency}
+            placeholder="USD"
+            autoCapitalize="characters"
+          />
+        </View>
+        <View className="flex-1">
+          <FieldLabel>Weight unit</FieldLabel>
+          <Segmented
+            options={WEIGHT_UNITS.map((unit) => ({ value: unit, label: unit }))}
+            value={weightUnit}
+            onChange={setWeightUnit}
+          />
+        </View>
       </View>
-
-      <Button
-        title={loading ? 'Creating…' : 'Create Farm'}
-        onPress={handleCreate}
-        disabled={loading}
-      />
     </FormKeyboardScreen>
   );
 }

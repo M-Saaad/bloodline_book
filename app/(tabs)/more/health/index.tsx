@@ -1,15 +1,16 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 
+import { CardRowShell, goatParts } from '@/components/breeding/parts';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
-import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function HealthLogScreen() {
@@ -32,10 +33,10 @@ export default function HealthLogScreen() {
   );
 
   const animalLabels = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { name: string; tag: string | null }>();
     for (const row of animalRows ?? []) {
       const animal = mapAnimal(row as Record<string, unknown>);
-      map.set(animal.id, animalDisplayLabel(animal));
+      map.set(animal.id, goatParts(animal));
     }
     return map;
   }, [animalRows]);
@@ -53,10 +54,11 @@ export default function HealthLogScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="px-4 py-3">
+    <View className="flex-1 bg-paper">
+      <View className="px-5 pt-2 pb-3 items-end">
         <Button
-          title="Add Health Record"
+          title="＋ Add"
+          className="w-[104px] min-h-[48px] py-0"
           onPress={() => router.push('/(tabs)/more/health/add')}
         />
       </View>
@@ -65,7 +67,7 @@ export default function HealthLogScreen() {
         data={records}
         keyExtractor={(item) => item.id}
         contentContainerClassName={
-          records.length === 0 ? 'flex-grow' : 'px-4 pb-6'
+          records.length === 0 ? 'flex-grow' : 'px-5 pb-10'
         }
         ListEmptyComponent={
           <EmptyState
@@ -75,37 +77,44 @@ export default function HealthLogScreen() {
             onAction={() => router.push('/(tabs)/more/health/add')}
           />
         }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() =>
-              router.push(`/(tabs)/more/health/edit/${item.id}`)
-            }
-            className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-            <View className="flex-row justify-between items-start mb-1">
-              <Text className="text-lg font-semibold text-gray-900 capitalize flex-1 pr-2">
-                {item.kind.replace(/_/g, ' ')}
-              </Text>
-              <Badge label={formatDisplayDate(item.date)} tone="default" />
-            </View>
-            <Text className="text-gray-700">
-              {animalLabels.get(item.animalId) ?? 'Unknown animal'}
-            </Text>
-            {item.kind === 'famacha' && item.famachaScore != null ? (
-              <Text className="text-gray-600 text-sm mt-1">
-                FAMACHA score: {item.famachaScore}
-              </Text>
-            ) : null}
-            {item.productName ? (
-              <Text className="text-gray-600 text-sm mt-1">
-                {item.productName}
-                {item.dosage ? ` · ${item.dosage}` : ''}
-              </Text>
-            ) : null}
-            {item.notes ? (
-              <Text className="text-gray-500 text-sm mt-2">{item.notes}</Text>
-            ) : null}
-          </Pressable>
-        )}
+        renderItem={({ item, index }) => {
+          const goat = animalLabels.get(item.animalId);
+          const kindLabel = item.kind.replace(/_/g, ' ');
+          const details = [
+            `${kindLabel.charAt(0).toUpperCase()}${kindLabel.slice(1)}`,
+            item.kind === 'famacha' && item.famachaScore != null
+              ? `FAMACHA score ${item.famachaScore}`
+              : null,
+            item.productName
+              ? `${item.productName}${item.dosage ? ` · ${item.dosage}` : ''}`
+              : null,
+            item.meatWithdrawalDays != null && item.meatWithdrawalDays > 0
+              ? `${item.meatWithdrawalDays} day meat withdrawal`
+              : null,
+            item.notes || null,
+          ].filter(Boolean);
+          const needsLook =
+            item.kind === 'famacha' &&
+            item.famachaScore != null &&
+            item.famachaScore >= 3;
+          return (
+            <CardRowShell index={index} count={records.length}>
+              <ListRow
+                title={goat?.name ?? 'Unknown animal'}
+                tag={goat?.tag}
+                subtitle={details.join(' · ')}
+                last={index === records.length - 1}
+                onPress={() => router.push(`/(tabs)/more/health/edit/${item.id}`)}
+                right={
+                  <Badge
+                    label={formatDisplayDate(item.date)}
+                    tone={needsLook ? 'warning' : 'default'}
+                  />
+                }
+              />
+            </CardRowShell>
+          );
+        }}
       />
     </View>
   );

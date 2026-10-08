@@ -69,13 +69,18 @@ export default function SignInScreen() {
   }
 
   return (
-    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
-      <Text className="text-3xl font-bold text-bloodline-800 mb-2">
-        Bloodline Book
-      </Text>
-      <Text className="text-gray-600 mb-8">
-        Herd records for dairy and meat goat operations.
-      </Text>
+    <FormKeyboardScreen contentContainerClassName="px-5 pt-16 pb-8">
+      <View className="px-1 mb-6">
+        <View className="w-16 h-16 rounded-[20px] bg-bloodline-600 items-center justify-center mb-4">
+          <Text className="text-4xl text-white font-extrabold">B</Text>
+        </View>
+        <Text className="text-[34px] leading-[38px] font-extrabold text-bloodline-900 mb-2">
+          Bloodline Book
+        </Text>
+        <Text className="text-[17px] leading-6 text-gray-500">
+          Herd records for dairy and meat goat operations.
+        </Text>
+      </View>
 
       <FormMessage message={errorMessage} tone="error" />
       {noticeMessage ? (
@@ -109,8 +114,8 @@ export default function SignInScreen() {
       <Pressable
         onPress={handleForgotPassword}
         disabled={resetLoading}
-        className="mb-3 min-h-[44px] justify-center">
-        <Text className="text-bloodline-600 font-semibold text-sm">
+        className="mb-3 min-h-[48px] justify-center">
+        <Text className="text-bloodline-600 font-bold text-base">
           {resetLoading ? 'Sending reset email…' : 'Forgot password?'}
         </Text>
       </Pressable>
@@ -122,14 +127,17 @@ export default function SignInScreen() {
         className="mt-2"
       />
 
-      <View className="mt-6 flex-row justify-center">
-        <Text className="text-gray-600">No account? </Text>
+      <View className="mt-5 flex-row justify-center items-center">
+        <Text className="text-[17px] text-gray-500">No account? </Text>
         <Link href="/(auth)/sign-up" asChild>
-          <Pressable>
-            <Text className="text-bloodline-600 font-semibold">Sign up</Text>
+          <Pressable className="min-h-[48px] justify-center">
+            <Text className="text-base text-bloodline-600 font-bold">Create one</Text>
           </Pressable>
         </Link>
       </View>
+      <Text className="mt-2 text-[15px] text-gray-500 text-center">
+        ◔ Works without signal after you sign in once
+      </Text>
     </FormKeyboardScreen>
   );
 }

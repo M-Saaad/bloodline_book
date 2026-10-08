@@ -5,7 +5,7 @@ import { stackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
 export default function MoreLayout() {
   return (
     <Stack screenOptions={stackWithSyncBadge}>
-      <Stack.Screen name="index" options={{ title: 'More' }} />
+      <Stack.Screen name="index" options={{ title: 'More', headerShown: false }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="help" options={{ title: 'Help' }} />
       <Stack.Screen name="team" options={{ title: 'Team' }} />

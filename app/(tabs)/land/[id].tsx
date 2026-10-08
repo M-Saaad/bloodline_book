@@ -3,9 +3,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { Badge } from '@/components/ui/Badge';
+import { GoatName, SectionTitle } from '@/components/land/PageHeading';
+import {
+  PastureStatusBadge,
+  pastureStatusLabel,
+} from '@/components/land/PastureStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { ListCard } from '@/components/ui/ListRow';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -14,11 +21,7 @@ import { endGrazingRecords, updatePastureStatus } from '@/lib/db/land';
 import { mapAnimal, mapFeedLog, mapGrazingRecord, mapPasture } from '@/lib/db/mappers';
 import type { PastureStatus } from '@/lib/types/land';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
-import {
-  formatForageType,
-  formatPastureStatus,
-  pastureStatusTone,
-} from '@/lib/ui/pasture-labels';
+import { formatForageType } from '@/lib/ui/pasture-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const PASTURE_STATUSES: PastureStatus[] = [
@@ -67,10 +70,13 @@ export default function PastureDetailScreen() {
   );
 
   const animalsById = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { label: string; tag: string | null }>();
     for (const row of animalRows ?? []) {
       const animal = mapAnimal(row as Record<string, unknown>);
-      map.set(animal.id, animalDisplayLabel(animal));
+      map.set(animal.id, {
+        label: animalDisplayLabel(animal),
+        tag: animal.tagNumber?.trim() || null,
+      });
     }
     return map;
   }, [animalRows]);
@@ -86,7 +92,7 @@ export default function PastureDetailScreen() {
   const pastureRow = pastureRows?.[0];
   if (!pastureRow) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-paper">
         <EmptyState
           title="Pasture not found"
           description="This pasture may have been removed or is not on this farm."
@@ -135,54 +141,49 @@ export default function PastureDetailScreen() {
     }
   }
 
+  const forage = formatForageType(pasture.forageType);
+  const forageText = forage.charAt(0).toUpperCase() + forage.slice(1);
+  const unknownAnimal = { label: 'Unknown animal', tag: null };
+
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4 gap-4 pb-8">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-2 pb-10 gap-3.5">
       <FormMessage message={errorMessage} tone="error" />
 
-      <Card>
-        <View className="flex-row justify-between items-start mb-3">
-          <Text className="text-2xl font-bold text-gray-900 flex-1 pr-3">
-            {pasture.name}
-          </Text>
-          <Badge
-            label={formatPastureStatus(pasture.status)}
-            tone={pastureStatusTone(pasture.status)}
-          />
+      <Card className="px-[18px] py-4">
+        <View className="flex-row justify-between items-center">
+          <View className="flex-1 pr-3">
+            <Text className="text-2xl font-extrabold text-ink">{pasture.name}</Text>
+            <Text className="text-[15px] text-gray-500">
+              {forageText}
+              {forageText.toLowerCase() === 'mixed' ? ' forage' : ''}
+              {pasture.acres != null ? ` · ${pasture.acres} acres` : ''}
+            </Text>
+          </View>
+          <PastureStatusBadge status={pasture.status} />
         </View>
-        <Text className="text-gray-600 capitalize mb-3">
-          {formatForageType(pasture.forageType)}
-          {pasture.acres != null ? ` · ${pasture.acres} acres` : ''}
-        </Text>
         {pasture.notes ? (
-          <Text className="text-gray-800 mb-3">{pasture.notes}</Text>
+          <Text className="text-base text-ink mt-3">{pasture.notes}</Text>
         ) : null}
-        <Text className="text-sm font-medium text-gray-700 mb-2">Status</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {PASTURE_STATUSES.map((option) => (
-            <Button
-              key={option}
-              title={formatPastureStatus(option)}
-              variant={pasture.status === option ? 'primary' : 'outline'}
-              disabled={updatingStatus}
-              onPress={() => handleStatus(option)}
-              className="px-3 py-2"
-            />
-          ))}
+        <View className="mt-3.5">
+          <FieldLabel>Status</FieldLabel>
+          <ChipRow>
+            {PASTURE_STATUSES.map((option) => (
+              <Chip
+                key={option}
+                label={pastureStatusLabel(option)}
+                selected={pasture.status === option}
+                disabled={updatingStatus}
+                onPress={() => handleStatus(option)}
+              />
+            ))}
+          </ChipRow>
         </View>
       </Card>
 
-      <View className="gap-2">
+      <View className="flex-row gap-2.5">
         <Button
-          title="Edit pasture details"
-          variant="outline"
-          onPress={() =>
-            router.push(`/(tabs)/land/edit-pasture/${pasture.id}`)
-          }
-        />
-        <Button
-          title="Move animals here"
+          className="flex-1"
+          title="Move here"
           onPress={() =>
             router.push({
               pathname: '/(tabs)/land/add-grazing',
@@ -191,8 +192,9 @@ export default function PastureDetailScreen() {
           }
         />
         <Button
-          title="Log feed here"
-          variant="secondary"
+          className="flex-1"
+          title="Log feed"
+          variant="outline"
           onPress={() =>
             router.push({
               pathname: '/(tabs)/land/add-feed',
@@ -201,90 +203,102 @@ export default function PastureDetailScreen() {
           }
         />
       </View>
+      <Button
+        title="Edit pasture details"
+        variant="secondary"
+        onPress={() => router.push(`/(tabs)/land/edit-pasture/${pasture.id}`)}
+      />
 
-      <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
-          Currently grazing
-        </Text>
-        {grazingLoading ? (
-          <Text className="text-gray-500">Loading occupancy…</Text>
-        ) : openRecords.length === 0 ? (
-          <Text className="text-gray-500">No animals on this pasture now.</Text>
+      <SectionTitle>{`On this pasture now (${openRecords.length})`}</SectionTitle>
+      {grazingLoading ? (
+        <Text className="text-[17px] text-gray-500">Loading occupancy…</Text>
+      ) : openRecords.length === 0 ? (
+        <Card>
+          <Text className="text-[17px] text-gray-500">No animals on this pasture now.</Text>
+        </Card>
+      ) : (
+        <ListCard>
+          {openRecords.map((record, index) => {
+            const animal = animalsById.get(record.animalId) ?? unknownAnimal;
+            const ending = endingIds.includes(record.id);
+            return (
+              <View
+                key={record.id}
+                className={`flex-row items-center gap-3 min-h-[72px] px-4 py-2.5 ${
+                  index === openRecords.length - 1 ? '' : 'border-b border-gray-100'
+                }`}>
+                <Pressable
+                  onPress={() => router.push(`/(tabs)/land/edit-grazing/${record.id}`)}
+                  accessibilityRole="button"
+                  className="flex-1">
+                  <GoatName label={animal.label} tag={animal.tag} />
+                  <Text className="text-[15px] text-gray-500 mt-0.5">
+                    Since {formatDisplayDate(record.startDate)}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleMoveOut(record.id)}
+                  disabled={ending}
+                  accessibilityRole="button"
+                  className={`h-12 min-w-[110px] rounded-[18px] bg-bloodline-100 items-center justify-center px-3 active:bg-bloodline-200 ${
+                    ending ? 'opacity-50' : ''
+                  }`}>
+                  <Text className="text-base font-extrabold text-bloodline-900">
+                    {ending ? 'Moving…' : 'Move out'}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </ListCard>
+      )}
+
+      <SectionTitle>Last moves</SectionTitle>
+      <Card className="py-3">
+        {historyRecords.length === 0 ? (
+          <Text className="text-base text-gray-500">No completed rotations yet.</Text>
         ) : (
-          openRecords.map((record) => (
-            <View
-              key={record.id}
-              className="flex-row justify-between items-center py-2 border-b border-gray-100">
+          historyRecords.slice(0, 12).map((record) => {
+            const animal = animalsById.get(record.animalId) ?? unknownAnimal;
+            return (
               <Pressable
-                onPress={() =>
-                  router.push(`/(tabs)/land/edit-grazing/${record.id}`)
-                }
-                className="flex-1 pr-3">
-                <Text className="text-gray-900 font-medium">
-                  {animalsById.get(record.animalId) ?? 'Unknown animal'}
-                </Text>
-                <Text className="text-gray-500 text-sm">
-                  Since {formatDisplayDate(record.startDate)}
+                key={record.id}
+                onPress={() => router.push(`/(tabs)/land/edit-grazing/${record.id}`)}
+                accessibilityRole="button"
+                className="min-h-[48px] justify-center py-1">
+                <Text className="text-base text-gray-500">
+                  <Text className="font-bold text-ink">{animal.label}</Text>
+                  {animal.tag && !animal.label.startsWith('#') ? (
+                    <Text className="font-bold text-bloodline-600"> #{animal.tag}</Text>
+                  ) : null}
+                  {' · '}
+                  {formatDisplayDate(record.startDate)} to{' '}
+                  {record.endDate ? formatDisplayDate(record.endDate) : 'open'}
                 </Text>
               </Pressable>
-              <Button
-                title={endingIds.includes(record.id) ? 'Moving…' : 'Move out'}
-                variant="outline"
-                disabled={endingIds.includes(record.id)}
-                onPress={() => handleMoveOut(record.id)}
-                className="px-3 py-2"
-              />
-            </View>
-          ))
+            );
+          })
         )}
       </Card>
 
-      <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
-          Grazing history
-        </Text>
-        {historyRecords.length === 0 ? (
-          <Text className="text-gray-500">No completed rotations yet.</Text>
-        ) : (
-          historyRecords.slice(0, 12).map((record) => (
-            <Pressable
-              key={record.id}
-              onPress={() =>
-                router.push(`/(tabs)/land/edit-grazing/${record.id}`)
-              }
-              className="flex-row justify-between py-2 border-b border-gray-100">
-              <Text className="text-gray-800 flex-1 pr-2">
-                {animalsById.get(record.animalId) ?? 'Unknown animal'}
-              </Text>
-              <Text className="text-gray-500 text-sm">
-                {formatDisplayDate(record.startDate)} –{' '}
-                {record.endDate ? formatDisplayDate(record.endDate) : 'open'}
-              </Text>
-            </Pressable>
-          ))
-        )}
-      </Card>
-
-      <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">Feed here</Text>
+      <SectionTitle>Feed here</SectionTitle>
+      <Card className="px-4 py-2.5">
         {feedLogs.length === 0 ? (
-          <Text className="text-gray-500">No feed logs tied to this pasture.</Text>
+          <Text className="text-base text-gray-500 py-1">
+            No feed logs tied to this pasture.
+          </Text>
         ) : (
           feedLogs.map((item) => (
             <Pressable
               key={item.id}
-              onPress={() =>
-                router.push(`/(tabs)/land/edit-feed/${item.id}`)
-              }
-              className="flex-row justify-between py-2 border-b border-gray-100">
-              <View>
-                <Text className="text-gray-900 font-medium">{item.feedType}</Text>
-                <Text className="text-gray-500 text-sm">
-                  {formatDisplayDate(item.date)}
-                </Text>
-              </View>
+              onPress={() => router.push(`/(tabs)/land/edit-feed/${item.id}`)}
+              accessibilityRole="button"
+              className="flex-row justify-between items-center min-h-[48px]">
+              <Text className="flex-1 pr-3 text-[17px] font-bold text-ink">
+                {item.feedType} · {formatDisplayDate(item.date)}
+              </Text>
               {item.quantity != null ? (
-                <Text className="text-gray-700">
+                <Text className="text-[17px] font-bold text-ink">
                   {item.quantity} {item.unit}
                 </Text>
               ) : null}

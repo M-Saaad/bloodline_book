@@ -5,6 +5,7 @@ import {
   AnimalPickerModal,
   type PickerQuickChip,
 } from '@/components/ui/AnimalPickerModal';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { formatLivestockRowTitle } from '@/lib/domain/animals';
 import {
   loadOutsideAnimals,
@@ -90,21 +91,40 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
 
   const selectedIds = mode === 'multi' ? props.selectedIds : props.value ? [props.value] : [];
   const summary = summaryLabel(props);
+  const selectedAnimal =
+    props.mode === 'single' && props.value
+      ? props.animals.find((item) => item.id === props.value)
+      : props.mode === 'multi' && props.selectedIds.length === 1
+        ? props.animals.find((item) => item.id === props.selectedIds[0])
+        : undefined;
+  const hasValue =
+    props.mode === 'multi'
+      ? props.selectedIds.length > 0
+      : Boolean(props.value) || Boolean(props.externalLabel?.trim());
 
   return (
     <View className="mb-4">
+      <FieldLabel>{props.label}</FieldLabel>
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={`${props.label}. ${summary}. Change`}
-        className="min-h-[56px] flex-row items-center rounded-xl border border-gray-300 bg-white px-3 py-3">
-        <View className="flex-1 pr-3">
-          <Text className="text-sm font-medium text-gray-700">{props.label}</Text>
-          <Text numberOfLines={1} className="text-base font-semibold text-gray-900 mt-0.5">
-            {summary}
-          </Text>
-        </View>
-        <Text className="text-bloodline-700 font-semibold">Change</Text>
+        className="min-h-[56px] flex-row items-center rounded-[18px] border border-gray-300 bg-white px-4 py-2 active:bg-gray-50">
+        <Text numberOfLines={1} className={`flex-1 pr-3 text-lg ${hasValue ? 'text-ink' : 'text-gray-500'}`}>
+          {selectedAnimal && selectedAnimal.name?.trim() ? (
+            <>
+              {selectedAnimal.name.trim()}
+              {selectedAnimal.tagNumber?.trim() ? (
+                <Text className="text-bloodline-600"> #{selectedAnimal.tagNumber.trim()}</Text>
+              ) : null}
+            </>
+          ) : selectedAnimal?.tagNumber?.trim() ? (
+            <Text className="text-bloodline-600">#{selectedAnimal.tagNumber.trim()}</Text>
+          ) : (
+            summary
+          )}
+        </Text>
+        <Text className="text-2xl text-gray-500">›</Text>
       </Pressable>
 
       <AnimalPickerModal

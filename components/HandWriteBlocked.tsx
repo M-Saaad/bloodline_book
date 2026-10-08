@@ -14,9 +14,9 @@ export function HandWriteBlocked({ children }: { children: ReactNode }) {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-4 pb-8">
       <ReadOnlyFarmBanner />
-      <Button title="Go back" variant="outline" onPress={() => router.back()} />
+      <Button title="Go back" variant="outline" onPress={() => router.back()} className="h-[60px]" />
       <View className="h-4" />
     </ScrollView>
   );

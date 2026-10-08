@@ -23,48 +23,30 @@ export function HerdRow({
       disabled={disabled || !onPress}
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
-      className={`min-h-[56px] rounded-xl border px-3 py-3 mb-2 ${
+      className={`min-h-[64px] rounded-[18px] border-2 px-4 py-3 mb-2 ${
         disabled
           ? 'border-gray-200 bg-gray-100'
           : selected
-            ? 'border-bloodline-600 bg-bloodline-600'
-            : 'border-gray-300 bg-white'
+            ? 'border-bloodline-600 bg-bloodline-100'
+            : 'border-gray-200 bg-white'
       }`}>
       <View className="flex-row items-center">
         <View className="flex-1 pr-3">
           <Text
             numberOfLines={1}
-            className={`text-base font-semibold ${
-              disabled
-                ? 'text-gray-600'
-                : selected
-                  ? 'text-white'
-                  : 'text-gray-900'
-            }`}>
+            className={`text-lg font-extrabold ${disabled ? 'text-gray-500' : 'text-ink'}`}>
             {title}
           </Text>
           {subtitle ? (
-            <Text
-              numberOfLines={1}
-              className={`text-sm mt-0.5 ${
-                disabled
-                  ? 'text-gray-500'
-                  : selected
-                    ? 'text-white'
-                    : 'text-gray-700'
-              }`}>
+            <Text numberOfLines={1} className="text-[15px] mt-0.5 text-gray-500">
               {subtitle}
             </Text>
           ) : null}
         </View>
         {trailing ? (
-          <Text
-            className={`text-sm font-semibold ${
-              selected ? 'text-white' : 'text-gray-700'
-            }`}>
-            {trailing}
-          </Text>
+          <Text className="text-[15px] font-bold text-gray-700">{trailing}</Text>
         ) : null}
+        {selected ? <Text className="text-2xl font-extrabold text-bloodline-600 ml-2">✓</Text> : null}
       </View>
     </Pressable>
   );

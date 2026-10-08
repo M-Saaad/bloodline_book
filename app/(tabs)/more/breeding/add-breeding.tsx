@@ -1,16 +1,18 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
-
+import { View } from 'react-native';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
+import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { getAnimalById } from '@/lib/db/animals';
 import {
@@ -187,35 +189,28 @@ export default function AddBreedingScreen() {
 
   return (
     <HandWriteBlocked>
-      <FormKeyboardScreen contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-8"
+        footer={
+          <Button
+            title={loading ? 'Saving…' : 'Save breeding'}
+            onPress={handleSave}
+            disabled={loading}
+            className="min-h-[60px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
 
-        <Text className="text-sm font-medium text-gray-700 mb-2">
-          How was she bred?
-        </Text>
-        <View className="flex-row gap-2 mb-4">
-          {(
-            [
+        <FieldLabel>How was she bred?</FieldLabel>
+        <View className="mb-4">
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            options={[
               { value: 'hand', label: 'Hand-bred / AI' },
-              { value: 'exposure', label: 'Buck exposure' },
-            ] as const
-          ).map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => setMode(option.value)}
-              className={`flex-1 rounded-xl border px-3 py-3 ${
-                mode === option.value
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-center text-sm font-medium ${
-                  mode === option.value ? 'text-bloodline-700' : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
+              { value: 'exposure', label: 'Buck with does' },
+            ]}
+          />
         </View>
 
         {mode === 'hand' ? (
@@ -263,27 +258,28 @@ export default function AddBreedingScreen() {
           />
         ) : null}
 
-        {window ? (
-          <Text className="text-sm text-gray-600 mb-4">
-            {formatDueWindowPhrase(window.windowStart, window.windowEnd)} (
-            {gestationDays}-day gestation)
-          </Text>
-        ) : (
-          <Text className="text-sm text-red-700 mb-4">
-            Exposure end date must be on or after the start date.
-          </Text>
-        )}
+        <View className="mb-4">
+          {window ? (
+            <Banner
+              tone="green"
+              title={formatDueWindowPhrase(window.windowStart, window.windowEnd)}
+              message={`Based on ${gestationDays} days. Tasks are added for you.`}
+            />
+          ) : (
+            <Banner
+              tone="stop"
+              title="Exposure end date must be on or after the start date."
+            />
+          )}
+        </View>
 
         <Input
           label="Notes"
           value={notes}
           onChangeText={setNotes}
           placeholder="Optional"
-        />
-        <Button
-          title={loading ? 'Saving…' : 'Save Breeding'}
-          onPress={handleSave}
-          disabled={loading}
+          optional
+          multiline
         />
       </FormKeyboardScreen>
     </HandWriteBlocked>

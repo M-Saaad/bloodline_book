@@ -11,7 +11,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 
+import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormMessage } from '@/components/ui/FormMessage';
 import { HerdRow } from '@/components/ui/HerdRow';
+import { Input } from '@/components/ui/Input';
 import {
   formatLivestockRowTitle,
   REGISTRATION_BODY_OPTIONS,
@@ -163,25 +168,25 @@ export function AnimalPickerModal({
       onRequestClose={close}>
       <View
         className={
-          wide ? 'flex-1 bg-black/40 items-center justify-center p-6' : 'flex-1 bg-white'
+          wide ? 'flex-1 bg-black/55 items-center justify-center p-6' : 'flex-1 bg-paper'
         }
         style={wide ? undefined : { paddingTop: insets.top }}>
         <View
-          className={wide ? 'bg-white rounded-2xl w-full overflow-hidden' : 'flex-1 bg-white'}
+          className={wide ? 'bg-paper rounded-[28px] w-full overflow-hidden' : 'flex-1 bg-paper'}
             style={
             wide
               ? { maxWidth: 480, width: '100%', height: '80%' }
               : undefined
           }>
-          <View className="flex-row items-center justify-between px-4 min-h-[52px] border-b border-gray-200">
-            <Text className="text-lg font-semibold text-gray-900 flex-1" numberOfLines={1}>
+          <View className="flex-row items-center justify-between px-5 min-h-[64px]">
+            <Text className="text-[22px] font-extrabold text-ink flex-1" numberOfLines={1}>
               {addingOutside ? 'Not in this herd' : title}
             </Text>
             <Pressable
               onPress={close}
               accessibilityRole="button"
-              className="min-h-[44px] justify-center px-2">
-              <Text className="text-bloodline-700 font-semibold">Close</Text>
+              className="min-h-[48px] justify-center px-2">
+              <Text className="text-base text-bloodline-600 font-bold">Close</Text>
             </Pressable>
           </View>
 
@@ -203,7 +208,7 @@ export function AnimalPickerModal({
             />
           ) : (
             <>
-              <View className="px-4 pt-3">
+              <View className="px-5 pt-1">
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
@@ -211,31 +216,23 @@ export function AnimalPickerModal({
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"
-                  className="border border-gray-300 rounded-xl px-4 min-h-[48px] text-base bg-white text-gray-900"
-                  placeholderTextColor="#4b5563"
+                  className="border border-gray-300 rounded-[18px] px-4 h-14 text-lg bg-white text-ink"
+                  placeholderTextColor="#8a7b75"
                 />
                 {quickChips.length > 0 ? (
-                  <View className="flex-row flex-wrap gap-2 mt-3">
-                    {quickChips.map((item) => {
-                      const selected = chipId === item.id;
-                      return (
-                        <Pressable
+                  <View className="mt-3">
+                    <ChipRow>
+                      {quickChips.map((item) => (
+                        <Chip
                           key={item.id}
+                          label={item.label}
+                          selected={chipId === item.id}
                           onPress={() =>
                             setChipId((current) => (current === item.id ? null : item.id))
                           }
-                          className={`min-h-[44px] justify-center rounded-full px-4 ${
-                            selected ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
-                          }`}>
-                          <Text
-                            className={`font-semibold ${
-                              selected ? 'text-white' : 'text-gray-900'
-                            }`}>
-                            {item.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                        />
+                      ))}
+                    </ChipRow>
                   </View>
                 ) : null}
                 {mode === 'multi' && shownIds.length > 0 ? (
@@ -249,8 +246,8 @@ export function AnimalPickerModal({
                       }
                       onChangeSelected([...new Set([...selectedIds, ...shownIds])]);
                     }}
-                    className="min-h-[44px] justify-center">
-                    <Text className="text-bloodline-700 font-semibold">
+                    className="min-h-[48px] justify-center">
+                    <Text className="text-base text-bloodline-600 font-bold">
                       {allShownSelected ? 'Clear everyone shown' : 'Select everyone shown'}
                     </Text>
                   </Pressable>
@@ -262,7 +259,7 @@ export function AnimalPickerModal({
                 keyExtractor={(row) => rowKey(row)}
                 keyboardShouldPersistTaps="handled"
                 style={{ flex: 1 }}
-                contentContainerClassName="px-4 py-3"
+                contentContainerClassName="px-5 py-3"
                 ListEmptyComponent={
                   <EmptyPicker
                     herdEmpty={animals.length === 0}
@@ -275,7 +272,7 @@ export function AnimalPickerModal({
                   switch (item.kind) {
                     case 'header':
                       return (
-                        <Text className="text-sm font-semibold text-gray-700 mt-2 mb-2">
+                        <Text className="text-[15px] font-bold text-gray-500 mt-2 mb-2">
                           {item.title}
                         </Text>
                       );
@@ -323,7 +320,7 @@ export function AnimalPickerModal({
               />
 
               <View
-                className="border-t border-gray-200 px-4 pt-2 bg-white"
+                className="border-t border-gray-200 px-5 pt-3 bg-white"
                 style={{ paddingBottom: Math.max(insets.bottom, 12) }}>
                 {allowUnknown && onUnknown ? (
                   <FooterButton
@@ -354,13 +351,11 @@ export function AnimalPickerModal({
                   />
                 ) : null}
                 {mode === 'multi' ? (
-                  <Pressable
+                  <Button
+                    title={`${selectedIds.length} selected · Done`}
                     onPress={close}
-                    className="min-h-[48px] rounded-xl bg-bloodline-600 items-center justify-center mt-1">
-                    <Text className="text-white font-semibold text-base">
-                      {selectedIds.length} selected · Done
-                    </Text>
-                  </Pressable>
+                    className="min-h-[60px] rounded-[18px]"
+                  />
                 ) : null}
               </View>
             </>
@@ -414,23 +409,23 @@ function EmptyPicker({
   if (herdEmpty && !query.trim()) {
     return (
       <View className="py-8">
-        <Text className="text-lg font-semibold text-gray-900 text-center">
+        <Text className="text-lg font-extrabold text-ink text-center">
           No goats yet
         </Text>
-        <Text className="text-gray-700 text-center mt-2">{emptyMessage}</Text>
+        <Text className="text-base text-gray-500 text-center mt-2">{emptyMessage}</Text>
       </View>
     );
   }
   return (
     <View className="py-8">
-      <Text className="text-lg font-semibold text-gray-900 text-center">
+      <Text className="text-lg font-extrabold text-ink text-center">
         {query.trim()
           ? `No goat matches “${query.trim()}”`
           : 'No goats match this filter'}
       </Text>
       {query.trim() ? (
-        <Pressable onPress={onClearQuery} className="min-h-[44px] items-center justify-center mt-2">
-          <Text className="text-bloodline-700 font-semibold">Clear search</Text>
+        <Pressable onPress={onClearQuery} className="min-h-[48px] items-center justify-center mt-2">
+          <Text className="text-base text-bloodline-600 font-bold">Clear search</Text>
         </Pressable>
       ) : null}
     </View>
@@ -441,8 +436,9 @@ function FooterButton({ label, onPress }: { label: string; onPress: () => void }
   return (
     <Pressable
       onPress={onPress}
-      className="min-h-[48px] justify-center border border-gray-300 rounded-xl px-3 mb-2 bg-white">
-      <Text className="text-gray-900 font-semibold text-center">{label}</Text>
+      accessibilityRole="button"
+      className="min-h-[56px] justify-center border border-gray-300 rounded-[18px] px-4 mb-2 bg-white active:bg-gray-50">
+      <Text className="text-[17px] text-ink font-bold text-center">{label}</Text>
     </Pressable>
   );
 }
@@ -485,75 +481,46 @@ function OutsideAnimalForm({
   }
 
   return (
-    <View className="p-4 gap-3">
-      <Text className="text-gray-700">
+    <View className="px-5 pb-4 pt-1">
+      <Text className="text-base text-gray-500 mb-4">
         {sex === 'female'
           ? 'This doe stays off Weigh Day and the herd list.'
           : 'This buck stays off Weigh Day and the herd list.'}
       </Text>
-      <Field label="Name" value={name} onChangeText={setName} />
-      <Text className="text-sm font-medium text-gray-700">Registry</Text>
-      <View className="flex-row flex-wrap gap-2">
-        {REGISTRATION_BODY_OPTIONS.map((option) => {
-          const selected = registrationBody === option.value;
-          return (
-            <Pressable
+      <Input label="Name" value={name} onChangeText={setName} />
+      <FieldLabel>Registry</FieldLabel>
+      <View className="mb-4">
+        <ChipRow>
+          {REGISTRATION_BODY_OPTIONS.map((option) => (
+            <Chip
               key={option.value}
+              label={option.label}
+              selected={registrationBody === option.value}
               onPress={() =>
                 setRegistrationBody((current) =>
                   current === option.value ? null : option.value,
                 )
               }
-              className={`min-h-[44px] justify-center rounded-full px-4 ${
-                selected ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
-              }`}>
-              <Text className={`font-semibold ${selected ? 'text-white' : 'text-gray-900'}`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+            />
+          ))}
+        </ChipRow>
       </View>
-      <Field
+      <Input
         label="Registration number"
         value={registrationNumber}
         onChangeText={setRegistrationNumber}
       />
-      <Field label="Breed" value={breedName} onChangeText={setBreedName} />
-      {error ? <Text className="text-red-800">{error}</Text> : null}
-      <Pressable
+      <Input label="Breed" value={breedName} onChangeText={setBreedName} />
+      <FormMessage message={error} />
+      <Button
+        title={saving ? 'Saving…' : 'Save and choose'}
         onPress={handleSave}
         disabled={saving}
-        className="min-h-[48px] rounded-xl bg-bloodline-600 items-center justify-center">
-        <Text className="text-white font-semibold">
-          {saving ? 'Saving…' : 'Save and choose'}
-        </Text>
-      </Pressable>
-      <Pressable onPress={onCancel} className="min-h-[44px] items-center justify-center">
-        <Text className="text-gray-900 font-semibold">Back to the list</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChangeText,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-}) {
-  return (
-    <View>
-      <Text className="text-sm font-medium text-gray-700 mb-1">{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        className="border border-gray-300 rounded-xl px-4 min-h-[48px] text-base bg-white text-gray-900"
-        placeholderTextColor="#4b5563"
+        className="min-h-[60px] rounded-[18px]"
       />
+      <Pressable onPress={onCancel} accessibilityRole="button" className="min-h-[48px] items-center justify-center mt-2">
+        <Text className="text-base text-gray-500 font-bold">Back to the list</Text>
+      </Pressable>
     </View>
   );
 }

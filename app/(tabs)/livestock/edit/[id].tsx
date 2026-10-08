@@ -1,17 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { AnimalBreedFields } from '@/components/livestock/AnimalBreedFields';
 import { AnimalIdentityFields } from '@/components/livestock/AnimalIdentityFields';
 import { AnimalParentFields } from '@/components/livestock/AnimalParentFields';
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
+import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
+import { Segmented } from '@/components/ui/Segmented';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
-import { todayIso } from '@/lib/dates';
+import { formatMonthDay, todayIso } from '@/lib/dates';
 import { getActiveMeatWithdrawal } from '@/lib/db/health';
 import { meatSaleWarning } from '@/lib/domain/health';
 import { confirmAction } from '@/lib/ui/confirm';
@@ -34,7 +39,7 @@ import {
   type AnimalDeleteBlocker,
 } from '@/lib/domain/animal-delete';
 import type { Animal, Breed } from '@/lib/types/animals';
-import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { animalDisplayLabel, formatLifecycleStage } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const SEX_OPTIONS: Animal['sex'][] = ['female', 'male'];
@@ -59,6 +64,10 @@ const STATUS_OPTIONS: {
   { value: 'slaughtered', label: 'Slaughtered' },
   { value: 'transferred', label: 'Transferred' },
 ];
+
+function capitalizeFirst(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 export default function EditAnimalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -96,6 +105,24 @@ export default function EditAnimalScreen() {
     [],
   );
   const [deletePreview, setDeletePreview] = useState('');
+  const [withdrawalClearDate, setWithdrawalClearDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+    let cancelled = false;
+    getActiveMeatWithdrawal(id, todayIso())
+      .then((withdrawal) => {
+        if (!cancelled) {
+          setWithdrawalClearDate(withdrawal?.clearDate ?? null);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   useEffect(() => {
     if (!activeFarm || !id) {
@@ -295,136 +322,86 @@ export default function EditAnimalScreen() {
     return <LoadingState message="Loading animal…" />;
   }
 
+  const identityProps = {
+    name,
+    onNameChange: setName,
+    tagNumber,
+    onTagNumberChange: setTagNumber,
+    officialId,
+    onOfficialIdChange: setOfficialId,
+    registrationBody,
+    onRegistrationBodyChange: setRegistrationBody,
+    registrationNumber,
+    onRegistrationNumberChange: setRegistrationNumber,
+    tattoo,
+    onTattooChange: setTattoo,
+  };
+  const breedProps = {
+    breeds,
+    breedId,
+    onBreedIdChange: setBreedId,
+    breedPercentage,
+    onBreedPercentageChange: setBreedPercentage,
+    onCreateCustomBreed: (breedName: string) =>
+      createFarmBreed(activeFarm.id, breedName, breedSegment),
+  };
+  const parentProps = {
+    damAnimals,
+    sireAnimals,
+    damId,
+    onDamIdChange: setDamId,
+    damExternalName,
+    onDamExternalNameChange: setDamExternalName,
+    sireId,
+    onSireIdChange: setSireId,
+    sireExternalName,
+    onSireExternalNameChange: setSireExternalName,
+    exclude: parentBlocks,
+  };
+
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-3 pb-8"
+        footer={
+          <Button
+            title={saving ? 'Saving…' : 'Save Changes'}
+            onPress={handleSave}
+            disabled={saving}
+            className="min-h-[60px] rounded-[18px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
         <FormMessage message={warningMessage} tone="warning" />
 
-        <AnimalIdentityFields
-          name={name}
-          onNameChange={setName}
-          tagNumber={tagNumber}
-          onTagNumberChange={setTagNumber}
-          officialId={officialId}
-          onOfficialIdChange={setOfficialId}
-          registrationBody={registrationBody}
-          onRegistrationBodyChange={setRegistrationBody}
-          registrationNumber={registrationNumber}
-          onRegistrationNumberChange={setRegistrationNumber}
-          tattoo={tattoo}
-          onTattooChange={setTattoo}
-        />
-
-        <Text className="text-sm font-medium text-gray-700 mb-2">Sex</Text>
-        <View className="flex-row gap-2 mb-4">
-          {SEX_OPTIONS.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setSex(option)}
-              className={`flex-1 rounded-xl border px-3 py-3 items-center capitalize ${
-                sex === option
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`font-medium ${
-                  sex === option ? 'text-bloodline-700' : 'text-gray-700'
-                }`}>
-                {option}
-              </Text>
-            </Pressable>
-          ))}
+        <FieldLabel>Status</FieldLabel>
+        <View className="mb-4">
+          <ChipRow>
+            {STATUS_OPTIONS.map((option) => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={status === option.value}
+                onPress={() => {
+                  setStatus(option.value);
+                  if (option.value !== 'active' && !outDate) {
+                    setOutDate(todayIso());
+                  }
+                }}
+              />
+            ))}
+          </ChipRow>
         </View>
 
-        <AnimalBreedFields
-          breeds={breeds}
-          breedId={breedId}
-          onBreedIdChange={setBreedId}
-          breedPercentage={breedPercentage}
-          onBreedPercentageChange={setBreedPercentage}
-          onCreateCustomBreed={(breedName) =>
-            createFarmBreed(activeFarm.id, breedName, breedSegment)
-          }
-        />
-
-        <Text className="text-sm font-medium text-gray-700 mb-2">
-          Lifecycle stage
-        </Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {LIFECYCLE_OPTIONS.map((stage) => (
-            <Pressable
-              key={stage}
-              onPress={() => setLifecycleStage(stage)}
-              className={`rounded-full border px-3 py-1.5 ${
-                lifecycleStage === stage
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-sm capitalize ${
-                  lifecycleStage === stage
-                    ? 'text-bloodline-700 font-medium'
-                    : 'text-gray-700'
-                }`}>
-                {stage.replace(/_/g, ' ')}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <DateField
-          label="Date of birth"
-          value={dateOfBirth}
-          onChange={setDateOfBirth}
-          optional
-          maximumDate={new Date()}
-        />
-
-        <AnimalParentFields
-          damAnimals={damAnimals}
-          sireAnimals={sireAnimals}
-          damId={damId}
-          onDamIdChange={setDamId}
-          damExternalName={damExternalName}
-          onDamExternalNameChange={setDamExternalName}
-          sireId={sireId}
-          onSireIdChange={setSireId}
-          sireExternalName={sireExternalName}
-          onSireExternalNameChange={setSireExternalName}
-          exclude={parentBlocks}
-        />
-
-        <Text className="text-sm font-medium text-gray-700 mb-2">Status</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {STATUS_OPTIONS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => {
-                setStatus(option.value);
-                if (option.value !== 'active' && !outDate) {
-                  setOutDate(todayIso());
-                }
-              }}
-              className={`rounded-full border px-3 py-1.5 ${
-                status === option.value
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-sm ${
-                  status === option.value
-                    ? 'text-bloodline-700 font-medium'
-                    : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {withdrawalClearDate ? (
+          <View className="mb-4">
+            <Banner
+              tone="stop"
+              title="Meat withdrawal is active"
+              message={`Do not sell until ${formatMonthDay(withdrawalClearDate)}. Saving as Sold will ask you to confirm.`}
+            />
+          </View>
+        ) : null}
 
         {status !== 'active' ? (
           <DateField
@@ -435,24 +412,65 @@ export default function EditAnimalScreen() {
           />
         ) : null}
 
+        <FieldLabel>Life stage</FieldLabel>
+        <View className="mb-4">
+          <ChipRow>
+            {LIFECYCLE_OPTIONS.map((stage) => (
+              <Chip
+                key={stage}
+                label={capitalizeFirst(formatLifecycleStage(stage))}
+                selected={lifecycleStage === stage}
+                onPress={() => setLifecycleStage(stage)}
+              />
+            ))}
+          </ChipRow>
+        </View>
+
         <Input
           label="Notes"
           value={notes}
           onChangeText={setNotes}
           placeholder="Optional notes"
+          optional
+          multiline
         />
 
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-          className="mt-2"
+        <Text className="text-xl font-extrabold text-ink mt-2 mb-3">Details</Text>
+        <AnimalIdentityFields section="basic" {...identityProps} />
+
+        <FieldLabel>Sex</FieldLabel>
+        <View className="mb-4">
+          <Segmented
+            options={SEX_OPTIONS.map((option) => ({
+              value: option,
+              label: option === 'female' ? 'Doe' : 'Buck',
+            }))}
+            value={sex}
+            onChange={setSex}
+          />
+        </View>
+
+        <DateField
+          label="Date of birth"
+          value={dateOfBirth}
+          onChange={setDateOfBirth}
+          optional
+          maximumDate={new Date()}
         />
+
+        <AnimalBreedFields section="breed" {...breedProps} />
+        <AnimalParentFields section="dam" {...parentProps} />
+
+        <Text className="text-xl font-extrabold text-ink mt-4 mb-3">More details</Text>
+        <AnimalIdentityFields section="more" {...identityProps} />
+        <AnimalBreedFields section="percentage" {...breedProps} />
+        <AnimalParentFields section="sire" {...parentProps} />
 
         <DeleteRecordButton
           title="Delete goat"
           confirmTitle="Delete this goat?"
           confirmMessage={deletePreview}
+          note={deletePreview || undefined}
           disabled={deleteBlockers.length > 0}
           disabledReason={
             deleteBlockers.length > 0
@@ -467,7 +485,7 @@ export default function EditAnimalScreen() {
             router.replace('/(tabs)/livestock');
           }}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }
