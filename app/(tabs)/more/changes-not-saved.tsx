@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 
+import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -65,14 +66,14 @@ function FailureCard({
   const [technicalOpen, setTechnicalOpen] = useState(false);
 
   return (
-    <Card>
-      <Text className="text-lg font-semibold text-gray-900 mb-1">
-        {uploadFailureTableLabel(row.table_name)}
+    <Card className="border-[2.5px] border-stop px-[18px] py-4">
+      <Text className="text-[19px] font-extrabold text-ink">
+        ⚠ {uploadFailureTableLabel(row.table_name)}
       </Text>
-      <Text className="text-gray-600 text-sm mb-2">
+      <Text className="text-[15px] text-gray-500 mt-1 mb-3">
         {formatWhen(row.created_at)}
       </Text>
-      <Text className="text-gray-900 mb-3">
+      <Text className="text-base leading-[22px] text-ink mb-3">
         {uploadFailureSummary({
           tableName: row.table_name,
           errorCode: row.error_code,
@@ -81,13 +82,13 @@ function FailureCard({
 
       <Pressable
         onPress={() => setTechnicalOpen((open) => !open)}
-        className="min-h-[44px] justify-center mb-2">
-        <Text className="text-bloodline-700 font-semibold">
-          {technicalOpen ? 'Hide technical details' : 'Technical details'}
+        className="min-h-[48px] justify-center mb-2">
+        <Text className="text-base text-bloodline-600 font-bold">
+          {technicalOpen ? 'Hide technical details' : 'Show technical details'}
         </Text>
       </Pressable>
       {technicalOpen ? (
-        <Text className="text-xs text-gray-500 mb-4 font-mono">{row.op_data}</Text>
+        <Text className="text-[13px] text-gray-500 mb-4 font-mono">{row.op_data}</Text>
       ) : null}
 
       <View className="flex-row gap-2">
@@ -99,7 +100,7 @@ function FailureCard({
         />
         <Button
           title="Dismiss"
-          variant="outline"
+          variant="secondary"
           onPress={async () => {
             await dismissUploadFailure(row.id);
             onDismissed();
@@ -131,30 +132,32 @@ export default function ChangesNotSavedScreen() {
   );
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
-      <Text className="text-gray-600 text-sm">
+    <View className="flex-1 bg-paper">
+    <ScrollView className="flex-1" contentContainerClassName="px-5 pt-2 pb-8 gap-3.5">
+      <Text className="text-[17px] leading-[25px] text-ink">
         These changes were made on this device but the server rejected them. Your
         other records are still saved locally and online.
       </Text>
 
       {pendingQueueCount > 0 && failures.length === 0 ? (
-        <Card>
-          <Text className="text-gray-700">
-            {pendingQueueCount}{' '}
-            {pendingQueueCount === 1 ? 'change is' : 'changes are'} saved on this
-            device and will upload when you are back online.
-          </Text>
-        </Card>
+        <Banner
+          tone="amber"
+          title={`${pendingQueueCount} waiting`}
+          message={`${pendingQueueCount} ${
+            pendingQueueCount === 1 ? 'change is' : 'changes are'
+          } saved on this device and will upload when you are back online.`}
+        />
       ) : null}
 
       {failures.length === 0 ? (
-        <Card>
-          <Text className="text-gray-700">
-            {pendingQueueCount > 0
+        <Banner
+          tone="green"
+          title={
+            pendingQueueCount > 0
               ? 'No rejected changes right now.'
-              : 'Nothing here — all changes are saved.'}
-          </Text>
-        </Card>
+              : 'Nothing here — all changes are saved.'
+          }
+        />
       ) : (
         failures.map((row) => (
           <FailureCard
@@ -168,7 +171,10 @@ export default function ChangesNotSavedScreen() {
         ))
       )}
 
-      <Button title="Back" variant="outline" onPress={() => router.back()} />
     </ScrollView>
+    <View className="bg-white border-t border-gray-200 px-5 pt-3.5 pb-5">
+      <Button title="Back" variant="outline" onPress={() => router.back()} className="h-[60px]" />
+    </View>
+    </View>
   );
 }

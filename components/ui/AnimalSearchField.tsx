@@ -29,27 +29,17 @@ export function AnimalSearchField({
   onChangeText: (value: string) => void;
 }) {
   return (
-    <View className="mb-2">
-      <Text className="text-sm font-medium text-gray-700 mb-1">Search</Text>
+    <View className="mb-3">
+      <Text className="text-base font-bold text-ink mb-2">Search</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Search by name or tag"
+        placeholder="Name or tag number"
         autoCapitalize="none"
         autoCorrect={false}
         clearButtonMode="while-editing"
-        placeholderTextColor="#9ca3af"
-        style={{
-          borderWidth: 1,
-          borderColor: '#d1d5db',
-          borderRadius: 12,
-          paddingHorizontal: 16,
-          paddingVertical: 12,
-          fontSize: 16,
-          minHeight: 48,
-          backgroundColor: '#ffffff',
-          color: '#111827',
-        }}
+        placeholderTextColor="#8a7b75"
+        className="h-14 rounded-[18px] border border-gray-300 bg-white px-4 text-lg text-ink"
       />
     </View>
   );

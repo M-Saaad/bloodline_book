@@ -1,9 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -106,39 +109,40 @@ export default function EditPastureScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-6"
+        footer={
+          <Button
+            className="min-h-[60px]"
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={saving}
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
         <Input label="Name" value={name} onChangeText={setName} />
         <Input
           label="Acres"
+          optional
           value={acres}
           onChangeText={setAcres}
           keyboardType="decimal-pad"
         />
-        <Text className="text-sm font-medium text-gray-700 mb-2">Forage</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {FORAGE_TYPES.map((type) => (
-            <Pressable
-              key={type}
-              onPress={() => setForageType(type)}
-              className={`rounded-full border px-3 py-1.5 ${
-                forageType === type
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text className="text-sm">{formatForageType(type)}</Text>
-            </Pressable>
-          ))}
+        <View className="mb-4">
+          <FieldLabel>Forage</FieldLabel>
+          <ChipRow>
+            {FORAGE_TYPES.map((type) => (
+              <Chip
+                key={type}
+                label={formatForageType(type).charAt(0).toUpperCase() + formatForageType(type).slice(1)}
+                selected={forageType === type}
+                onPress={() => setForageType(type)}
+              />
+            ))}
+          </ChipRow>
         </View>
-        <Input label="Notes" value={notes} onChangeText={setNotes} />
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-        />
-      </ScrollView>
+        <Input label="Notes" optional multiline value={notes} onChangeText={setNotes} />
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

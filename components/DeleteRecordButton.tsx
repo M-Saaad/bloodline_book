@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Button } from '@/components/ui/Button';
 import { confirmAction } from '@/lib/ui/confirm';
 
 type DeleteRecordButtonProps = {
@@ -11,6 +10,8 @@ type DeleteRecordButtonProps = {
   onDelete: () => Promise<void>;
   disabled?: boolean;
   disabledReason?: string;
+  /** Plain sentence under the button, for example what else gets deleted. */
+  note?: string;
 };
 
 export function DeleteRecordButton({
@@ -20,6 +21,7 @@ export function DeleteRecordButton({
   onDelete,
   disabled = false,
   disabledReason,
+  note,
 }: DeleteRecordButtonProps) {
   const [deleting, setDeleting] = useState(false);
 
@@ -41,18 +43,29 @@ export function DeleteRecordButton({
     }
   }
 
+  const blocked = disabled || deleting;
+
   return (
-    <View className="mt-8 pt-6 border-t border-gray-200">
-      {disabled && disabledReason ? (
-        <Text className="text-gray-600 text-sm mb-3">{disabledReason}</Text>
-      ) : null}
-      <Button
-        title={deleting ? 'Deleting…' : title}
-        variant="outline"
+    <View className="mt-6 pt-2">
+      <Pressable
         onPress={handlePress}
-        disabled={disabled || deleting}
-        className="border-red-300"
-      />
+        disabled={blocked}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        className={`min-h-[56px] rounded-[18px] bg-stop border-[2.5px] border-stop px-5 py-3 flex-row items-center justify-center gap-2.5 active:opacity-80 ${
+          blocked ? 'opacity-50' : ''
+        }`}>
+        <Text className="text-xl text-white">🗑︎</Text>
+        <Text className="text-[19px] font-extrabold text-white">
+          {deleting ? 'Deleting…' : title}
+        </Text>
+      </Pressable>
+      {!(disabled && disabledReason) && note ? (
+        <Text className="text-[15px] leading-[21px] text-gray-500 mt-2">{note}</Text>
+      ) : null}
+      {disabled && disabledReason ? (
+        <Text className="text-[15px] leading-[21px] text-gray-500 mt-2">{disabledReason}</Text>
+      ) : null}
     </View>
   );
 }

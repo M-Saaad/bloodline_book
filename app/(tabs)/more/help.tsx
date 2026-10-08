@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -24,48 +24,51 @@ async function openWhatsApp() {
 export default function HelpScreen() {
   return (
     <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4 gap-4">
-      <Card>
-        {Platform.OS === 'web' ? (
-          <Text className="text-base text-gray-700 mb-4">
-            On iPhone, tap Share, then Add to Home Screen, and open the app from
-            there. Wait for All saved before closing it.
-          </Text>
-        ) : null}
-        <Text className="text-base text-gray-700 mb-4">
+      className="flex-1 bg-paper"
+      contentContainerClassName="px-5 pt-2 pb-10 gap-3.5">
+      <Card className="px-[18px] py-4">
+        <Text className="text-[19px] font-extrabold text-ink mb-1.5">
+          Something wrong?
+        </Text>
+        <Text className="text-[17px] leading-[25px] text-ink">
           If the app says changes are not saved, take a screenshot and send it
           to us.
         </Text>
-
-        <Text className="text-sm font-medium text-gray-700 mb-2">Email</Text>
-        <Pressable
-          onPress={() => {
-            void openEmail();
-          }}
-          className="mb-4 py-2 active:opacity-70">
-          <Text className="text-base text-bloodline-600 font-semibold">
-            {SUPPORT_EMAIL}
-          </Text>
-        </Pressable>
-
-        <Button
-          title="Message us on WhatsApp"
-          onPress={() => {
-            void openWhatsApp();
-          }}
-        />
-
-        <View className="mt-4 pt-4 border-t border-gray-200">
-          <Button
-            title="View changes not saved"
-            variant="outline"
-            onPress={() => router.push('/(tabs)/more/changes-not-saved')}
-          />
-        </View>
       </Card>
 
-      <Text className="text-center text-xs text-gray-500">
+      <Button
+        title="Message us on WhatsApp"
+        onPress={() => {
+          void openWhatsApp();
+        }}
+        className="h-[60px]"
+      />
+      <Pressable
+        onPress={() => {
+          void openEmail();
+        }}
+        accessibilityRole="button"
+        className="min-h-[56px] rounded-2xl border-2 border-bloodline-600 bg-white items-center justify-center px-5 py-3 active:bg-bloodline-50">
+        <Text className="text-lg font-extrabold text-bloodline-600">
+          {SUPPORT_EMAIL}
+        </Text>
+      </Pressable>
+      <Button
+        title="See changes not saved"
+        variant="secondary"
+        onPress={() => router.push('/(tabs)/more/changes-not-saved')}
+      />
+
+      {Platform.OS === 'web' ? (
+        <Card className="px-4 py-3.5">
+          <Text className="text-base leading-[23px] text-gray-500">
+            On iPhone, tap Share, then Add to Home Screen, and open the app from
+            there. Wait for All saved before closing it.
+          </Text>
+        </Card>
+      ) : null}
+
+      <Text className="text-center text-sm text-gray-500">
         Version {appVersion} · {databaseTarget}
       </Text>
     </ScrollView>

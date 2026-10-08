@@ -1,6 +1,9 @@
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import type {
   HerdLifecycleFilter,
   HerdSexFilter,
@@ -54,18 +57,22 @@ export function HerdFilterSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
+      <Pressable className="flex-1 bg-black/55 justify-end" onPress={onClose}>
         <Pressable
           onPress={() => undefined}
-          className="bg-white rounded-t-3xl max-h-[85%]"
-          style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
-          <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
-            <Text className="text-lg font-semibold text-gray-900">Filters</Text>
-            <Pressable onPress={onClear} className="min-h-[44px] justify-center px-2">
-              <Text className="text-bloodline-700 font-semibold">Clear</Text>
+          className="bg-paper rounded-t-[28px] max-h-[88%]"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
+          <View className="w-11 h-1.5 rounded-full bg-gray-300 self-center mt-3 mb-3.5" />
+          <View className="flex-row items-center justify-between px-5 pb-3">
+            <Text className="text-2xl font-extrabold text-ink">Filters</Text>
+            <Pressable
+              onPress={onClear}
+              accessibilityRole="button"
+              className="min-h-[48px] justify-center px-2">
+              <Text className="text-base text-bloodline-600 font-bold">Clear</Text>
             </Pressable>
           </View>
-          <ScrollView className="px-4" contentContainerClassName="pb-2">
+          <ScrollView className="px-5" contentContainerClassName="pb-2">
             <ChipGroup
               label="Status"
               options={statusOptions}
@@ -79,39 +86,36 @@ export function HerdFilterSheet({
               value={lifecycle}
               onChange={onLifecycle}
             />
-            <Text className="text-sm font-semibold text-gray-900 mb-2">Pasture</Text>
-            <View className="flex-row flex-wrap gap-2 mb-4">
-              <FilterChip
-                label="Any pasture"
-                selected={pastureId == null}
-                onPress={() => onPasture(null)}
-              />
-              {pastures.map((pasture) => (
-                <FilterChip
-                  key={pasture.id}
-                  label={pasture.name}
-                  selected={pastureId === pasture.id}
-                  onPress={() => onPasture(pasture.id)}
+            <FieldLabel>Pasture and health</FieldLabel>
+            <View className="mb-4">
+              <ChipRow>
+                <Chip
+                  label="Any pasture"
+                  selected={pastureId == null}
+                  onPress={() => onPasture(null)}
                 />
-              ))}
-            </View>
-            <Text className="text-sm font-semibold text-gray-900 mb-2">Health</Text>
-            <View className="flex-row flex-wrap gap-2 mb-4">
-              <FilterChip
-                label="In withdrawal"
-                selected={withdrawalOnly}
-                onPress={() => onWithdrawal(!withdrawalOnly)}
-              />
+                {pastures.map((pasture) => (
+                  <Chip
+                    key={pasture.id}
+                    label={pasture.name}
+                    selected={pastureId === pasture.id}
+                    onPress={() => onPasture(pasture.id)}
+                  />
+                ))}
+                <Chip
+                  label="In withdrawal"
+                  selected={withdrawalOnly}
+                  onPress={() => onWithdrawal(!withdrawalOnly)}
+                />
+              </ChipRow>
             </View>
           </ScrollView>
-          <View className="px-4 pt-2">
-            <Pressable
+          <View className="px-5 pt-3">
+            <Button
+              title={`Show ${matchCount} goat${matchCount === 1 ? '' : 's'}`}
               onPress={onClose}
-              className="min-h-[48px] rounded-xl bg-bloodline-600 items-center justify-center">
-              <Text className="text-white font-semibold text-base">
-                Show {matchCount} goat{matchCount === 1 ? '' : 's'}
-              </Text>
-            </Pressable>
+              className="min-h-[60px] rounded-[18px]"
+            />
           </View>
         </Pressable>
       </Pressable>
@@ -132,39 +136,17 @@ function ChipGroup<T extends string>({
 }) {
   return (
     <View className="mb-4">
-      <Text className="text-sm font-semibold text-gray-900 mb-2">{label}</Text>
-      <View className="flex-row flex-wrap gap-2">
+      <FieldLabel>{label}</FieldLabel>
+      <ChipRow>
         {options.map((option) => (
-          <FilterChip
+          <Chip
             key={option.value}
             label={option.label}
             selected={option.value === value}
             onPress={() => onChange(option.value)}
           />
         ))}
-      </View>
+      </ChipRow>
     </View>
-  );
-}
-
-function FilterChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`min-h-[44px] justify-center rounded-full px-4 ${
-        selected ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
-      }`}>
-      <Text className={`font-semibold ${selected ? 'text-white' : 'text-gray-900'}`}>
-        {label}
-      </Text>
-    </Pressable>
   );
 }

@@ -12,7 +12,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-gray-50">
+      <View className="flex-1 items-center justify-center bg-paper">
         <ActivityIndicator size="large" color="#a52f1a" />
       </View>
     );

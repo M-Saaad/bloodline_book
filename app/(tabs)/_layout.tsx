@@ -2,6 +2,7 @@ import { router, Tabs } from 'expo-router';
 import { Platform, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BottomNav } from '@/components/BottomNav';
 import { RequireAuth } from '@/components/RequireAuth';
 import { syncBadgeHeaderRight } from '@/components/SyncBadge';
 import {
@@ -24,12 +25,14 @@ export default function TabLayout() {
   return (
     <RequireAuth>
     <Tabs
+      tabBar={() => <BottomNav />}
       screenOptions={{
         tabBarActiveTintColor: '#a52f1a',
         tabBarInactiveTintColor: '#5a4b46',
         headerStyle: { backgroundColor: '#f6f2ee' },
         headerTintColor: '#5e1a0e',
-        headerTitleStyle: { fontWeight: '800' },
+        headerTitleStyle: { fontWeight: '800', fontSize: 20 },
+        headerShadowVisible: false,
         headerRight: syncBadgeHeaderRight(),
         tabBarStyle: webTabBarStyle,
       }}>
@@ -43,7 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="livestock"
         options={{
-          title: 'Livestock',
+          title: 'Herd',
           headerShown: false,
           tabBarIcon: () => <TabIcon label="🐐" />,
         }}
@@ -52,6 +55,7 @@ export default function TabLayout() {
         name="land"
         options={{
           title: 'Land',
+          href: null,
           headerShown: false,
           tabBarIcon: () => <TabIcon label="🌾" />,
         }}
@@ -59,7 +63,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="finances"
         options={{
-          title: 'Finances',
+          title: 'Money',
+          href: null,
           headerShown: false,
           tabBarIcon: () => <TabIcon label="💰" />,
         }}

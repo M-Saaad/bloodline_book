@@ -1,14 +1,17 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-
+import { View } from 'react-native';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
+import { pastureStatusLabel } from '@/components/land/PastureStatusBadge';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { createPasture } from '@/lib/db/land';
 import type { ForageType, PastureStatus } from '@/lib/types/land';
-import { formatForageType, formatPastureStatus } from '@/lib/ui/pasture-labels';
+import { formatForageType } from '@/lib/ui/pasture-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const FORAGE_TYPES: ForageType[] = [
@@ -26,6 +29,8 @@ const PASTURE_STATUSES: PastureStatus[] = [
   'hay',
   'overgrazed',
 ];
+
+const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 export default function AddPastureScreen() {
   const { activeFarm } = useFarm();
@@ -82,82 +87,70 @@ export default function AddPastureScreen() {
 
   return (
     <HandWriteBlocked>
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4">
-      <FormMessage message={errorMessage} tone="error" />
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-6"
+        footer={
+          <Button
+            className="min-h-[60px]"
+            title={loading ? 'Saving…' : 'Save pasture'}
+            onPress={handleSave}
+            disabled={loading}
+          />
+        }>
+        <FormMessage message={errorMessage} tone="error" />
 
-      <Input
-        label="Name"
-        value={name}
-        onChangeText={setName}
-        placeholder="North paddock"
-      />
-      <Input
-        label="Acres"
-        value={acres}
-        onChangeText={setAcres}
-        placeholder="Optional"
-        keyboardType="decimal-pad"
-      />
+        <Input
+          label="Name"
+          value={name}
+          onChangeText={setName}
+          placeholder="North paddock"
+        />
+        <Input
+          label="Acres"
+          optional
+          value={acres}
+          onChangeText={setAcres}
+          placeholder="Optional"
+          keyboardType="decimal-pad"
+        />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Forage</Text>
-      <View className="flex-row flex-wrap gap-2 mb-4">
-        {FORAGE_TYPES.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setForageType(option)}
-            className={`rounded-full border px-3 py-1.5 ${
-              forageType === option
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`text-sm capitalize ${
-                forageType === option
-                  ? 'text-bloodline-700 font-medium'
-                  : 'text-gray-700'
-              }`}>
-              {formatForageType(option)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <View className="mb-4">
+          <FieldLabel>Forage</FieldLabel>
+          <ChipRow>
+            {FORAGE_TYPES.map((option) => (
+              <Chip
+                key={option}
+                label={cap(formatForageType(option))}
+                selected={forageType === option}
+                onPress={() => setForageType(option)}
+              />
+            ))}
+          </ChipRow>
+        </View>
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Status</Text>
-      <View className="flex-row flex-wrap gap-2 mb-4">
-        {PASTURE_STATUSES.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setStatus(option)}
-            className={`rounded-full border px-3 py-1.5 ${
-              status === option
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`text-sm capitalize ${
-                status === option
-                  ? 'text-bloodline-700 font-medium'
-                  : 'text-gray-700'
-              }`}>
-              {formatPastureStatus(option)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <View className="mb-4">
+          <FieldLabel>Status</FieldLabel>
+          <ChipRow>
+            {PASTURE_STATUSES.map((option) => (
+              <Chip
+                key={option}
+                label={pastureStatusLabel(option)}
+                selected={status === option}
+                onPress={() => setStatus(option)}
+              />
+            ))}
+          </ChipRow>
+        </View>
 
-      <Input
-        label="Notes"
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Optional"
-      />
-
-      <Button
-        title={loading ? 'Saving…' : 'Save Pasture'}
-        onPress={handleSave}
-        disabled={loading}
-      />
-    </ScrollView>
+        <Input
+          label="Notes"
+          optional
+          multiline
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Optional"
+        />
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

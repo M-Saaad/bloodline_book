@@ -2,17 +2,16 @@ import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, ScrollView, Text, TextInput, View, Pressable } from 'react-native';
 
-import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { HerdFilterSheet } from '@/components/livestock/HerdFilterSheet';
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Badge } from '@/components/ui/Badge';
+import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import {
   animalMatchesSearch,
-  formatLivestockRowTitle,
   parseHerdStatusFilter,
   type HerdLifecycleFilter,
   type HerdSexFilter,
@@ -273,7 +272,7 @@ export default function LivestockListScreen() {
 
   if (!activeFarm) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-paper">
         <EmptyState
           title="No farm selected"
           description="Create or select a farm to manage your herd."
@@ -298,25 +297,106 @@ export default function LivestockListScreen() {
   const listIsUnfiltered =
     activeChips.length === 0 && !searchQuery.trim();
 
+  const quickSexLife =
+    sexFilter === 'all' && lifecycleFilter === 'all'
+      ? 'all'
+      : sexFilter === 'female' && lifecycleFilter === 'all'
+        ? 'does'
+        : sexFilter === 'male' && lifecycleFilter === 'all'
+          ? 'bucks'
+          : sexFilter === 'all' && lifecycleFilter === 'kid'
+            ? 'kids'
+            : null;
+  // Filters already shown as quick chips are not repeated as removable chips.
+  const extraChips = activeChips.filter(
+    (chip) =>
+      chip.key === 'status' ||
+      chip.key === 'pasture' ||
+      (chip.key === 'stage' && quickSexLife !== 'kids') ||
+      (chip.key === 'sex' && quickSexLife !== 'does' && quickSexLife !== 'bucks'),
+  );
+  const goatCount = animals.length;
+
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-paper" style={{ paddingTop: insets.top }}>
       {isHand ? (
-        <View className="px-4 pt-3">
+        <View className="px-5 pt-3">
           <ReadOnlyFarmBanner />
         </View>
       ) : null}
-      <View className="px-4 pt-3 pb-2">
-        <View className="flex-row items-center gap-2">
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search name or tag"
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            className="flex-1 border border-gray-300 rounded-xl px-4 min-h-[48px] text-base bg-white text-gray-900"
-            placeholderTextColor="#4b5563"
+      <View className="px-5 pt-6 pb-3">
+        <Text className="text-[32px] leading-[35px] font-extrabold text-ink" accessibilityRole="header">
+          Herd
+        </Text>
+        <Text className="text-[15px] font-semibold text-gray-500">
+          {goatCount} goat{goatCount === 1 ? '' : 's'}
+        </Text>
+      </View>
+      <View className="px-5 pb-3">
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Name or tag number"
+          accessibilityLabel="Search by name or tag"
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          className="h-14 border border-gray-300 rounded-[18px] px-4 text-lg bg-white text-ink"
+          placeholderTextColor="#8a7b75"
+        />
+      </View>
+      <View className="pb-3">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-2 px-5">
+          <Chip
+            label="All"
+            selected={quickSexLife === 'all'}
+            onPress={() => {
+              setSexFilter('all');
+              setLifecycleFilter('all');
+            }}
           />
+          <Chip
+            label="Does"
+            selected={quickSexLife === 'does'}
+            onPress={() => {
+              setSexFilter('female');
+              setLifecycleFilter('all');
+            }}
+          />
+          <Chip
+            label="Bucks"
+            selected={quickSexLife === 'bucks'}
+            onPress={() => {
+              setSexFilter('male');
+              setLifecycleFilter('all');
+            }}
+          />
+          <Chip
+            label="Kids"
+            selected={quickSexLife === 'kids'}
+            onPress={() => {
+              setSexFilter('all');
+              setLifecycleFilter('kid');
+            }}
+          />
+          <Chip
+            label="In withdrawal"
+            selected={withdrawalOnly}
+            onPress={() => setWithdrawalOnly(!withdrawalOnly)}
+          />
+          {extraChips.map((chip) => (
+            <Pressable
+              key={chip.key}
+              onPress={chip.onRemove}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${chip.label} filter`}
+              className="h-12 px-[18px] rounded-full items-center justify-center bg-bloodline-900">
+              <Text className="text-[17px] font-bold text-white">{chip.label} ×</Text>
+            </Pressable>
+          ))}
           <Pressable
             onPress={() => setFiltersOpen(true)}
             accessibilityRole="button"
@@ -325,42 +405,19 @@ export default function LivestockListScreen() {
                 ? `Filters, ${activeChips.length} active`
                 : 'Filters'
             }
-            className={`min-h-[48px] min-w-[48px] px-3 rounded-xl items-center justify-center ${
-              activeChips.length > 0 ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
-            }`}>
-            <Text
-              className={`font-semibold ${
-                activeChips.length > 0 ? 'text-white' : 'text-gray-900'
-              }`}>
+            className="h-12 px-[18px] rounded-full items-center justify-center border-2 border-bloodline-600 bg-white">
+            <Text className="text-[17px] font-bold text-bloodline-600">
               {activeChips.length > 0 ? `Filters ${activeChips.length}` : 'Filters'}
             </Text>
           </Pressable>
-        </View>
-        {activeChips.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="mt-2"
-            contentContainerClassName="gap-2">
-            {activeChips.map((chip) => (
-              <Pressable
-                key={chip.key}
-                onPress={chip.onRemove}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${chip.label} filter`}
-                className="min-h-[44px] justify-center rounded-full bg-bloodline-600 px-4">
-                <Text className="text-white font-semibold">{chip.label} ×</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
+        </ScrollView>
       </View>
 
       <FlatList
         data={animals}
         keyExtractor={(item) => item.id}
         contentContainerClassName={
-          animals.length === 0 ? 'flex-grow' : 'px-4 pb-28'
+          animals.length === 0 ? 'flex-grow' : 'px-5 pb-8'
         }
         ListEmptyComponent={
           <EmptyState
@@ -378,9 +435,11 @@ export default function LivestockListScreen() {
             }
           />
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <LivestockRow
             animal={item}
+            first={index === 0}
+            last={index === animals.length - 1}
             breedName={
               item.breedPrimaryId ? breedNames[item.breedPrimaryId] : null
             }
@@ -417,16 +476,6 @@ export default function LivestockListScreen() {
         matchCount={animals.length}
       />
 
-      <FarmWriteGate>
-        <Pressable
-          onPress={() => router.push('/(tabs)/livestock/add')}
-          accessibilityRole="button"
-          accessibilityLabel="Add goat"
-          className="absolute right-4 h-14 w-14 rounded-full bg-bloodline-600 items-center justify-center"
-          style={{ bottom: Math.max(insets.bottom, 16) + 12 }}>
-          <Text className="text-white text-3xl leading-8">+</Text>
-        </Pressable>
-      </FarmWriteGate>
     </View>
   );
 }
@@ -436,34 +485,54 @@ function LivestockRow({
   breedName,
   pastureName,
   withdrawalLines,
+  first,
+  last,
 }: {
   animal: Animal;
   breedName?: string | null;
   pastureName?: string | null;
   withdrawalLines: string[];
+  first: boolean;
+  last: boolean;
 }) {
+  const name = animal.name?.trim();
+  const tag = animal.tagNumber?.trim();
   return (
     <Pressable
       onPress={() => router.push(`/(tabs)/livestock/${animal.id}`)}
-      className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-2 min-h-[56px] active:bg-gray-50">
-      <View className="flex-row justify-between items-start">
-        <View className="flex-1 pr-3">
-          <Text className="text-lg font-semibold text-gray-900" numberOfLines={1}>
-            {formatLivestockRowTitle(animal)}
+      accessibilityRole="button"
+      className={`bg-white border-x border-gray-200 active:bg-gray-50 ${
+        first ? 'border-t rounded-t-[22px]' : ''
+      } ${last ? 'border-b rounded-b-[22px]' : ''}`}>
+      <View
+        className={`flex-row items-center gap-3 px-4 py-2.5 min-h-[76px] ${
+          last ? '' : 'border-b border-gray-100'
+        }`}>
+        <View className="flex-1">
+          <Text className="text-[19px] font-extrabold text-ink" numberOfLines={1}>
+            {name ?? ''}
+            {tag ? (
+              <Text className="text-bloodline-600">
+                {name ? ' ' : ''}#{tag}
+              </Text>
+            ) : null}
+            {!name && !tag ? 'Unnamed animal' : ''}
           </Text>
-          <Text className="text-gray-700 mt-1" numberOfLines={1}>
+          <Text className="text-[15px] text-gray-500" numberOfLines={1}>
             {herdRowSubtitle(animal, {
               breed: breedName,
               pasture: pastureName,
             })}
           </Text>
           {withdrawalLines.map((line) => (
-            <Text key={line} className="text-amber-800 text-sm mt-1">
+            <Text key={line} className="text-[15px] font-semibold text-ink mt-0.5">
               {line}
             </Text>
           ))}
         </View>
-        {animal.status !== 'active' ? (
+        {withdrawalLines.length > 0 ? (
+          <Badge label="Do not sell" tone="danger" />
+        ) : animal.status !== 'active' ? (
           <Badge
             label={formatAnimalStatus(animal.status)}
             tone={statusBadgeTone(animal.status)}

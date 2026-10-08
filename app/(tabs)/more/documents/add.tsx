@@ -1,8 +1,11 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { createDocument } from '@/lib/db/documents';
@@ -59,32 +62,30 @@ export default function AddDocumentScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4">
+    <FormKeyboardScreen
+      contentContainerClassName="px-5 pt-2 pb-8"
+      footer={
+        <Button
+          title={loading ? 'Saving…' : 'Save paper'}
+          onPress={handleSave}
+          disabled={loading}
+          className="min-h-[60px]"
+        />
+      }>
       <FormMessage message={errorMessage} tone="error" />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
-      <View className="flex-row flex-wrap gap-2 mb-4">
-        {DOCUMENT_TYPES.map((option) => (
-          <Pressable
-            key={option.value}
-            onPress={() => setType(option.value)}
-            className={`rounded-full border px-3 py-1.5 ${
-              type === option.value
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`text-sm ${
-                type === option.value
-                  ? 'text-bloodline-700 font-medium'
-                  : 'text-gray-700'
-              }`}>
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
+      <FieldLabel>What kind?</FieldLabel>
+      <View className="mb-4">
+        <ChipRow>
+          {DOCUMENT_TYPES.map((option) => (
+            <Chip
+              key={option.value}
+              label={option.label}
+              selected={type === option.value}
+              onPress={() => setType(option.value)}
+            />
+          ))}
+        </ChipRow>
       </View>
 
       <Input
@@ -98,17 +99,13 @@ export default function AddDocumentScreen() {
         value={notes}
         onChangeText={setNotes}
         placeholder="Optional"
+        optional
+        multiline
       />
 
-      <Text className="text-sm text-gray-500 mb-4">
-        You can note paperwork here; photos are coming later.
+      <Text className="text-[15px] leading-[21px] text-gray-500 mb-4">
+        Photos are coming later. Note where the paper is kept.
       </Text>
-
-      <Button
-        title={loading ? 'Saving…' : 'Save Document'}
-        onPress={handleSave}
-        disabled={loading}
-      />
-    </ScrollView>
+    </FormKeyboardScreen>
   );
 }

@@ -1,5 +1,7 @@
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
 import { REGISTRATION_BODY_OPTIONS } from '@/lib/domain/animals';
 import type { Animal } from '@/lib/types/animals';
@@ -17,6 +19,8 @@ type AnimalIdentityFieldsProps = {
   onRegistrationNumberChange: (value: string) => void;
   tattoo: string;
   onTattooChange: (value: string) => void;
+  /** basic = name and tag, more = registry, official ID and tattoo. */
+  section?: 'basic' | 'more' | 'all';
 };
 
 export function AnimalIdentityFields({
@@ -32,65 +36,72 @@ export function AnimalIdentityFields({
   onRegistrationNumberChange,
   tattoo,
   onTattooChange,
+  section = 'all',
 }: AnimalIdentityFieldsProps) {
+  const showBasic = section !== 'more';
+  const showMore = section !== 'basic';
   return (
     <>
-      <Text className="text-base font-semibold text-gray-900 mb-3">Identity</Text>
-      <Input label="Name" value={name} onChangeText={onNameChange} placeholder="Daisy" />
-      <Input
-        label="Tag number"
-        value={tagNumber}
-        onChangeText={onTagNumberChange}
-        placeholder="A-101"
-      />
-      <Input
-        label="Official ID"
-        value={officialId}
-        onChangeText={onOfficialIdChange}
-        placeholder="Scrapie tag or USDA official ID"
-      />
+      {showBasic ? (
+        <>
+          <Input
+            label="Name"
+            value={name}
+            onChangeText={onNameChange}
+            placeholder="Daisy"
+          />
+          <Input
+            label="Tag number"
+            value={tagNumber}
+            onChangeText={onTagNumberChange}
+            placeholder="A-101"
+          />
+        </>
+      ) : null}
+      {showMore ? (
+        <>
+          <Input
+            label="Official ID"
+            value={officialId}
+            onChangeText={onOfficialIdChange}
+            placeholder="Scrapie tag or USDA ID"
+            optional
+          />
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Registry</Text>
-      <View className="flex-row flex-wrap gap-2 mb-4">
-        {REGISTRATION_BODY_OPTIONS.map((option) => {
-          const selected = registrationBody === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() =>
-                onRegistrationBodyChange(
-                  selected ? null : option.value,
-                )
-              }
-              className={`rounded-full border px-3 py-1.5 ${
-                selected
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-sm ${
-                  selected ? 'text-bloodline-700 font-medium' : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+          <FieldLabel optional>Registry</FieldLabel>
+          <View className="mb-4">
+            <ChipRow>
+              {REGISTRATION_BODY_OPTIONS.map((option) => {
+                const selected = registrationBody === option.value;
+                return (
+                  <Chip
+                    key={option.value}
+                    label={option.label}
+                    selected={selected}
+                    onPress={() =>
+                      onRegistrationBodyChange(selected ? null : option.value)
+                    }
+                  />
+                );
+              })}
+            </ChipRow>
+          </View>
 
-      <Input
-        label="Registration number"
-        value={registrationNumber}
-        onChangeText={onRegistrationNumberChange}
-        placeholder="Optional"
-      />
-      <Input
-        label="Tattoo"
-        value={tattoo}
-        onChangeText={onTattooChange}
-        placeholder="Right ear / Left ear"
-        hint="Right ear / Left ear"
-      />
+          <Input
+            label="Registration number"
+            value={registrationNumber}
+            onChangeText={onRegistrationNumberChange}
+            placeholder="Optional"
+          />
+          <Input
+            label="Tattoo"
+            value={tattoo}
+            onChangeText={onTattooChange}
+            placeholder="Right ear / Left ear"
+            optional
+          />
+        </>
+      ) : null}
     </>
   );
 }

@@ -2,9 +2,11 @@ import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { FlatList, Text, View } from 'react-native';
 
+import { CardRowShell } from '@/components/breeding/parts';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapDocument } from '@/lib/db/mappers';
 import { useFarm } from '@/providers/FarmProvider';
@@ -30,14 +32,15 @@ export default function DocumentsScreen() {
   }
 
   if (isLoading) {
-    return <LoadingState message="Loading documents…" />;
+    return <LoadingState message="Loading papers…" />;
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="px-4 py-3">
+    <View className="flex-1 bg-paper">
+      <View className="px-5 pt-2 pb-3 items-end">
         <Button
-          title="Add Document"
+          title="＋ Add"
+          className="w-[104px] min-h-[48px] py-0"
           onPress={() => router.push('/(tabs)/more/documents/add')}
         />
       </View>
@@ -46,29 +49,37 @@ export default function DocumentsScreen() {
         data={documents}
         keyExtractor={(item) => item.id}
         contentContainerClassName={
-          documents.length === 0 ? 'flex-grow' : 'px-4 pb-6'
+          documents.length === 0 ? 'flex-grow' : 'px-5 pb-10'
         }
         ListEmptyComponent={
           <EmptyState
-            title="No documents yet"
+            title="No papers yet"
             description="Track registrations, health certificates, and other farm paperwork."
-            actionLabel="Add Document"
+            actionLabel="Add paper"
             onAction={() => router.push('/(tabs)/more/documents/add')}
           />
         }
-        renderItem={({ item }) => (
-          <View className="bg-white border border-gray-200 rounded-xl p-4 mb-2">
-            <View className="flex-row justify-between items-start mb-1">
-              <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
-                {item.title}
-              </Text>
-              <Badge label={item.type.replace(/_/g, ' ')} />
-            </View>
-            {item.notes ? (
-              <Text className="text-gray-500 text-sm">{item.notes}</Text>
-            ) : null}
-          </View>
-        )}
+        ListFooterComponent={
+          documents.length > 0 ? (
+            <Text className="text-[15px] leading-[21px] text-gray-500 mt-4">
+              Photos of papers are coming later. For now, write down where each one is kept.
+            </Text>
+          ) : null
+        }
+        renderItem={({ item, index }) => {
+          const typeLabel = item.type.replace(/_/g, ' ');
+          const label = `${typeLabel.charAt(0).toUpperCase()}${typeLabel.slice(1)}`;
+          return (
+            <CardRowShell index={index} count={documents.length}>
+              <ListRow
+                title={item.title}
+                subtitle={item.notes || label}
+                last={index === documents.length - 1}
+                right={<Badge label={label} tone={item.type === 'registration' ? 'brand' : 'default'} />}
+              />
+            </CardRowShell>
+          );
+        }}
       />
     </View>
   );

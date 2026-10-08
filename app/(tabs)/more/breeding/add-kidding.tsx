@@ -7,9 +7,12 @@ import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
 import { DateField } from '@/components/ui/DateField';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
+import { Segmented } from '@/components/ui/Segmented';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import {
   createKiddingEvent,
@@ -209,7 +212,16 @@ export default function AddKiddingScreen() {
 
   return (
     <HandWriteBlocked>
-      <FormKeyboardScreen contentContainerClassName="p-4 pb-10">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-8"
+        footer={
+          <Button
+            title={loading ? 'Saving…' : 'Save kidding'}
+            onPress={handleSave}
+            disabled={loading}
+            className="min-h-[60px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
 
         <AnimalSelectField
@@ -220,36 +232,23 @@ export default function AddKiddingScreen() {
           emptyMessage="Add active does on the Livestock tab first."
         />
 
-        <Text className="text-sm font-medium text-gray-700 mb-2">
-          Which breeding is this?
-        </Text>
-        <View className="gap-2 mb-4">
-          {openBreedings.map((event) => {
-            const selected = breedingId === event.id;
-            return (
-              <Pressable
+        <FieldLabel>Which breeding is this?</FieldLabel>
+        <View className="mb-4">
+          <ChipRow>
+            {openBreedings.map((event) => (
+              <Chip
                 key={event.id}
+                label={`${event.status.charAt(0).toUpperCase()}${event.status.slice(1)} · ${formatDisplayDate(event.bredDate)}`}
+                selected={breedingId === event.id}
                 onPress={() => setBreedingId(event.id)}
-                className={`rounded-xl border px-3 py-3 ${
-                  selected
-                    ? 'border-bloodline-600 bg-bloodline-50'
-                    : 'border-gray-300 bg-white'
-                }`}>
-                <Text className="text-gray-900 font-medium capitalize">
-                  {event.status} · {formatDisplayDate(event.bredDate)}
-                </Text>
-              </Pressable>
-            );
-          })}
-          <Pressable
-            onPress={() => setBreedingId(null)}
-            className={`rounded-xl border px-3 py-3 ${
-              breedingId == null
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text className="text-gray-900 font-medium">Not recorded</Text>
-          </Pressable>
+              />
+            ))}
+            <Chip
+              label="Not recorded"
+              selected={breedingId == null}
+              onPress={() => setBreedingId(null)}
+            />
+          </ChipRow>
         </View>
 
         <AnimalSelectField
@@ -267,123 +266,120 @@ export default function AddKiddingScreen() {
         />
         <DateField label="Kid date" value={kidDate} onChange={setKidDate} />
 
-        <Text className="text-sm font-medium text-gray-700 mb-2">Kidding ease</Text>
-        <View className="flex-row gap-2 mb-4">
-          {EASE_OPTIONS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => setEase(option.value)}
-              className={`flex-1 rounded-xl border py-2 items-center ${
-                ease === option.value
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-sm ${
-                  ease === option.value
-                    ? 'text-bloodline-700 font-medium'
-                    : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
+        <FieldLabel>How did it go?</FieldLabel>
+        <View className="mb-4">
+          <ChipRow>
+            {EASE_OPTIONS.map((option) => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={ease === option.value}
+                onPress={() => setEase(option.value)}
+              />
+            ))}
+          </ChipRow>
         </View>
 
-        <View className="flex-row justify-between items-center mb-2">
-          <Text className="text-sm font-medium text-gray-700">
-            Kids born ({kids.length})
+        <FieldLabel>How many kids?</FieldLabel>
+        <View className="flex-row items-center justify-between bg-white border border-gray-300 rounded-[18px] p-1.5">
+          <Pressable
+            onPress={() =>
+              setKids((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev))
+            }
+            accessibilityRole="button"
+            accessibilityLabel="Fewer kids"
+            className="w-[52px] h-[52px] rounded-full bg-bloodline-100 items-center justify-center active:bg-bloodline-200">
+            <Text className="text-[28px] font-bold text-bloodline-900">−</Text>
+          </Pressable>
+          <Text className="text-2xl font-extrabold text-ink">
+            {kids.length}{' '}
+            <Text className="text-[17px] font-semibold text-gray-500">
+              {kids.length === 1 ? 'kid born' : 'kids born'}
+            </Text>
           </Text>
-          <View className="flex-row gap-2">
-            <Pressable
-              onPress={() =>
-                setKids((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev))
-              }
-              className="rounded-full border border-gray-300 px-3 py-1">
-              <Text className="text-gray-800">−</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setKids((prev) => [...prev, emptyKid()])}
-              className="rounded-full border border-gray-300 px-3 py-1">
-              <Text className="text-gray-800">+</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            onPress={() => setKids((prev) => [...prev, emptyKid()])}
+            accessibilityRole="button"
+            accessibilityLabel="More kids"
+            className="w-[52px] h-[52px] rounded-full bg-bloodline-100 items-center justify-center active:bg-bloodline-200">
+            <Text className="text-[28px] font-bold text-bloodline-900">＋</Text>
+          </Pressable>
         </View>
-        <Text className="text-sm text-gray-500 mb-3">
+        <Text className="text-[15px] text-gray-500 mt-1.5 mb-4">
           {aliveKidCount(kids)} alive at birth
         </Text>
 
         {kids.map((kid, index) => (
           <View
             key={index}
-            className="bg-white border border-gray-200 rounded-xl p-3 mb-3">
-            <Text className="text-sm font-medium text-gray-700 mb-2">
+            className="bg-white border border-gray-200 rounded-[22px] p-3.5 mb-3">
+            <Text className="text-lg font-extrabold text-ink mb-2.5">
               Kid {index + 1}
             </Text>
-            <View className="flex-row gap-2 mb-3">
-              {(['female', 'male'] as const).map((sex) => (
-                <Pressable
-                  key={sex}
-                  onPress={() => updateKid(index, { sex })}
-                  className={`flex-1 rounded-lg border py-2 items-center ${
-                    kid.sex === sex
-                      ? 'border-bloodline-600 bg-bloodline-50'
-                      : 'border-gray-300'
-                  }`}>
-                  <Text className="text-gray-800">{formatSex(sex)}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View className="flex-row gap-2 mb-3">
-              {(['alive', 'dead'] as const).map((outcome) => (
-                <Pressable
-                  key={outcome}
-                  onPress={() => updateKid(index, { outcome })}
-                  className={`flex-1 rounded-lg border py-2 items-center ${
-                    kid.outcome === outcome
-                      ? 'border-bloodline-600 bg-bloodline-50'
-                      : 'border-gray-300'
-                  }`}>
-                  <Text className="capitalize text-gray-800">
-                    {outcome === 'alive' ? 'Born alive' : 'Born dead'}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Input
-              label="Name"
-              value={kid.name}
-              onChangeText={(value) => updateKid(index, { name: value })}
-              placeholder={kidAnimalDefaultName(damLabel, index + 1, kidDate)}
+            <Segmented
+              value={kid.sex}
+              onChange={(sex) => updateKid(index, { sex })}
+              options={[
+                { value: 'female', label: formatSex('female') },
+                { value: 'male', label: formatSex('male') },
+              ]}
             />
+            <View className="mt-2.5">
+              <Segmented
+                value={kid.outcome}
+                onChange={(outcome) => updateKid(index, { outcome })}
+                options={[
+                  { value: 'alive', label: 'Born alive' },
+                  { value: 'dead', label: 'Born dead' },
+                ]}
+              />
+            </View>
+            <View className="flex-row gap-2.5 mt-2.5">
+              <View className="flex-1">
+                <Input
+                  label="Name"
+                  value={kid.name}
+                  onChangeText={(value) => updateKid(index, { name: value })}
+                  placeholder={kidAnimalDefaultName(damLabel, index + 1, kidDate)}
+                />
+              </View>
+              <View className="flex-1">
+                <Input
+                  label={`Birth weight (${activeFarm.weightUnit})`}
+                  value={kid.birthWeight}
+                  onChangeText={(value) => updateKid(index, { birthWeight: value })}
+                  keyboardType="decimal-pad"
+                  placeholder="Optional"
+                />
+              </View>
+            </View>
             <Input
               label="Tag"
               value={kid.tag}
               onChangeText={(value) => updateKid(index, { tag: value })}
               placeholder="Optional"
-            />
-            <Input
-              label={`Birth weight (${activeFarm.weightUnit})`}
-              value={kid.birthWeight}
-              onChangeText={(value) => updateKid(index, { birthWeight: value })}
-              keyboardType="decimal-pad"
-              placeholder="Optional"
+              optional
             />
           </View>
         ))}
 
         <Pressable
           onPress={() => setRegisterKids((value) => !value)}
-          className="flex-row items-center gap-2 mb-4">
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: registerKids }}
+          className="flex-row items-center gap-3 min-h-[48px] mb-4">
           <View
-            className={`w-5 h-5 rounded border ${
+            className={`w-8 h-8 rounded-[10px] items-center justify-center border-2 ${
               registerKids
                 ? 'bg-bloodline-600 border-bloodline-600'
-                : 'border-gray-400 bg-white'
-            }`}
-          />
-          <Text className="text-gray-800">
-            Register kids in herd (alive kids only)
+                : 'border-gray-300 bg-white'
+            }`}>
+            {registerKids ? (
+              <Text className="text-white text-lg font-extrabold">✓</Text>
+            ) : null}
+          </View>
+          <Text className="flex-1 text-[17px] font-semibold text-ink">
+            Add alive kids to the herd
           </Text>
         </Pressable>
 
@@ -392,11 +388,8 @@ export default function AddKiddingScreen() {
           value={notes}
           onChangeText={setNotes}
           placeholder="Optional"
-        />
-        <Button
-          title={loading ? 'Saving…' : 'Save Kidding'}
-          onPress={handleSave}
-          disabled={loading}
+          optional
+          multiline
         />
       </FormKeyboardScreen>
     </HandWriteBlocked>

@@ -4,10 +4,12 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { CardRowShell, ScreenHeading, TextWithTags } from '@/components/breeding/parts';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { Segmented } from '@/components/ui/Segmented';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapTask } from '@/lib/db/mappers';
 import { setTaskCompleted } from '@/lib/db/documents';
@@ -92,31 +94,26 @@ export default function TasksScreen() {
     return <LoadingState message="Loading tasks…" />;
   }
 
+  const today = todayIso();
+  const openCount = (data ?? []).filter(
+    (row) => !mapTask(row as Record<string, unknown>).completed,
+  ).length;
+
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="px-4 py-3 gap-3">
-        <View className="flex-row gap-2">
-          {(['open', 'done'] as const).map((value) => (
-            <Pressable
-              key={value}
-              onPress={() => setTab(value)}
-              className={`flex-1 rounded-full border py-2 items-center ${
-                tab === value
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-sm font-medium capitalize ${
-                  tab === value ? 'text-bloodline-700' : 'text-gray-700'
-                }`}>
-                {value}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+    <View className="flex-1 bg-paper">
+      <View className="px-5 pb-3.5 gap-3.5">
+        <ScreenHeading title="Tasks" subtitle={`${openCount} open`} />
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'open', label: 'Open' },
+            { value: 'done', label: 'Done' },
+          ]}
+        />
         <FarmWriteGate>
           <Button
-            title="Add Task"
+            title="＋ Add task"
             onPress={() => router.push('/(tabs)/more/tasks/add')}
           />
         </FarmWriteGate>
@@ -125,7 +122,7 @@ export default function TasksScreen() {
       <FlatList
         data={tasks}
         keyExtractor={(item) => item.id}
-        contentContainerClassName={tasks.length === 0 ? 'flex-grow' : 'px-4 pb-6'}
+        contentContainerClassName={tasks.length === 0 ? 'flex-grow' : 'px-5 pb-10'}
         ListEmptyComponent={
           <EmptyState
             title="No tasks yet"
@@ -134,56 +131,63 @@ export default function TasksScreen() {
             onAction={() => router.push('/(tabs)/more/tasks/add')}
           />
         }
-        renderItem={({ item }) => (
-          <View
-            className={`flex-row items-start border rounded-xl p-4 mb-2 ${
-              item.completed
-                ? 'bg-gray-100 border-gray-200 opacity-70'
-                : 'bg-white border-gray-200'
-            }`}>
-            <Pressable
-              onPress={() => toggleTask(item.id, item.completed)}
-              accessibilityLabel={
-                item.completed ? 'Mark task incomplete' : 'Complete task'
-              }
-              className={`w-7 h-7 rounded-full border-2 mr-3 mt-0.5 items-center justify-center ${
-                item.completed
-                  ? 'border-green-600 bg-green-600'
-                  : 'border-gray-400 bg-white'
+        renderItem={({ item, index }) => (
+          <CardRowShell index={index} count={tasks.length}>
+            <View
+              className={`flex-row items-center gap-3 min-h-[76px] px-4 py-2.5 ${
+                index === tasks.length - 1 ? '' : 'border-b border-gray-100'
               }`}>
-              {item.completed ? (
-                <Text className="text-white text-xs font-bold">✓</Text>
-              ) : null}
-            </Pressable>
-            <Pressable
-              onPress={() => router.push(`/(tabs)/more/tasks/${item.id}`)}
-              className="flex-1">
-            <View className="flex-row justify-between items-start">
-              <View className="flex-1 pr-3">
-                <Text
-                  className={`text-lg font-semibold ${
-                    item.completed
-                      ? 'text-gray-500 line-through'
-                      : 'text-gray-900'
-                  }`}>
-                  {taskTitleWithGoatName(
-                    item.title,
-                    item.sourceId ? goatNameByHealthId.get(item.sourceId) : null,
-                  )}
-                </Text>
-                {item.dueDate ? (
-                  <Text className="text-gray-500 text-sm mt-1">
-                    Due {formatDisplayDate(item.dueDate)}
-                  </Text>
+              <Pressable
+                onPress={() => toggleTask(item.id, item.completed)}
+                accessibilityLabel={
+                  item.completed ? 'Mark task incomplete' : 'Complete task'
+                }
+                hitSlop={4}
+                className={`w-10 h-10 rounded-full border-[2.5px] items-center justify-center ${
+                  item.completed
+                    ? 'border-[#0f5a33] bg-[#0f5a33]'
+                    : 'border-bloodline-600 bg-white'
+                }`}>
+                {item.completed ? (
+                  <Text className="text-white text-xl font-extrabold">✓</Text>
                 ) : null}
-              </View>
-              <Badge
-                label={item.priority}
-                tone={item.priority === 'high' ? 'danger' : 'default'}
-              />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push(`/(tabs)/more/tasks/${item.id}`)}
+                className="flex-1 flex-row items-center gap-3">
+                <View className="flex-1">
+                  <Text
+                    className={`text-lg font-extrabold ${
+                      item.completed ? 'text-gray-500 line-through' : 'text-ink'
+                    }`}>
+                    <TextWithTags
+                      text={taskTitleWithGoatName(
+                        item.title,
+                        item.sourceId ? goatNameByHealthId.get(item.sourceId) : null,
+                      )}
+                    />
+                  </Text>
+                  <Text className="text-[15px] text-gray-500">
+                    {item.dueDate
+                      ? item.dueDate === today
+                        ? 'Due today'
+                        : `Due ${formatDisplayDate(item.dueDate)}`
+                      : 'No date'}
+                  </Text>
+                </View>
+                <Badge
+                  label={`${item.priority.charAt(0).toUpperCase()}${item.priority.slice(1)}`}
+                  tone={
+                    item.priority === 'high'
+                      ? 'danger'
+                      : item.priority === 'medium'
+                        ? 'warning'
+                        : 'default'
+                  }
+                />
+              </Pressable>
             </View>
-            </Pressable>
-          </View>
+          </CardRowShell>
         )}
       />
     </View>

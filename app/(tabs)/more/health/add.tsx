@@ -11,8 +11,10 @@ import {
 } from '@/components/health/TreatmentFields';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { getAnimalById } from '@/lib/db/animals';
@@ -251,7 +253,16 @@ export default function AddHealthRecordScreen() {
 
   return (
     <HandWriteBlocked>
-      <FormKeyboardScreen contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-8"
+        footer={
+          <Button
+            title={loading ? 'Saving…' : 'Save health record'}
+            onPress={handleSave}
+            disabled={loading}
+            className="min-h-[60px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
         <AnimalSelectField
           label="Animal"
@@ -262,67 +273,62 @@ export default function AddHealthRecordScreen() {
         />
         <DateField label="Date" value={recordDate} onChange={setRecordDate} />
 
-        <Text className="text-sm font-medium text-gray-700 mb-2">Event type</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {HEALTH_KINDS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => {
-                setKind(option.value);
-                if (option.value !== 'famacha') {
-                  setFamachaScore(null);
-                }
-              }}
-              className={`rounded-full border px-3 py-1.5 ${
-                kind === option.value
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`text-sm ${
-                  kind === option.value
-                    ? 'text-bloodline-700 font-medium'
-                    : 'text-gray-700'
-                }`}>
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
+        <FieldLabel>Event</FieldLabel>
+        <View className="mb-4">
+          <ChipRow>
+            {HEALTH_KINDS.map((option) => (
+              <Chip
+                key={option.value}
+                label={option.label}
+                selected={kind === option.value}
+                onPress={() => {
+                  setKind(option.value);
+                  if (option.value !== 'famacha') {
+                    setFamachaScore(null);
+                  }
+                }}
+              />
+            ))}
+          </ChipRow>
         </View>
 
         {kind === 'famacha' ? (
-          <>
-            <Text className="text-sm font-medium text-gray-700 mb-2">
-              FAMACHA score (1 = healthy, 5 = anemic)
-            </Text>
-            <View className="flex-row gap-2 mb-4">
-              {FAMACHA_SCORES.map((score) => (
-                <Pressable
-                  key={score}
-                  onPress={() => setFamachaScore(score)}
-                  className={`flex-1 rounded-xl border py-3 items-center ${
-                    famachaScore === score
-                      ? 'border-bloodline-600 bg-bloodline-50'
-                      : 'border-gray-300 bg-white'
-                  }`}>
-                  <Text
-                    className={`font-semibold ${
-                      famachaScore === score
-                        ? 'text-bloodline-700'
-                        : 'text-gray-700'
+          <View className="mb-4">
+            <FieldLabel>FAMACHA score</FieldLabel>
+            <View className="flex-row gap-2">
+              {FAMACHA_SCORES.map((score) => {
+                const on = famachaScore === score;
+                return (
+                  <Pressable
+                    key={score}
+                    onPress={() => setFamachaScore(score)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    className={`flex-1 h-16 rounded-[18px] items-center justify-center ${
+                      on
+                        ? 'bg-bloodline-600 border-[2.5px] border-bloodline-600'
+                        : 'bg-white border border-gray-300'
                     }`}>
-                    {score}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      className={`text-[26px] font-extrabold ${on ? 'text-white' : 'text-ink'}`}>
+                      {score}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          </>
+            <View className="flex-row justify-between mt-1.5">
+              <Text className="text-sm text-gray-500">1 healthy</Text>
+              <Text className="text-sm text-gray-500">5 anemic</Text>
+            </View>
+          </View>
         ) : null}
 
         <TreatmentFields
           segment={activeFarm.segment}
           showWithdrawal={healthKindSupportsWithdrawal(kind)}
           famachaScore={kind === 'famacha' ? famachaScore : null}
+          recordDate={recordDate}
           productName={productName}
           onProductName={setProductName}
           dosage={dosage}
@@ -343,11 +349,8 @@ export default function AddHealthRecordScreen() {
           value={notes}
           onChangeText={setNotes}
           placeholder="Optional"
-        />
-        <Button
-          title={loading ? 'Saving…' : 'Save Health Record'}
-          onPress={handleSave}
-          disabled={loading}
+          optional
+          multiline
         />
       </FormKeyboardScreen>
     </HandWriteBlocked>

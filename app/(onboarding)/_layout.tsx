@@ -12,7 +12,7 @@ export default function OnboardingLayout() {
         headerStyle: { backgroundColor: '#f6f2ee' },
         headerTintColor: '#5e1a0e',
       }}>
-      <Stack.Screen name="create-farm" options={{ title: 'Create Farm' }} />
+      <Stack.Screen name="create-farm" options={{ title: 'Create farm', headerShown: false }} />
     </Stack>
     </RequireAuth>
   );

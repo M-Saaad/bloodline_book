@@ -1,12 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { Segmented } from '@/components/ui/Segmented';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -17,9 +20,11 @@ import {
   updateTransaction,
 } from '@/lib/db/transactions';
 import type { Transaction } from '@/lib/types/finances';
-import { formatTransactionKind } from '@/lib/ui/finance-labels';
 
-const KIND_OPTIONS: Transaction['kind'][] = ['expense', 'revenue'];
+const KIND_OPTIONS: { value: Transaction['kind']; label: string }[] = [
+  { value: 'expense', label: 'Spent' },
+  { value: 'revenue', label: 'Received' },
+];
 
 const CATEGORY_SUGGESTIONS = [
   'Feed',
@@ -119,41 +124,21 @@ export default function EditTransactionScreen() {
 
   return (
     <HandWriteBlocked>
-      <FormKeyboardScreen contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-6"
+        footer={
+          <Button
+            className="min-h-[60px]"
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={saving}
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
 
-        <DateField
-          label="Date"
-          value={transactionDate}
-          onChange={setTransactionDate}
-        />
-
-        <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
-        <View className="flex-row gap-2 mb-4">
-          {KIND_OPTIONS.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setKind(option)}
-              className={`flex-1 rounded-xl border px-3 py-3 items-center capitalize ${
-                kind === option
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text className="font-medium">{formatTransactionKind(option)}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Input label="Category" value={category} onChangeText={setCategory} />
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {CATEGORY_SUGGESTIONS.map((suggestion) => (
-            <Pressable
-              key={suggestion}
-              onPress={() => setCategory(suggestion)}
-              className="rounded-full border border-gray-300 bg-white px-3 py-1">
-              <Text className="text-sm text-gray-700">{suggestion}</Text>
-            </Pressable>
-          ))}
+        <View className="mb-4">
+          <FieldLabel>Money</FieldLabel>
+          <Segmented options={KIND_OPTIONS} value={kind} onChange={setKind} />
         </View>
 
         <Input
@@ -162,13 +147,30 @@ export default function EditTransactionScreen() {
           onChangeText={setAmount}
           keyboardType="decimal-pad"
         />
-        <Input label="Notes" value={notes} onChangeText={setNotes} />
 
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
+        <View className="mb-4">
+          <FieldLabel>What for?</FieldLabel>
+          <ChipRow>
+            {CATEGORY_SUGGESTIONS.map((suggestion) => (
+              <Chip
+                key={suggestion}
+                label={suggestion}
+                selected={category === suggestion}
+                onPress={() => setCategory(suggestion)}
+              />
+            ))}
+          </ChipRow>
+        </View>
+
+        <Input label="Category" value={category} onChangeText={setCategory} />
+
+        <DateField
+          label="Date"
+          value={transactionDate}
+          onChange={setTransactionDate}
         />
+
+        <Input label="Notes" optional multiline value={notes} onChangeText={setNotes} />
 
         <DeleteRecordButton
           confirmTitle="Delete transaction?"

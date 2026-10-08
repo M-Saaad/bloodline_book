@@ -2,10 +2,15 @@ import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { applyWeighKey, WeighKeypad } from '@/components/livestock/WeighKeypad';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { Segmented } from '@/components/ui/Segmented';
 import { DateField } from '@/components/ui/DateField';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -18,7 +23,7 @@ import {
   shouldShowReplicaLoading,
 } from '@/lib/domain/offline-replica';
 import { startOrAppendWeighSession } from '@/lib/db/weights';
-import { animalMatchesSearch, formatLivestockRowTitle } from '@/lib/domain/animals';
+import { animalMatchesSearch } from '@/lib/domain/animals';
 import {
   isKnownWeighPoint,
   loadWeighMemory,
@@ -62,6 +67,8 @@ export default function WeighDayScreen() {
   const [finished, setFinished] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   const { data, isLoading } = useQuery(
     activeFarm
@@ -267,8 +274,8 @@ export default function WeighDayScreen() {
     setIndex((current) => current + 1);
   }
 
-  async function saveList() {
-    const entries = queue
+  function listEntries() {
+    return queue
       .map((animal) => {
         const raw = (drafts[animal.id] ?? '').trim();
         if (!raw) {
@@ -284,6 +291,10 @@ export default function WeighDayScreen() {
         return { animalId: animal.id, weightValue };
       })
       .filter((item): item is { animalId: string; weightValue: number } => item != null);
+  }
+
+  async function saveList() {
+    const entries = listEntries();
 
     if (entries.length === 0) {
       setErrorMessage('Enter at least one weight to save.');
@@ -318,15 +329,24 @@ export default function WeighDayScreen() {
     return <LoadingState message="Loading animals…" />;
   }
 
+  const waitingCount = Object.keys(saved).length;
   if (animals.length === 0) {
     return (
       <HandWriteBlocked>
-        <EmptyState
-          title="No animals to weigh"
-          description="Add animals before running weigh day."
-          actionLabel="Add goat"
-          onAction={() => router.push('/(tabs)/livestock/add')}
-        />
+        <View className="flex-1 bg-paper">
+          <WeighHeader
+            topInset={insets.top}
+            title="Weigh Day"
+            waiting={0}
+            onClose={() => router.back()}
+          />
+          <EmptyState
+            title="No animals to weigh"
+            description="Add animals before running weigh day."
+            actionLabel="Add goat"
+            onAction={() => router.push('/(tabs)/livestock/add')}
+          />
+        </View>
       </HandWriteBlocked>
     );
   }
@@ -335,18 +355,24 @@ export default function WeighDayScreen() {
     const count = Object.keys(saved).length;
     return (
       <HandWriteBlocked>
-        <View className="flex-1 bg-gray-50 p-4 justify-center">
-          <Text className="text-2xl font-bold text-gray-900">
-            Saved on this phone.
-          </Text>
-          <Text className="text-lg text-gray-800 mt-3">
-            They will upload when you have internet.
-          </Text>
-          <Text className="text-gray-700 mt-3">
-            {count} weight{count === 1 ? '' : 's'} recorded.
-          </Text>
-          <View className="mt-6">
-            <Button title="Done" onPress={() => router.back()} />
+        <View className="flex-1 bg-paper">
+          <View className="flex-1 items-center justify-center px-7">
+            <View className="w-24 h-24 rounded-full bg-[#ddf0e4] items-center justify-center">
+              <Text className="text-[48px] font-extrabold text-[#0f5a33]">✓</Text>
+            </View>
+            <Text className="text-[32px] leading-[36px] font-extrabold text-ink text-center mt-5 mb-1.5">
+              Saved on this phone
+            </Text>
+            <Text className="text-lg leading-[26px] text-gray-500 text-center mb-5">
+              {count} weight{count === 1 ? '' : 's'} recorded. They will upload when you have
+              internet.
+            </Text>
+            <WaitingPill count={count} />
+          </View>
+          <View
+            className="bg-white border-t border-gray-200 px-5 pt-3.5"
+            style={{ paddingBottom: Math.max(insets.bottom, 14) }}>
+            <Button title="Done" onPress={() => router.back()} className="min-h-[60px] rounded-[18px]" />
           </View>
         </View>
       </HandWriteBlocked>
@@ -361,42 +387,48 @@ export default function WeighDayScreen() {
   const groupLabel = weighGroupLabel(group, pastures);
   const pointLabel =
     WEIGH_POINTS.find((point) => point.value === weighPoint)?.label ?? weighPoint;
+  const weighSubtitle = `${groupLabel} · ${queue.length} goat${queue.length === 1 ? '' : 's'}`;
+  const pendingEntries = mode === 'list' ? listEntries() : [];
+  const header = (
+    <WeighHeader
+      topInset={insets.top}
+      title={mode === 'chute' ? 'Weigh-in' : 'Weigh Day'}
+      subtitle={mode === 'list' ? weighSubtitle : undefined}
+      waiting={savedOnPhone ? waitingCount : 0}
+      onClose={() => router.back()}
+    />
+  );
+
+  const entryNumber = Number.parseFloat(entry);
+  const change =
+    last && Number.isFinite(entryNumber) && entryNumber > 0 && last.unit === activeFarm.weightUnit
+      ? Math.round((entryNumber - last.value) * 10) / 10
+      : null;
 
   return (
     <HandWriteBlocked>
-      <View className="flex-1 bg-gray-50">
-        <View className="px-4 py-3 border-b border-gray-200 bg-white">
+      <View className="flex-1 bg-paper">
+        {header}
+        <View className="px-5 pt-3 pb-3 gap-2.5">
+          <Segmented
+            options={[
+              { value: 'chute' as WeighMode, label: 'One by one' },
+              { value: 'list' as WeighMode, label: 'List' },
+            ]}
+            value={mode}
+            onChange={setMode}
+          />
           <View className="flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-gray-900 flex-1" numberOfLines={1}>
-              {sessionDate} · {activeFarm.weightUnit} · {pointLabel}
+            <Text className="flex-1 text-[15px] font-semibold text-gray-500" numberOfLines={1}>
+              {formatDisplayDate(sessionDate)} · {activeFarm.weightUnit} · {pointLabel} · {groupLabel}
             </Text>
             <Pressable
               onPress={() => setSetupOpen(true)}
-              className="min-h-[44px] justify-center px-2">
-              <Text className="text-bloodline-700 font-semibold">Edit</Text>
+              accessibilityRole="button"
+              className="min-h-[48px] justify-center pl-3">
+              <Text className="text-base font-bold text-bloodline-600">Edit</Text>
             </Pressable>
           </View>
-          <Text className="text-gray-800 mt-1">
-            {groupLabel}
-            {queue.length > 0 ? ` · ${Math.min(index + 1, queue.length)} of ${queue.length}` : ''}
-          </Text>
-          <View className="flex-row gap-2 mt-3">
-            <ModeButton
-              label="One by one"
-              selected={mode === 'chute'}
-              onPress={() => setMode('chute')}
-            />
-            <ModeButton
-              label="List"
-              selected={mode === 'list'}
-              onPress={() => setMode('list')}
-            />
-          </View>
-          {savedOnPhone ? (
-            <Text className="text-gray-900 font-medium mt-3">
-              Saved on this phone. Waiting for internet.
-            </Text>
-          ) : null}
           <FormMessage message={errorMessage} tone="error" />
         </View>
 
@@ -408,105 +440,183 @@ export default function WeighDayScreen() {
             onAction={() => setSetupOpen(true)}
           />
         ) : mode === 'chute' && current ? (
-          <View className="flex-1">
-            <View className="px-4 py-4">
-              <Text className="text-2xl font-bold text-gray-900" numberOfLines={1}>
-                {formatLivestockRowTitle(current)}
-              </Text>
-              <Text className="text-gray-800 mt-1" numberOfLines={1}>
-                {herdRowSubtitle(current)}
-              </Text>
-              <Text className="text-gray-800 mt-2">
-                {last
-                  ? `Last ${last.value} ${last.unit} on ${formatDisplayDate(last.date)}`
-                  : 'No earlier weight'}
-              </Text>
-              <Text className="text-5xl font-bold text-gray-900 text-center mt-6">
-                {entry || '0'}
-              </Text>
-              <Text className="text-center text-gray-700 mb-4">
-                {activeFarm.weightUnit}
-              </Text>
-            </View>
-            <WeighKeypad onKey={(key) => setEntry((value) => applyWeighKey(value, key))} />
-            <View className="flex-row gap-2 p-4">
-              <View className="flex-1">
-                <Button title="Skip" variant="secondary" onPress={skip} />
-              </View>
-              <View className="flex-1">
-                <Button
-                  title={submitting ? 'Saving…' : 'Save + next'}
-                  onPress={saveAndNext}
-                  disabled={submitting}
+          <ScrollView
+            className="flex-1"
+            contentContainerClassName="px-5 pb-8"
+            keyboardShouldPersistTaps="handled">
+            <View className="flex-row items-center gap-3 mb-4">
+              <View className="flex-1 h-2.5 rounded-full bg-gray-200 overflow-hidden">
+                <View
+                  className="h-full rounded-full bg-bloodline-600"
+                  style={{
+                    width: `${Math.min(100, Math.round(((index + 1) / queue.length) * 100))}%`,
+                  }}
                 />
               </View>
+              <Text className="text-[15px] font-bold text-gray-500">
+                {Math.min(index + 1, queue.length)} of {queue.length}
+              </Text>
             </View>
-          </View>
+            <View className="bg-white border border-gray-200 rounded-[22px] px-5 py-[18px]">
+              <View className="flex-row items-baseline justify-between">
+                <Text className="flex-1 text-4xl leading-[40px] font-extrabold text-ink" numberOfLines={1}>
+                  {current.name?.trim() || (current.tagNumber ? '' : 'Unnamed')}
+                </Text>
+                {current.tagNumber ? (
+                  <Text className="text-[22px] font-extrabold text-bloodline-600">
+                    #{current.tagNumber.trim()}
+                  </Text>
+                ) : null}
+              </View>
+              <Text className="text-base text-gray-500 mt-1">
+                {herdRowSubtitle(current)}
+                {' · '}
+                {last
+                  ? `Last weighed ${last.value} ${last.unit} on ${formatDisplayDate(last.date)}`
+                  : 'No earlier weight'}
+              </Text>
+              <View className="flex-row items-end justify-between mt-3.5">
+                <View className="flex-row items-baseline gap-2">
+                  <Text className="text-[68px] leading-[72px] font-extrabold text-ink">
+                    {entry || '0'}
+                  </Text>
+                  <Text className="text-2xl font-bold text-gray-500">{activeFarm.weightUnit}</Text>
+                </View>
+                {change != null ? (
+                  <View className="mb-2">
+                    <Badge
+                      label={`${change > 0 ? '+' : ''}${change} ${activeFarm.weightUnit}`}
+                      tone={change >= 0 ? 'success' : 'warning'}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            </View>
+            <View className="mt-4">
+              <WeighKeypad onKey={(key) => setEntry((value) => applyWeighKey(value, key))} />
+            </View>
+            <Button
+              title={submitting ? 'Saving…' : 'Save and next goat ›'}
+              onPress={saveAndNext}
+              disabled={submitting}
+              className="mt-4 min-h-[60px] rounded-[18px]"
+            />
+            <Pressable
+              onPress={skip}
+              accessibilityRole="button"
+              className="min-h-[48px] items-center justify-center mt-1.5">
+              <Text className="text-base font-bold text-gray-500">Skip this goat</Text>
+            </Pressable>
+          </ScrollView>
         ) : (
           <View className="flex-1">
-            <View className="px-4 pt-3">
+            <View className="px-5 pb-3">
               <TextInput
                 value={listQuery}
                 onChangeText={setListQuery}
                 placeholder="Find a goat"
                 autoCapitalize="none"
                 autoCorrect={false}
-                className="border border-gray-300 rounded-xl px-4 min-h-[48px] text-base bg-white text-gray-900"
-                placeholderTextColor="#4b5563"
+                className="h-14 border border-gray-300 rounded-[18px] px-4 text-lg bg-white text-ink"
+                placeholderTextColor="#8a7b75"
               />
             </View>
             <FlatList
               data={listAnimals}
               keyExtractor={(item) => item.id}
-              contentContainerClassName="px-4 py-2 pb-28"
+              keyboardShouldPersistTaps="handled"
+              contentContainerClassName="px-5 pb-36"
               ListEmptyComponent={
-                <Text className="text-gray-800 py-6 text-center">
+                <Text className="text-base text-gray-500 py-6 text-center">
                   {listQuery.trim()
                     ? `No goat matches “${listQuery.trim()}”`
                     : 'No goats in this group'}
                 </Text>
               }
-              renderItem={({ item }) => (
-                <View className="flex-row items-center py-3 border-b border-gray-200">
-                  <View className="flex-1 pr-3">
-                    <Text className="text-base font-semibold text-gray-900" numberOfLines={1}>
-                      {formatLivestockRowTitle(item)}
-                    </Text>
-                    <Text className="text-gray-700 text-sm" numberOfLines={1}>
-                      {saved[item.id] != null
-                        ? `Saved ${saved[item.id]} ${activeFarm.weightUnit}`
-                        : herdRowSubtitle(item)}
-                    </Text>
+              renderItem={({ item, index: rowIndex }) => {
+                const isSaved = saved[item.id] != null;
+                const lastWeight = lastWeightByAnimal.get(item.id);
+                const focused = focusedId === item.id;
+                const first = rowIndex === 0;
+                const lastRow = rowIndex === listAnimals.length - 1;
+                return (
+                  <View
+                    className={`bg-white border-x border-gray-200 ${
+                      first ? 'border-t rounded-t-[22px]' : ''
+                    } ${lastRow ? 'border-b rounded-b-[22px]' : ''}`}>
+                    <View
+                      className={`flex-row items-center gap-2.5 min-h-[72px] px-4 py-2 ${
+                        lastRow ? '' : 'border-b border-gray-100'
+                      }`}>
+                      <View className="flex-1">
+                        <Text className="text-lg font-extrabold text-ink" numberOfLines={1}>
+                          {item.name?.trim() || (item.tagNumber ? '' : 'Unnamed')}
+                          {item.tagNumber ? (
+                            <Text className="text-bloodline-600">
+                              {item.name?.trim() ? ' ' : ''}#{item.tagNumber.trim()}
+                            </Text>
+                          ) : null}
+                        </Text>
+                        <Text
+                          className={`text-[15px] ${isSaved ? 'font-semibold text-[#0f5a33]' : 'text-gray-500'}`}
+                          numberOfLines={1}>
+                          {isSaved
+                            ? `✓ Saved ${saved[item.id]} ${activeFarm.weightUnit}`
+                            : lastWeight
+                              ? `Last ${lastWeight.value} ${lastWeight.unit}`
+                              : 'No earlier weight'}
+                        </Text>
+                      </View>
+                      <View
+                        className={`w-[116px] h-[52px] rounded-[14px] bg-white flex-row items-center px-3 ${
+                          focused
+                            ? 'border-[2.5px] border-bloodline-600'
+                            : isSaved
+                              ? 'border border-[#b7dcc4]'
+                              : 'border border-gray-300'
+                        }`}>
+                        <TextInput
+                          value={
+                            drafts[item.id] ??
+                            (saved[item.id] != null ? String(saved[item.id]) : '')
+                          }
+                          onChangeText={(value) =>
+                            setDrafts((currentDrafts) => ({
+                              ...currentDrafts,
+                              [item.id]: value,
+                            }))
+                          }
+                          onFocus={() => setFocusedId(item.id)}
+                          onBlur={() => setFocusedId((id) => (id === item.id ? null : id))}
+                          accessibilityLabel={`Weight for ${item.name?.trim() || item.tagNumber || 'goat'}`}
+                          keyboardType="decimal-pad"
+                          placeholder="0"
+                          className="flex-1 text-right text-xl font-extrabold text-ink p-0"
+                          placeholderTextColor="#8a7b75"
+                        />
+                        <Text className="text-sm font-semibold text-gray-500 ml-1">
+                          {activeFarm.weightUnit}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                  <View className="flex-row items-center gap-2">
-                    <TextInput
-                      value={
-                        drafts[item.id] ??
-                        (saved[item.id] != null ? String(saved[item.id]) : '')
-                      }
-                      onChangeText={(value) =>
-                        setDrafts((currentDrafts) => ({
-                          ...currentDrafts,
-                          [item.id]: value,
-                        }))
-                      }
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      className="w-28 min-h-[48px] border border-gray-300 rounded-xl px-3 text-right text-xl bg-white text-gray-900"
-                      placeholderTextColor="#4b5563"
-                    />
-                    <Text className="text-gray-700 font-medium w-8">
-                      {activeFarm.weightUnit}
-                    </Text>
-                  </View>
-                </View>
-              )}
+                );
+              }}
             />
-            <View className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+            <View
+              className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-5 pt-3.5"
+              style={{ paddingBottom: Math.max(insets.bottom, 14) }}>
               <Button
-                title={submitting ? 'Saving…' : 'Save list'}
+                title={
+                  submitting
+                    ? 'Saving…'
+                    : pendingEntries.length > 0
+                      ? `Save ${pendingEntries.length} weight${pendingEntries.length === 1 ? '' : 's'}`
+                      : 'Save list'
+                }
                 onPress={saveList}
                 disabled={submitting}
+                className="min-h-[60px] rounded-[18px]"
               />
             </View>
           </View>
@@ -533,6 +643,56 @@ export default function WeighDayScreen() {
         ) : null}
       </View>
     </HandWriteBlocked>
+  );
+}
+
+function WaitingPill({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <View className="flex-row items-center gap-1.5 h-9 px-3 rounded-full bg-[#fff1cc]">
+      <Text className="text-sm font-bold text-[#6b3a00]">◔ {count} waiting</Text>
+    </View>
+  );
+}
+
+function WeighHeader({
+  topInset,
+  title,
+  subtitle,
+  waiting,
+  onClose,
+}: {
+  topInset: number;
+  title: string;
+  subtitle?: string;
+  waiting: number;
+  onClose: () => void;
+}) {
+  return (
+    <View
+      className="flex-row items-center justify-between px-5 pb-2"
+      style={{ paddingTop: Math.max(topInset, 8) + 12 }}>
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        className="w-12 h-12 rounded-full bg-white border border-gray-200 items-center justify-center">
+        <Text className="text-2xl text-ink">✕</Text>
+      </Pressable>
+      <View className="items-center flex-1 px-2">
+        <Text className="text-[22px] font-extrabold text-ink">{title}</Text>
+        {subtitle ? (
+          <Text className="text-sm font-semibold text-gray-500" numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <View className="min-w-12 items-end">
+        <WaitingPill count={waiting} />
+      </View>
+    </View>
   );
 }
 
@@ -573,28 +733,6 @@ function weighGroupLabel(
   }
 }
 
-function ModeButton({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-1 min-h-[44px] rounded-xl items-center justify-center ${
-        selected ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
-      }`}>
-      <Text className={`font-semibold ${selected ? 'text-white' : 'text-gray-900'}`}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function SetupSheet({
   date,
   weighPoint,
@@ -621,109 +759,93 @@ function SetupSheet({
   const [draftPoint, setDraftPoint] = useState(weighPoint);
   const [draftWeaned, setDraftWeaned] = useState(markWeaned);
   const [draftGroup, setDraftGroup] = useState(group);
+  const insets = useSafeAreaInsets();
 
   return (
-    <View className="absolute inset-0 bg-black/40 justify-end">
-      <View className="bg-white rounded-t-3xl p-4 max-h-[85%]">
-        <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-lg font-semibold text-gray-900">Weigh setup</Text>
-          <Pressable onPress={onClose} className="min-h-[44px] justify-center px-2">
-            <Text className="text-bloodline-700 font-semibold">Close</Text>
+    <View className="absolute inset-0 bg-black/55 justify-end">
+      <View
+        className="bg-paper rounded-t-[28px] px-5 pt-3 max-h-[90%]"
+        style={{ paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
+        <View className="w-11 h-1.5 rounded-full bg-gray-300 self-center mb-3.5" />
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-2xl font-extrabold text-ink">Weigh setup</Text>
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            className="min-h-[48px] justify-center px-2">
+            <Text className="text-base font-bold text-bloodline-600">Close</Text>
           </Pressable>
         </View>
-        <ScrollView className="max-h-[70%]">
-        <DateField
-          label="Weigh date"
-          value={draftDate}
-          onChange={setDraftDate}
-          maximumDate={new Date()}
-        />
-        <Text className="text-sm font-semibold text-gray-900 mb-2">Weigh point</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {WEIGH_POINTS.map((point) => (
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <DateField
+            label="Weigh date"
+            value={draftDate}
+            onChange={setDraftDate}
+            maximumDate={new Date()}
+          />
+          <FieldLabel>Weigh point</FieldLabel>
+          <View className="mb-4">
+            <ChipRow>
+              {WEIGH_POINTS.map((point) => (
+                <Chip
+                  key={point.value}
+                  label={point.label}
+                  selected={draftPoint === point.value}
+                  onPress={() => setDraftPoint(point.value)}
+                />
+              ))}
+            </ChipRow>
+          </View>
+          {draftPoint === 'weaning' ? (
             <Pressable
-              key={point.value}
-              onPress={() => setDraftPoint(point.value)}
-              className={`min-h-[44px] justify-center rounded-full px-4 ${
-                draftPoint === point.value
-                  ? 'bg-bloodline-600'
-                  : 'bg-white border border-gray-300'
-              }`}>
-              <Text
-                className={`font-semibold ${
-                  draftPoint === point.value ? 'text-white' : 'text-gray-900'
+              onPress={() => setDraftWeaned((value) => !value)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: draftWeaned }}
+              className="flex-row items-center gap-3 min-h-[48px] mb-4">
+              <View
+                className={`w-8 h-8 rounded-[10px] items-center justify-center border-2 ${
+                  draftWeaned
+                    ? 'bg-bloodline-600 border-bloodline-600'
+                    : 'border-gray-400 bg-white'
                 }`}>
-                {point.label}
+                {draftWeaned ? <Text className="text-lg font-extrabold text-white">✓</Text> : null}
+              </View>
+              <Text className="flex-1 text-[17px] font-semibold text-ink">
+                Also mark these kids as weaned
               </Text>
             </Pressable>
-          ))}
-        </View>
-        {draftPoint === 'weaning' ? (
-          <Pressable
-            onPress={() => setDraftWeaned((value) => !value)}
-            className="flex-row items-center min-h-[44px] mb-4">
-            <View
-              className={`w-6 h-6 rounded border mr-3 ${
-                draftWeaned
-                  ? 'bg-bloodline-600 border-bloodline-600'
-                  : 'border-gray-500 bg-white'
-              }`}
-            />
-            <Text className="text-gray-900">Also mark these kids as weaned</Text>
-          </Pressable>
-        ) : null}
-        <Text className="text-sm font-semibold text-gray-900 mb-2">Group</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          <Pressable
-            onPress={() => setDraftGroup({ kind: 'herd' })}
-            className={`min-h-[44px] justify-center rounded-full px-4 ${
-              draftGroup.kind === 'herd'
-                ? 'bg-bloodline-600'
-                : 'bg-white border border-gray-300'
-            }`}>
-            <Text
-              className={`font-semibold ${
-                draftGroup.kind === 'herd' ? 'text-white' : 'text-gray-900'
-              }`}>
-              Whole herd
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setDraftGroup({ kind: 'kids' })}
-            className={`min-h-[44px] justify-center rounded-full px-4 ${
-              draftGroup.kind === 'kids'
-                ? 'bg-bloodline-600'
-                : 'bg-white border border-gray-300'
-            }`}>
-            <Text
-              className={`font-semibold ${
-                draftGroup.kind === 'kids' ? 'text-white' : 'text-gray-900'
-              }`}>
-              Kids
-            </Text>
-          </Pressable>
-          {pastures.map((pasture) => {
-            const selected =
-              draftGroup.kind === 'pasture' && draftGroup.pastureId === pasture.id;
-            return (
-              <Pressable
-                key={pasture.id}
-                onPress={() =>
-                  setDraftGroup({ kind: 'pasture', pastureId: pasture.id })
-                }
-                className={`min-h-[44px] justify-center rounded-full px-4 ${
-                  selected ? 'bg-bloodline-600' : 'bg-white border border-gray-300'
-                }`}>
-                <Text className={`font-semibold ${selected ? 'text-white' : 'text-gray-900'}`}>
-                  {pasture.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+          ) : null}
+          <FieldLabel>Which goats?</FieldLabel>
+          <View className="mb-4">
+            <ChipRow>
+              <Chip
+                label="Whole herd"
+                selected={draftGroup.kind === 'herd'}
+                onPress={() => setDraftGroup({ kind: 'herd' })}
+              />
+              <Chip
+                label="Kids"
+                selected={draftGroup.kind === 'kids'}
+                onPress={() => setDraftGroup({ kind: 'kids' })}
+              />
+              {pastures.map((pasture) => (
+                <Chip
+                  key={pasture.id}
+                  label={pasture.name}
+                  selected={
+                    draftGroup.kind === 'pasture' && draftGroup.pastureId === pasture.id
+                  }
+                  onPress={() =>
+                    setDraftGroup({ kind: 'pasture', pastureId: pasture.id })
+                  }
+                />
+              ))}
+            </ChipRow>
+          </View>
         </ScrollView>
         <Button
-          title="Start"
+          title="Start weighing"
+          className="min-h-[60px] rounded-[18px]"
           onPress={() =>
             onApply({
               date: draftDate,

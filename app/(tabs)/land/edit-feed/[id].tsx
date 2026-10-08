@@ -1,11 +1,14 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -130,63 +133,54 @@ export default function EditFeedLogScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-6"
+        footer={
+          <Button
+            className="min-h-[60px]"
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={saving}
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
         <DateField label="Date" value={feedDate} onChange={setFeedDate} />
         <Input label="Feed type" value={feedType} onChangeText={setFeedType} />
         <Input
-          label="Quantity"
+          label="Amount"
+          optional
           value={quantity}
           onChangeText={setQuantity}
           keyboardType="decimal-pad"
         />
-        <Text className="text-sm font-medium text-gray-700 mb-2">Unit</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          {FEED_UNITS.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setUnit(option)}
-              className={`rounded-full border px-3 py-1.5 ${
-                unit === option
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text className="text-sm">{option}</Text>
-            </Pressable>
-          ))}
+        <View className="mb-4">
+          <FieldLabel>Unit</FieldLabel>
+          <ChipRow>
+            {FEED_UNITS.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                selected={unit === option}
+                onPress={() => setUnit(option)}
+              />
+            ))}
+          </ChipRow>
         </View>
-        <Text className="text-sm font-medium text-gray-700 mb-2">Pasture</Text>
-        <View className="flex-row flex-wrap gap-2 mb-4">
-          <Pressable
-            onPress={() => setPastureId(null)}
-            className={`rounded-full border px-3 py-1.5 ${
-              pastureId == null
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text className="text-sm">None</Text>
-          </Pressable>
-          {pastures.map((pasture) => (
-            <Pressable
-              key={pasture.id}
-              onPress={() => setPastureId(pasture.id)}
-              className={`rounded-full border px-3 py-1.5 ${
-                pastureId === pasture.id
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text className="text-sm">{pasture.name}</Text>
-            </Pressable>
-          ))}
+        <View className="mb-4">
+          <FieldLabel optional>Pasture</FieldLabel>
+          <ChipRow>
+            <Chip label="None" selected={pastureId == null} onPress={() => setPastureId(null)} />
+            {pastures.map((pasture) => (
+              <Chip
+                key={pasture.id}
+                label={pasture.name}
+                selected={pastureId === pasture.id}
+                onPress={() => setPastureId(pasture.id)}
+              />
+            ))}
+          </ChipRow>
         </View>
-        <Input label="Notes" value={notes} onChangeText={setNotes} />
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-        />
+        <Input label="Notes" optional multiline value={notes} onChangeText={setNotes} />
         <DeleteRecordButton
           confirmTitle="Delete feed log?"
           confirmMessage="This feed entry will be permanently removed."
@@ -195,7 +189,7 @@ export default function EditFeedLogScreen() {
             router.back();
           }}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

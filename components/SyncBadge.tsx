@@ -2,7 +2,7 @@ import { useQuery, useStatus } from '@powersync/react';
 import { router } from 'expo-router';
 import { useNetworkState } from 'expo-network';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { deviceHasSignal, resolveSyncBadge } from '@/lib/domain/sync-badge';
 import { powersync } from '@/lib/powersync/system';
@@ -82,10 +82,10 @@ export function SyncBadge() {
     <Pressable
       onPress={pressable ? handlePress : undefined}
       disabled={!pressable}
-      className={`rounded-full border px-3 py-1.5 mr-2 ${tone.box}`}
+      className={`h-9 flex-row items-center rounded-full border px-[13px] ${tone.box}`}
       accessibilityRole={pressable ? 'button' : 'text'}
       accessibilityLabel={badge.label}>
-      <Text className={`text-sm font-bold ${tone.text}`}>
+      <Text className={`text-sm ${badge.kind === 'not_saved' ? 'font-extrabold' : 'font-bold'} ${tone.text}`}>
         {tone.symbol} {badge.label}
       </Text>
     </Pressable>
@@ -93,5 +93,9 @@ export function SyncBadge() {
 }
 
 export function syncBadgeHeaderRight() {
-  return () => <SyncBadge />;
+  return () => (
+    <View className="mr-3">
+      <SyncBadge />
+    </View>
+  );
 }

@@ -1,13 +1,16 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalSelectField } from '@/components/ui/AnimalSelectField';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
 import { DateField } from '@/components/ui/DateField';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -172,33 +175,37 @@ export default function EditKiddingScreen() {
 
   return (
     <HandWriteBlocked>
-      <ScrollView
-        className="flex-1 bg-gray-50"
-        contentContainerClassName="p-4"
-        keyboardShouldPersistTaps="handled">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-8"
+        footer={
+          <Button
+            title={saving ? 'Saving…' : 'Save changes'}
+            onPress={handleSave}
+            disabled={saving}
+            className="min-h-[60px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
 
         <DateField label="Kid date" value={kidDate} onChange={setKidDate} />
-        <Text className="text-sm font-medium text-gray-700 mb-2">Kidding ease</Text>
-        <View className="flex-row gap-2 mb-4">
-          {(
-            [
-              ['unassisted', 'Unassisted'],
-              ['assisted', 'Assisted'],
-              ['vet', 'Vet'],
-            ] as const
-          ).map(([value, label]) => (
-            <Pressable
-              key={value}
-              onPress={() => setKiddingEase(value)}
-              className={`flex-1 rounded-xl border py-2 items-center ${
-                kiddingEase === value
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text className="text-sm text-gray-800">{label}</Text>
-            </Pressable>
-          ))}
+        <FieldLabel>How did it go?</FieldLabel>
+        <View className="mb-4">
+          <ChipRow>
+            {(
+              [
+                ['unassisted', 'Unassisted'],
+                ['assisted', 'Assisted'],
+                ['vet', 'Vet'],
+              ] as const
+            ).map(([value, label]) => (
+              <Chip
+                key={value}
+                label={label}
+                selected={kiddingEase === value}
+                onPress={() => setKiddingEase(value)}
+              />
+            ))}
+          </ChipRow>
         </View>
         <Input
           label="Kids born"
@@ -214,7 +221,7 @@ export default function EditKiddingScreen() {
           placeholder="Optional — defaults to kids born"
         />
         {registeredKidCount > 0 ? (
-          <Text className="text-gray-600 text-sm mb-4">
+          <Text className="text-[15px] leading-5 text-gray-500 mb-4">
             {registeredKidCount} kid{registeredKidCount === 1 ? '' : 's'}{' '}
             registered in Livestock for this kidding. Saving updates that count
             to match surviving (or kids born if surviving is blank), and updates
@@ -235,20 +242,14 @@ export default function EditKiddingScreen() {
           outsideSex="male"
           emptyMessage="No bucks on this farm yet. You can add one who is not in this herd."
         />
-        <Input label="Notes" value={notes} onChangeText={setNotes} />
-
-        <Button
-          title={saving ? 'Saving…' : 'Save Changes'}
-          onPress={handleSave}
-          disabled={saving}
-        />
+        <Input label="Notes" value={notes} onChangeText={setNotes} optional multiline />
 
         <DeleteRecordButton
           confirmTitle="Delete kidding?"
           confirmMessage="The linked breeding will return to bred status. You may be asked about registered kids."
           onDelete={handleDelete}
         />
-      </ScrollView>
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

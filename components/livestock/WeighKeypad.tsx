@@ -8,18 +8,23 @@ type WeighKeypadProps = {
 
 export function WeighKeypad({ onKey }: WeighKeypadProps) {
   return (
-    <View className="flex-row flex-wrap">
+    <View className="flex-row flex-wrap -mx-1">
       {KEYS.map((key) => (
-        <Pressable
-          key={key}
-          onPress={() => onKey(key)}
-          accessibilityRole="button"
-          accessibilityLabel={key === 'del' ? 'Delete' : key}
-          className="w-1/3 h-16 items-center justify-center border border-gray-200 bg-white active:bg-gray-100">
-          <Text className="text-2xl font-semibold text-gray-900">
-            {key === 'del' ? '⌫' : key}
-          </Text>
-        </Pressable>
+        <View key={key} className="w-1/3 p-1">
+          <Pressable
+            onPress={() => onKey(key)}
+            accessibilityRole="button"
+            accessibilityLabel={key === 'del' ? 'Delete' : key}
+            className={`h-16 rounded-[18px] items-center justify-center ${
+              key === 'del'
+                ? 'bg-gray-100 active:bg-gray-200'
+                : 'border border-gray-200 bg-white active:bg-bloodline-50'
+            }`}>
+            <Text className="text-[28px] font-bold text-ink">
+              {key === 'del' ? '⌫' : key}
+            </Text>
+          </Pressable>
+        </View>
       ))}
     </View>
   );

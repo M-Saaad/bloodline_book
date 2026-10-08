@@ -1,14 +1,16 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
+import { goatParts, SectionTitle } from '@/components/breeding/parts';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Chevron, ListCard, ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapAnimal, mapKiddingEvent } from '@/lib/db/mappers';
 import { formatDisplayDate } from '@/lib/dates';
 import { litterSummaryLabel } from '@/lib/domain/kidding';
-import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { formatSex } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function KiddingSummaryScreen() {
@@ -62,45 +64,51 @@ export default function KiddingSummaryScreen() {
 
   const kidding = mapKiddingEvent(kiddingRow as Record<string, unknown>);
   const alive = kidding.kidsSurviving ?? kidding.kidsBorn;
+  const kids = kidRows ?? [];
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 gap-4">
-      <Card>
-        <Text className="text-xl font-bold text-gray-900 mb-1">
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-2 pb-10 gap-3">
+      <Card className="px-[18px] py-4">
+        <Text className="text-[26px] font-extrabold text-ink">
           {litterSummaryLabel(kidding.kidsBorn, alive)}
         </Text>
-        <Text className="text-gray-600">{formatDisplayDate(kidding.kidDate)}</Text>
+        <Text className="text-base text-gray-500 mt-0.5">
+          {formatDisplayDate(kidding.kidDate)}
+        </Text>
       </Card>
 
-      {(kidRows ?? []).length === 0 ? (
-        <Text className="text-gray-500 px-1">
-          No kids were registered in the herd.
-        </Text>
-      ) : (
-        (kidRows ?? []).map((row) => {
-          const kid = mapAnimal(row as Record<string, unknown>);
-          const weight = (row as { weight_value?: number | null }).weight_value;
-          const unit = (row as { weight_unit?: string | null }).weight_unit;
-          return (
-            <Pressable
-              key={kid.id}
-              onPress={() => router.push(`/(tabs)/livestock/${kid.id}`)}
-              className="bg-white border border-gray-200 rounded-xl p-4">
-              <Text className="text-lg font-semibold text-gray-900">
-                {animalDisplayLabel(kid)}
-              </Text>
-              <Text className="text-gray-600 capitalize mt-1">
-                {kid.sex}
-                {weight != null
-                  ? ` · ${weight} ${unit ?? activeFarm.weightUnit}`
-                  : ' · no birth weight'}
-              </Text>
-            </Pressable>
-          );
-        })
-      )}
-
-      <View className="h-4" />
+      <View>
+        <SectionTitle>Kids</SectionTitle>
+        {kids.length === 0 ? (
+          <Text className="text-[15px] text-gray-500 px-1">
+            No kids were registered in the herd.
+          </Text>
+        ) : (
+          <ListCard>
+            {kids.map((row, index) => {
+              const kid = mapAnimal(row as Record<string, unknown>);
+              const parts = goatParts(kid);
+              const weight = (row as { weight_value?: number | null }).weight_value;
+              const unit = (row as { weight_unit?: string | null }).weight_unit;
+              return (
+                <ListRow
+                  key={kid.id}
+                  title={parts.name}
+                  tag={parts.tag}
+                  subtitle={`${formatSex(kid.sex)}${
+                    weight != null
+                      ? ` · ${weight} ${unit ?? activeFarm.weightUnit}`
+                      : ' · no birth weight'
+                  }`}
+                  last={index === kids.length - 1}
+                  onPress={() => router.push(`/(tabs)/livestock/${kid.id}`)}
+                  right={<Chevron />}
+                />
+              );
+            })}
+          </ListCard>
+        )}
+      </View>
     </ScrollView>
   );
 }

@@ -64,13 +64,15 @@ export default function SignUpScreen() {
   }
 
   return (
-    <FormKeyboardScreen contentContainerClassName="px-6 py-8">
-      <Text className="text-2xl font-bold text-bloodline-800 mb-2">
-        Create your account
-      </Text>
-      <Text className="text-gray-600 mb-8">
-        Start managing your herd with offline-capable records.
-      </Text>
+    <FormKeyboardScreen contentContainerClassName="px-5 pt-5 pb-8">
+      <View className="px-1 mb-5">
+        <Text className="text-[30px] leading-9 font-extrabold text-ink mb-2">
+          Create your account
+        </Text>
+        <Text className="text-[17px] leading-6 text-gray-500">
+          Start managing your herd with offline-capable records.
+        </Text>
+      </View>
 
       <FormMessage message={errorMessage} tone="error" />
 
@@ -93,23 +95,26 @@ export default function SignUpScreen() {
       />
 
       <Button
-        title={loading ? 'Creating…' : 'Create Account'}
+        title={loading ? 'Creating…' : 'Create account'}
         onPress={handleSignUp}
         disabled={loading}
         className="mt-2"
       />
 
-      <Text className="text-sm text-gray-500 leading-5 mt-4">
-        Your herd records belong to you. They are stored with Supabase in{' '}
-        {DATA_REGION}. They are never sold or shared. Email {SUPPORT_EMAIL} any
-        time to get a full export or have everything deleted.
-      </Text>
+      <View className="mt-4 bg-white border border-gray-200 rounded-[22px] px-4 py-3.5 flex-row gap-3">
+        <Text className="text-2xl text-gray-500">⌂</Text>
+        <Text className="flex-1 text-[15px] leading-[22px] text-gray-500">
+          Your herd records belong to you. They are stored with Supabase in{' '}
+          {DATA_REGION}. They are never sold or shared. Email {SUPPORT_EMAIL} any
+          time to get a full export or have everything deleted.
+        </Text>
+      </View>
 
-      <View className="mt-6 flex-row justify-center">
-        <Text className="text-gray-600">Already have an account? </Text>
+      <View className="mt-5 flex-row flex-wrap justify-center items-center">
+        <Text className="text-[17px] text-gray-500">Already have an account? </Text>
         <Link href="/(auth)/sign-in" asChild>
-          <Pressable>
-            <Text className="text-bloodline-600 font-semibold">Sign in</Text>
+          <Pressable className="min-h-[48px] justify-center">
+            <Text className="text-base text-bloodline-600 font-bold">Sign in</Text>
           </Pressable>
         </Link>
       </View>

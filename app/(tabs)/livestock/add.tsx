@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 
@@ -10,7 +10,9 @@ import { AnimalParentFields } from '@/components/livestock/AnimalParentFields';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { Segmented } from '@/components/ui/Segmented';
 import { validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
   createAnimal,
@@ -167,11 +169,21 @@ export default function AddAnimalScreen() {
 
   return (
     <HandWriteBlocked>
-      <FormKeyboardScreen contentContainerClassName="p-4">
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-3 pb-8"
+        footer={
+          <Button
+            title={loading ? 'Saving…' : 'Save goat'}
+            onPress={handleSave}
+            disabled={loading}
+            className="min-h-[60px] rounded-[18px]"
+          />
+        }>
         <FormMessage message={errorMessage} tone="error" />
         <FormMessage message={warningMessage} tone="warning" />
 
         <AnimalIdentityFields
+          section="basic"
           name={name}
           onNameChange={setName}
           tagNumber={tagNumber}
@@ -186,25 +198,16 @@ export default function AddAnimalScreen() {
           onTattooChange={setTattoo}
         />
 
-        <Text className="text-sm font-medium text-gray-700 mb-2">Sex</Text>
-        <View className="flex-row gap-2 mb-4">
-          {SEX_OPTIONS.map((option) => (
-            <Pressable
-              key={option}
-              onPress={() => setSex(option)}
-              className={`flex-1 rounded-xl border px-3 py-3 items-center ${
-                sex === option
-                  ? 'border-bloodline-600 bg-bloodline-50'
-                  : 'border-gray-300 bg-white'
-              }`}>
-              <Text
-                className={`font-medium ${
-                  sex === option ? 'text-bloodline-700' : 'text-gray-700'
-                }`}>
-                {formatSex(option)}
-              </Text>
-            </Pressable>
-          ))}
+        <FieldLabel>Sex</FieldLabel>
+        <View className="mb-4">
+          <Segmented
+            options={SEX_OPTIONS.map((option) => ({
+              value: option,
+              label: formatSex(option),
+            }))}
+            value={sex}
+            onChange={setSex}
+          />
         </View>
 
         <DateField
@@ -216,6 +219,7 @@ export default function AddAnimalScreen() {
         />
 
         <AnimalBreedFields
+          section="breed"
           breeds={breeds}
           breedId={breedId}
           onBreedIdChange={setBreedId}
@@ -227,6 +231,7 @@ export default function AddAnimalScreen() {
         />
 
         <AnimalParentFields
+          section="dam"
           damAnimals={damAnimals}
           sireAnimals={sireAnimals}
           damId={damId}
@@ -239,10 +244,51 @@ export default function AddAnimalScreen() {
           onSireExternalNameChange={setSireExternalName}
         />
 
-        <Button
-          title={loading ? 'Saving…' : 'Save goat'}
-          onPress={handleSave}
-          disabled={loading}
+        <Text className="text-xl font-extrabold text-ink mt-4 mb-1">More details</Text>
+        <Text className="text-[15px] text-gray-500 mb-4">
+          Registry, tattoo, breed percentage and sire. You can skip these.
+        </Text>
+
+        <AnimalIdentityFields
+          section="more"
+          name={name}
+          onNameChange={setName}
+          tagNumber={tagNumber}
+          onTagNumberChange={setTagNumber}
+          officialId={officialId}
+          onOfficialIdChange={setOfficialId}
+          registrationBody={registrationBody}
+          onRegistrationBodyChange={setRegistrationBody}
+          registrationNumber={registrationNumber}
+          onRegistrationNumberChange={setRegistrationNumber}
+          tattoo={tattoo}
+          onTattooChange={setTattoo}
+        />
+
+        <AnimalBreedFields
+          section="percentage"
+          breeds={breeds}
+          breedId={breedId}
+          onBreedIdChange={setBreedId}
+          breedPercentage={breedPercentage}
+          onBreedPercentageChange={setBreedPercentage}
+          onCreateCustomBreed={(breedName) =>
+            createFarmBreed(activeFarm.id, breedName, breedSegment)
+          }
+        />
+
+        <AnimalParentFields
+          section="sire"
+          damAnimals={damAnimals}
+          sireAnimals={sireAnimals}
+          damId={damId}
+          onDamIdChange={setDamId}
+          damExternalName={damExternalName}
+          onDamExternalNameChange={setDamExternalName}
+          sireId={sireId}
+          onSireIdChange={setSireId}
+          sireExternalName={sireExternalName}
+          onSireExternalNameChange={setSireExternalName}
         />
       </FormKeyboardScreen>
     </HandWriteBlocked>

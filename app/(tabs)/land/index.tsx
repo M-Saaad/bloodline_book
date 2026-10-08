@@ -1,19 +1,17 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
-import { Badge } from '@/components/ui/Badge';
+import { PageHeading, SectionTitle } from '@/components/land/PageHeading';
+import { PastureStatusBadge } from '@/components/land/PastureStatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ListCard, ListRow } from '@/components/ui/ListRow';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import { mapFeedLog, mapPasture } from '@/lib/db/mappers';
-import {
-  formatForageType,
-  formatPastureStatus,
-  pastureStatusTone,
-} from '@/lib/ui/pasture-labels';
+import { formatForageType } from '@/lib/ui/pasture-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function LandScreen() {
@@ -51,7 +49,7 @@ export default function LandScreen() {
 
   if (!activeFarm) {
     return (
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-paper">
         <EmptyState title="No farm selected" />
       </View>
     );
@@ -74,100 +72,84 @@ export default function LandScreen() {
     mapFeedLog(row as Record<string, unknown>),
   );
 
-  return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerClassName="p-4 pb-8 gap-4">
-      <Card>
-        <View className="flex-row justify-between mb-2">
-          <Text className="text-gray-600">Pastures</Text>
-          <Text className="text-gray-900 font-semibold">{pastures.length}</Text>
-        </View>
-        <View className="flex-row justify-between">
-          <Text className="text-gray-600">Animals on pasture</Text>
-          <Text className="text-gray-900 font-semibold">{grazingCount}</Text>
-        </View>
-      </Card>
+  const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-      <View className="gap-2">
+  return (
+    <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-5 pb-10 gap-3.5">
+      <PageHeading
+        title="Land"
+        subtitle={`${pastures.length} ${pastures.length === 1 ? 'pasture' : 'pastures'} · ${grazingCount} goats out`}
+      />
+
+      <View className="flex-row gap-2.5">
         <Button
-          title="Add Pasture"
-          onPress={() => router.push('/(tabs)/land/add-pasture')}
-        />
-        <Button
-          title="Move Animals"
-          variant="secondary"
+          className="flex-1"
+          title="Move goats"
           onPress={() => router.push('/(tabs)/land/add-grazing')}
         />
         <Button
-          title="Log Feed"
+          className="flex-1"
+          title="Log feed"
           variant="outline"
           onPress={() => router.push('/(tabs)/land/add-feed')}
         />
       </View>
 
-      <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">Pastures</Text>
-        {pastures.length === 0 ? (
+      {pastures.length === 0 ? (
+        <Card>
           <EmptyState
             title="No pastures yet"
             description="Add paddocks and move animals onto grass as you rotate grazing."
-            actionLabel="Add Pasture"
+            actionLabel="Add pasture"
             onAction={() => router.push('/(tabs)/land/add-pasture')}
           />
-        ) : (
-          pastures.map(({ pasture, occupantCount }) => (
-            <Pressable
+        </Card>
+      ) : (
+        <ListCard>
+          {pastures.map(({ pasture, occupantCount }, index) => (
+            <ListRow
               key={pasture.id}
+              title={pasture.name}
+              subtitle={`${cap(formatForageType(pasture.forageType))}${
+                pasture.acres != null ? ` · ${pasture.acres} acres` : ''
+              }${pasture.status === 'grazing' || occupantCount > 0 ? ` · ${occupantCount} grazing` : ''}`}
+              right={<PastureStatusBadge status={pasture.status} />}
               onPress={() => router.push(`/(tabs)/land/${pasture.id}`)}
-              className="border border-gray-200 rounded-xl p-4 mb-2 bg-white active:bg-gray-50">
-              <View className="flex-row justify-between items-start mb-1">
-                <Text className="text-lg font-semibold text-gray-900 flex-1 pr-2">
-                  {pasture.name}
-                </Text>
-                <Badge
-                  label={formatPastureStatus(pasture.status)}
-                  tone={pastureStatusTone(pasture.status)}
-                />
-              </View>
-              <Text className="text-gray-500 capitalize">
-                {formatForageType(pasture.forageType)}
-                {pasture.acres != null ? ` · ${pasture.acres} acres` : ''}
-                {` · ${occupantCount} grazing`}
-              </Text>
-            </Pressable>
-          ))
-        )}
-      </Card>
+              last={index === pastures.length - 1}
+            />
+          ))}
+        </ListCard>
+      )}
 
-      <Card>
-        <Text className="text-lg font-semibold text-gray-900 mb-3">
-          Recent feed
-        </Text>
+      {pastures.length > 0 ? (
+        <Button
+          title="＋ Add pasture"
+          variant="secondary"
+          onPress={() => router.push('/(tabs)/land/add-pasture')}
+        />
+      ) : null}
+
+      <SectionTitle>Recent feed</SectionTitle>
+      <Card className="px-4 py-2.5">
         {feedLogs.length === 0 ? (
-          <View>
-            <Text className="text-gray-500 mb-3">
+          <View className="py-1.5">
+            <Text className="text-[17px] text-gray-500 mb-3">
               No feed logs yet. Record hay, grain, or mineral offered.
             </Text>
             <Button
-              title="Log Feed"
+              title="Log feed"
               variant="outline"
               onPress={() => router.push('/(tabs)/land/add-feed')}
             />
           </View>
         ) : (
           feedLogs.map((item) => (
-            <View
-              key={item.id}
-              className="flex-row justify-between py-2 border-b border-gray-100">
-              <View className="flex-1 pr-3">
-                <Text className="text-gray-900 font-medium">{item.feedType}</Text>
-                <Text className="text-gray-500 text-sm">
-                  {formatDisplayDate(item.date)}
-                </Text>
-              </View>
+            <View key={item.id} className="flex-row justify-between py-1">
+              <Text className="flex-1 pr-3 text-[17px] font-bold text-ink">
+                {item.feedType} · {formatDisplayDate(item.date)}
+              </Text>
               {item.quantity != null ? (
-                <Text className="text-gray-700">
+                <Text className="text-[17px] font-bold text-ink">
                   {item.quantity} {item.unit}
                 </Text>
               ) : null}

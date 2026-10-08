@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
+import { Chip, ChipRow } from '@/components/ui/Chip';
+import { FieldLabel } from '@/components/ui/FieldLabel';
+import { Segmented } from '@/components/ui/Segmented';
 import { DateField } from '@/components/ui/DateField';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
@@ -12,10 +15,12 @@ import { todayIso } from '@/lib/dates';
 import { createTransaction } from '@/lib/db/transactions';
 import { formatFarmCurrency } from '@/lib/format/money';
 import type { Transaction } from '@/lib/types/finances';
-import { formatTransactionKind } from '@/lib/ui/finance-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
-const KIND_OPTIONS: Transaction['kind'][] = ['expense', 'revenue'];
+const KIND_OPTIONS: { value: Transaction['kind']; label: string }[] = [
+  { value: 'expense', label: 'Spent' },
+  { value: 'revenue', label: 'Received' },
+];
 
 const CATEGORY_SUGGESTIONS = [
   'Feed',
@@ -84,98 +89,74 @@ export default function AddTransactionScreen() {
 
   return (
     <HandWriteBlocked>
-    <FormKeyboardScreen contentContainerClassName="p-4">
-      <FormMessage message={errorMessage} tone="error" />
+      <FormKeyboardScreen
+        contentContainerClassName="px-5 pt-2 pb-6"
+        footer={
+          <Button
+            className="min-h-[60px]"
+            title={loading ? 'Saving…' : 'Save transaction'}
+            onPress={handleSave}
+            disabled={loading}
+          />
+        }>
+        <FormMessage message={errorMessage} tone="error" />
 
-      <DateField
-        label="Date"
-        value={transactionDate}
-        onChange={setTransactionDate}
-        maximumDate={new Date()}
-      />
-      {amountPreview ? (
-        <Text className="text-sm text-gray-700 mb-4">
-          Preview: {kind === 'expense' ? '−' : '+'}
-          {amountPreview}
-        </Text>
-      ) : (
-        <Text className="text-sm text-gray-600 mb-4">
-          Amounts use your farm currency ({activeFarm.currency}).
-        </Text>
-      )}
+        <View className="mb-4">
+          <FieldLabel>Money</FieldLabel>
+          <Segmented options={KIND_OPTIONS} value={kind} onChange={setKind} />
+        </View>
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Type</Text>
-      <View className="flex-row gap-2 mb-4">
-        {KIND_OPTIONS.map((option) => (
-          <Pressable
-            key={option}
-            onPress={() => setKind(option)}
-            className={`flex-1 rounded-xl border px-3 py-3 items-center capitalize ${
-              kind === option
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`font-medium ${
-                kind === option ? 'text-bloodline-700' : 'text-gray-700'
-              }`}>
-              {formatTransactionKind(option)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <Input
+          label="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="0.00"
+          keyboardType="decimal-pad"
+          hint={
+            amountPreview
+              ? `Preview: ${kind === 'expense' ? '−' : '+'}${amountPreview} (${activeFarm.currency})`
+              : `Amounts use your farm currency (${activeFarm.currency}).`
+          }
+        />
 
-      <Input
-        label="Category"
-        value={category}
-        onChangeText={setCategory}
-        placeholder="Feed"
-      />
+        <View className="mb-4">
+          <FieldLabel>What for?</FieldLabel>
+          <ChipRow>
+            {CATEGORY_SUGGESTIONS.map((suggestion) => (
+              <Chip
+                key={suggestion}
+                label={suggestion}
+                selected={category === suggestion}
+                onPress={() => setCategory(suggestion)}
+              />
+            ))}
+          </ChipRow>
+        </View>
 
-      <Text className="text-sm font-medium text-gray-700 mb-2">Suggestions</Text>
-      <View className="flex-row flex-wrap gap-2 mb-4">
-        {CATEGORY_SUGGESTIONS.map((suggestion) => (
-          <Pressable
-            key={suggestion}
-            onPress={() => setCategory(suggestion)}
-            className={`rounded-full border px-3 py-1.5 ${
-              category === suggestion
-                ? 'border-bloodline-600 bg-bloodline-50'
-                : 'border-gray-300 bg-white'
-            }`}>
-            <Text
-              className={`text-sm ${
-                category === suggestion
-                  ? 'text-bloodline-700 font-medium'
-                  : 'text-gray-700'
-              }`}>
-              {suggestion}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <Input
+          label="Category"
+          hint="Tap a choice above, or type your own."
+          value={category}
+          onChangeText={setCategory}
+          placeholder="Feed"
+        />
 
-      <Input
-        label="Amount"
-        value={amount}
-        onChangeText={setAmount}
-        placeholder="0.00"
-        keyboardType="decimal-pad"
-      />
+        <DateField
+          label="Date"
+          value={transactionDate}
+          onChange={setTransactionDate}
+          maximumDate={new Date()}
+        />
 
-      <Input
-        label="Notes"
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Optional"
-      />
-
-      <Button
-        title={loading ? 'Saving…' : 'Save Transaction'}
-        onPress={handleSave}
-        disabled={loading}
-      />
-    </FormKeyboardScreen>
+        <Input
+          label="Notes"
+          optional
+          multiline
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Optional"
+        />
+      </FormKeyboardScreen>
     </HandWriteBlocked>
   );
 }

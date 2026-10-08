@@ -7,18 +7,26 @@ interface FormMessageProps {
   tone?: FormMessageTone;
 }
 
+// Errors are black with a warning symbol: red is the brand color, so it never means "stop".
 const toneClasses: Record<FormMessageTone, string> = {
-  error: 'bg-red-50 border-red-200',
-  success: 'bg-green-50 border-green-200',
-  info: 'bg-blue-50 border-blue-200',
-  warning: 'bg-amber-50 border-amber-200',
+  error: 'bg-stop',
+  success: 'bg-[#ddf0e4]',
+  info: 'bg-[#e1edf8]',
+  warning: 'bg-[#fff1cc]',
 };
 
 const textClasses: Record<FormMessageTone, string> = {
-  error: 'text-red-800',
-  success: 'text-green-800',
-  info: 'text-blue-800',
-  warning: 'text-amber-900',
+  error: 'text-white',
+  success: 'text-[#0f5a33]',
+  info: 'text-[#17476f]',
+  warning: 'text-[#6b3a00]',
+};
+
+const symbols: Record<FormMessageTone, string> = {
+  error: '⚠',
+  success: '✓',
+  info: 'ⓘ',
+  warning: '◔',
 };
 
 export function FormMessage({ message, tone = 'error' }: FormMessageProps) {
@@ -28,9 +36,12 @@ export function FormMessage({ message, tone = 'error' }: FormMessageProps) {
 
   return (
     <View
-      className={`rounded-xl border px-4 py-3 mb-4 ${toneClasses[tone]}`}
+      className={`rounded-[18px] px-4 py-3.5 mb-4 flex-row gap-3 ${toneClasses[tone]}`}
       accessibilityRole="alert">
-      <Text className={`text-sm ${textClasses[tone]}`}>{message}</Text>
+      <Text className={`text-xl ${textClasses[tone]}`}>{symbols[tone]}</Text>
+      <Text className={`flex-1 text-base font-semibold leading-[22px] ${textClasses[tone]}`}>
+        {message}
+      </Text>
     </View>
   );
 }

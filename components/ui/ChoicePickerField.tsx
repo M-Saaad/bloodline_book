@@ -35,21 +35,19 @@ export function ChoicePickerField({
 
   return (
     <View className="mb-4">
+      <Text className="text-base font-bold text-ink mb-2">{label}</Text>
       <Pressable
         onPress={() => setOpen(true)}
         disabled={options.length === 0}
         accessibilityRole="button"
         accessibilityLabel={`${label}. ${selected?.label ?? placeholder}. Change`}
-        className="min-h-[56px] flex-row items-center rounded-xl border border-gray-300 bg-white px-3 py-3">
-        <View className="flex-1 pr-3">
-          <Text className="text-sm font-medium text-gray-700">{label}</Text>
-          <Text numberOfLines={1} className="text-base font-semibold text-gray-900 mt-0.5">
-            {options.length === 0 ? emptyMessage : (selected?.label ?? placeholder)}
-          </Text>
-        </View>
-        {options.length > 0 ? (
-          <Text className="text-bloodline-700 font-semibold">Change</Text>
-        ) : null}
+        className="h-14 flex-row items-center rounded-[18px] border border-gray-300 bg-white px-4">
+        <Text
+          numberOfLines={1}
+          className={`flex-1 text-lg ${selected ? 'font-bold text-ink' : 'text-gray-500'}`}>
+          {options.length === 0 ? emptyMessage : (selected?.label ?? placeholder)}
+        </Text>
+        {options.length > 0 ? <Text className="text-2xl text-gray-500">›</Text> : null}
       </Pressable>
 
       <Modal
@@ -61,7 +59,7 @@ export function ChoicePickerField({
           className={
             wide
               ? 'flex-1 bg-black/40 items-center justify-center p-6'
-              : 'flex-1 bg-white'
+              : 'flex-1 bg-paper'
           }
           style={wide ? undefined : { paddingTop: insets.top }}>
           <View
@@ -72,12 +70,12 @@ export function ChoicePickerField({
             }
             style={wide ? { maxWidth: 480, width: '100%', maxHeight: '80%' } : undefined}>
             <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
-              <Text className="text-lg font-semibold text-gray-900">{label}</Text>
+              <Text className="text-xl font-extrabold text-ink">{label}</Text>
               <Pressable
                 onPress={() => setOpen(false)}
                 accessibilityRole="button"
                 className="min-h-[44px] justify-center px-2">
-                <Text className="text-bloodline-700 font-semibold">Close</Text>
+                <Text className="text-base font-bold text-bloodline-600">Close</Text>
               </Pressable>
             </View>
             <View className="p-4" style={{ paddingBottom: insets.bottom + 16 }}>
