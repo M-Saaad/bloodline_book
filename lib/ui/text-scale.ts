@@ -11,14 +11,28 @@ export const TEXT_SIZE_OPTIONS: {
   label: string;
   scale: number;
 }[] = [
-  { key: 'small', label: 'Small', scale: 0.9 },
-  { key: 'default', label: 'Default', scale: 1 },
-  { key: 'large', label: 'Large', scale: 1.2 },
-  { key: 'xlarge', label: 'Extra large', scale: 1.4 },
+  { key: 'small', label: 'Small', scale: 0.8 },
+  { key: 'default', label: 'Default', scale: 0.9 },
+  { key: 'large', label: 'Large', scale: 1 },
+  { key: 'xlarge', label: 'Extra large', scale: 1.2 },
 ];
 
 export const DEFAULT_TEXT_SIZE: TextSizeKey = 'default';
-export const TEXT_SIZE_STORAGE_KEY = 'bloodline.textSize';
+export const TEXT_SIZE_STORAGE_KEY = 'bloodline.textSize.v2';
+/** Previous per-device key (four options with older scale steps). */
+export const LEGACY_TEXT_SIZE_STORAGE_KEY = 'bloodline.textSize';
+
+const LEGACY_STORED_KEY_TO_V2: Record<TextSizeKey, TextSizeKey> = {
+  small: 'default',
+  default: 'large',
+  large: 'xlarge',
+  xlarge: 'xlarge',
+};
+
+/** Map a stored v1 choice to the closest v2 key (same visual size where possible). */
+export function migrateLegacyStoredTextSize(key: TextSizeKey): TextSizeKey {
+  return LEGACY_STORED_KEY_TO_V2[key];
+}
 
 /** Our scale times the phone's own font scale never goes past this. */
 export const MAX_COMBINED_SCALE = 1.6;

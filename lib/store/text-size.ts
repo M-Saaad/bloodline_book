@@ -4,7 +4,10 @@ import { create } from 'zustand';
 
 import {
   DEFAULT_TEXT_SIZE,
+  LEGACY_TEXT_SIZE_STORAGE_KEY,
   TEXT_SIZE_STORAGE_KEY,
+  isTextSizeKey,
+  migrateLegacyStoredTextSize,
   parseTextSize,
   scaleForTextSize,
   type TextSizeKey,
@@ -31,7 +34,15 @@ export const useTextSizeStore = create<TextSizeState>((set) => ({
   },
   hydrate: async () => {
     try {
-      const raw = await AsyncStorage.getItem(TEXT_SIZE_STORAGE_KEY);
+      let raw = await AsyncStorage.getItem(TEXT_SIZE_STORAGE_KEY);
+      if (raw == null) {
+        const legacy = await AsyncStorage.getItem(LEGACY_TEXT_SIZE_STORAGE_KEY);
+        if (legacy != null && isTextSizeKey(legacy)) {
+          const migrated = migrateLegacyStoredTextSize(legacy);
+          raw = migrated;
+          await AsyncStorage.setItem(TEXT_SIZE_STORAGE_KEY, migrated);
+        }
+      }
       const size = parseTextSize(raw);
       set({ size, scale: scaleForTextSize(size), hydrated: true });
     } catch {
