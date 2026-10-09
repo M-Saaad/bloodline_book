@@ -1,9 +1,14 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
+import {
+  PEDIGREE_CONNECTOR_WIDTH,
+  PedigreeTree,
+} from '@/components/livestock/PedigreeTree';
 import { Badge } from '@/components/ui/Badge';
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +23,12 @@ import {
   resolveBreedingWindow,
 } from '@/lib/domain/breeding';
 import { litterSummaryLabel } from '@/lib/domain/kidding';
+import {
+  buildPedigree,
+  CARD_PEDIGREE_GENERATIONS,
+  PEDIGREE_HERD_SQL,
+  pedigreeAnimalFromRow,
+} from '@/lib/domain/pedigree';
 import {
   activeWithdrawalsByAnimal,
   withdrawalBadgeLabel,
@@ -93,18 +104,31 @@ export default function AnimalDetailScreen() {
     id ? [id, id] : [],
   );
 
-  const damId = animalRows?.[0]?.dam_id as string | undefined;
-  const sireId = animalRows?.[0]?.sire_id as string | undefined;
-
-  const { data: damRows } = useQuery(
-    damId ? 'SELECT id, name, tag_number FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
-    damId ? [damId] : [],
+  const { data: herdRows } = useQuery(
+    activeFarm ? PEDIGREE_HERD_SQL : 'SELECT 1 WHERE 0',
+    activeFarm ? [activeFarm.id] : [],
   );
-
-  const { data: sireRows } = useQuery(
-    sireId ? 'SELECT id, name, tag_number FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
-    sireId ? [sireId] : [],
+  const pedigree = useMemo(
+    () =>
+      id
+        ? buildPedigree(
+            id,
+            (herdRows ?? []).map((row) =>
+              pedigreeAnimalFromRow(row as Record<string, unknown>),
+            ),
+            CARD_PEDIGREE_GENERATIONS,
+          )
+        : null,
+    [id, herdRows],
   );
+  const [pedigreeWidth, setPedigreeWidth] = useState(0);
+  const pedigreeBoxWidth =
+    pedigreeWidth > 0
+      ? Math.floor(
+          (pedigreeWidth - PEDIGREE_CONNECTOR_WIDTH * (CARD_PEDIGREE_GENERATIONS - 1)) /
+            CARD_PEDIGREE_GENERATIONS,
+        )
+      : 0;
 
   const { data: breedingRows } = useQuery(
     id && animalRows?.[0]?.sex === 'female'
@@ -513,41 +537,32 @@ export default function AnimalDetailScreen() {
       </Card>
 
       <Card>
-        <Text className="text-xl font-extrabold text-ink mb-3">Parents</Text>
-        <View className="gap-2.5">
-          {damRows?.[0] ? (
-            <ParentLink
-              label="Dam"
-              animalId={String(damRows[0].id)}
-              name={String(damRows[0].name ?? '')}
-              tagNumber={
-                damRows[0].tag_number != null
-                  ? String(damRows[0].tag_number)
-                  : null
-              }
+        <Text className="text-xl font-extrabold text-ink mb-3">Pedigree</Text>
+        {!pedigree || pedigree.knownCount === 0 ? (
+          <View className="gap-3">
+            <Text className="text-gray-500">No parents recorded yet.</Text>
+            <FarmWriteGate>
+              <Button
+                title="Add dam and sire"
+                variant="outline"
+                onPress={() => router.push(`/(tabs)/livestock/edit/${id}`)}
+              />
+            </FarmWriteGate>
+          </View>
+        ) : (
+          <View className="gap-3">
+            <View onLayout={(event) => setPedigreeWidth(event.nativeEvent.layout.width)}>
+              {pedigreeBoxWidth > 0 ? (
+                <PedigreeTree pedigree={pedigree} boxWidth={pedigreeBoxWidth} />
+              ) : null}
+            </View>
+            <Button
+              title="Full pedigree"
+              variant="outline"
+              onPress={() => router.push(`/(tabs)/livestock/pedigree/${id}`)}
             />
-          ) : animal.damExternalName ? (
-            <DetailRow label="Dam" value={animal.damExternalName} />
-          ) : (
-            <DetailRow label="Dam" value="Not set" />
-          )}
-          {sireRows?.[0] ? (
-            <ParentLink
-              label="Sire"
-              animalId={String(sireRows[0].id)}
-              name={String(sireRows[0].name ?? '')}
-              tagNumber={
-                sireRows[0].tag_number != null
-                  ? String(sireRows[0].tag_number)
-                  : null
-              }
-            />
-          ) : animal.sireExternalName ? (
-            <DetailRow label="Sire" value={animal.sireExternalName} />
-          ) : (
-            <DetailRow label="Sire" value="Not set" />
-          )}
-        </View>
+          </View>
+        )}
       </Card>
 
       {(offspringRows ?? []).length > 0 ? (
@@ -866,34 +881,6 @@ function DetailRow({
         className={`flex-1 text-right text-[17px] text-ink font-bold ${capitalize ? 'capitalize' : ''}`}>
         {value}
       </Text>
-    </View>
-  );
-}
-
-function ParentLink({
-  label,
-  animalId,
-  name,
-  tagNumber,
-}: {
-  label: string;
-  animalId: string;
-  name: string;
-  tagNumber: string | null;
-}) {
-  return (
-    <View className="flex-row justify-between items-center gap-4 min-h-[48px]">
-      <Text className="text-[17px] text-gray-500">{label}</Text>
-      <Pressable
-        onPress={() => router.push(`/(tabs)/livestock/${animalId}`)}
-        accessibilityRole="button"
-        className="min-h-[48px] justify-center">
-        {name.trim() || tagNumber ? (
-          <GoatName name={name} tag={tagNumber} id={animalId} />
-        ) : (
-          <Text className="text-[17px] text-bloodline-600 font-bold">View animal</Text>
-        )}
-      </Pressable>
     </View>
   );
 }
