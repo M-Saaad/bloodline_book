@@ -20,10 +20,10 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: '#fffaf5',
-      foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
-      monochromeImage: './assets/images/android-icon-monochrome.png',
+      backgroundColor: '#A8321F',
+      foregroundImage: './assets/images/adaptive-icon-foreground.png',
+      backgroundImage: './assets/images/adaptive-icon-background.png',
+      monochromeImage: './assets/images/adaptive-icon-monochrome.png',
     },
     package: 'com.bloodlinebook.app',
     predictiveBackGestureEnabled: false,
