@@ -2,6 +2,7 @@ import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { BrandMark } from '@/components/BrandMark';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -71,8 +72,8 @@ export default function SignInScreen() {
   return (
     <FormKeyboardScreen contentContainerClassName="px-5 pt-16 pb-8">
       <View className="px-1 mb-6">
-        <View className="w-16 h-16 rounded-[20px] bg-bloodline-600 items-center justify-center mb-4">
-          <Text className="text-4xl text-white font-extrabold">B</Text>
+        <View className="mb-4">
+          <BrandMark size={72} />
         </View>
         <Text className="text-[34px] leading-[38px] font-extrabold text-bloodline-900 mb-2">
           Bloodline Book
