@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 
-import { stackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
+import { useStackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
 
 export default function LivestockLayout() {
+  const stackOptions = useStackWithSyncBadge();
   return (
-    <Stack screenOptions={stackWithSyncBadge}>
+    <Stack screenOptions={stackOptions}>
       <Stack.Screen name="index" options={{ title: 'Herd', headerShown: false }} />
       <Stack.Screen name="add" options={{ title: 'Add goat' }} />
       <Stack.Screen name="weight" options={{ title: 'Weigh Day', headerShown: false }} />

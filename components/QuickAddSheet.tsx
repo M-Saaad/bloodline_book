@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text } from '@/components/ui/Text';
 
 type Tile = { label: string; symbol: string; href: string };
 

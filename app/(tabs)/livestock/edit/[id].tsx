@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AnimalBreedFields } from '@/components/livestock/AnimalBreedFields';
 import { AnimalIdentityFields } from '@/components/livestock/AnimalIdentityFields';
@@ -41,6 +41,7 @@ import {
 import type { Animal, Breed } from '@/lib/types/animals';
 import { animalDisplayLabel, formatLifecycleStage } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const SEX_OPTIONS: Animal['sex'][] = ['female', 'male'];
 

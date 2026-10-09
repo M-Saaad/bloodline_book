@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -34,6 +34,8 @@ import { herdRowSubtitle } from '@/lib/ui/animal-picker';
 import type { Animal } from '@/lib/types/animals';
 import type { WeighSession } from '@/lib/types/weight';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 const WEIGH_POINTS: { value: WeighSession['weighPoint']; label: string }[] = [
   { value: 'ad_hoc', label: 'Any time' },

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 
@@ -25,6 +25,7 @@ import type { Animal, Breed } from '@/lib/types/animals';
 import { animalDisplayLabel, formatSex } from '@/lib/ui/animal-labels';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const SEX_OPTIONS: Animal['sex'][] = ['female', 'male'];
 

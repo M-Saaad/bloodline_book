@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { confirmAction } from '@/lib/ui/confirm';
+import { Text } from '@/components/ui/Text';
 
 type DeleteRecordButtonProps = {
   title?: string;

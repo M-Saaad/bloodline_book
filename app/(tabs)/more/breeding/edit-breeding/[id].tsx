@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { breedingStatusTone } from '@/components/breeding/status';
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
@@ -39,6 +39,7 @@ import type { BreedingStatus, ConfirmMethod } from '@/lib/types/breeding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const METHODS: { value: ConfirmMethod; label: string }[] = [
   { value: 'ultrasound', label: 'Ultrasound' },

@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Share, View } from 'react-native';
 
 import { Banner } from '@/components/ui/Banner';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,7 @@ import {
 } from '@/lib/domain/upload-failures';
 import { dismissUploadFailure } from '@/lib/powersync/upload-failures';
 import { powersync } from '@/lib/powersync/system';
+import { Text } from '@/components/ui/Text';
 
 interface UploadFailureRow {
   id: string;

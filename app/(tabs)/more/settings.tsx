@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { TextSizeSetting } from '@/components/TextSizeSetting';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -13,6 +14,7 @@ import type { Farm } from '@/lib/types/tenancy';
 import { confirmAction } from '@/lib/ui/confirm';
 import { formatFarmOperationType } from '@/lib/ui/farm-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const WEIGHT_UNITS: Farm['weightUnit'][] = ['lb', 'kg'];
 
@@ -131,6 +133,8 @@ export default function SettingsScreen() {
           className="h-[60px]"
         />
       }>
+      <TextSizeSetting />
+
       <FormMessage message={errorMessage} tone="error" />
       {successMessage ? (
         <View className="mb-4">

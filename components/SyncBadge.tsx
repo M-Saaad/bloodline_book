@@ -2,10 +2,11 @@ import { useQuery, useStatus } from '@powersync/react';
 import { router } from 'expo-router';
 import { useNetworkState } from 'expo-network';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { deviceHasSignal, resolveSyncBadge } from '@/lib/domain/sync-badge';
 import { powersync } from '@/lib/powersync/system';
+import { Text } from '@/components/ui/Text';
 
 export function SyncBadge() {
   const status = useStatus();

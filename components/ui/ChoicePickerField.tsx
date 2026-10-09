@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HerdRow } from '@/components/ui/HerdRow';
+import { Text } from '@/components/ui/Text';
 
 type ChoiceOption = {
   id: string;

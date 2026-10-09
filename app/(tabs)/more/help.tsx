@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView, Text } from 'react-native';
+import { Platform, Pressable, ScrollView } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -10,6 +10,7 @@ import {
   SUPPORT_EMAIL,
   SUPPORT_WHATSAPP_URL,
 } from '@/lib/config/support';
+import { Text } from '@/components/ui/Text';
 
 const appVersion = Constants.expoConfig?.version ?? 'unknown';
 

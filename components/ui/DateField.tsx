@@ -2,15 +2,7 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import {
-  Modal,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-  type TextInputProps,
-} from 'react-native';
+import { Modal, Platform, Pressable, View, type TextInputProps } from 'react-native';
 
 import {
   formatDisplayDate,
@@ -18,6 +10,8 @@ import {
   parseIsoDate,
   todayIso,
 } from '@/lib/dates';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 type WebDateInputProps = TextInputProps & {
   type?: 'date';

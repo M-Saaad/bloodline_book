@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 /** Big screen heading with a small line under it, like the boards. */
 export function PageHeading({ title, subtitle }: { title: string; subtitle?: string }) {

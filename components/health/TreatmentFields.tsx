@@ -1,4 +1,4 @@
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Banner } from '@/components/ui/Banner';
 import { Chip, ChipRow } from '@/components/ui/Chip';
@@ -14,6 +14,8 @@ import {
 } from '@/lib/domain/health';
 import type { TreatmentRoute } from '@/lib/types/health';
 import type { Farm } from '@/lib/types/tenancy';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 const ROUTES: { value: TreatmentRoute; label: string }[] = [
   { value: 'oral', label: 'Oral' },

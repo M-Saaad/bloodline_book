@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { goatParts, SectionTitle } from '@/components/breeding/parts';
 import { breedingStatusTone } from '@/components/breeding/status';
@@ -19,6 +19,7 @@ import {
   resolveBreedingWindow,
 } from '@/lib/domain/breeding';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function BreedingCalendarScreen() {
   const { activeFarm } = useFarm();

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -17,6 +17,7 @@ import {
 } from '@/lib/db/weights';
 import { getAnimalById } from '@/lib/db/animals';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { Text } from '@/components/ui/Text';
 
 export default function EditWeightLogScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

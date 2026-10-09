@@ -39,9 +39,12 @@ const config: ExpoConfig = {
     [
       'expo-splash-screen',
       {
+        // Transparent logo on the same paper color as the first screen, so
+        // there is no color jump when the splash hands over to the app.
         image: './assets/images/splash-icon.png',
+        imageWidth: 200,
         resizeMode: 'contain',
-        backgroundColor: '#fffaf5',
+        backgroundColor: '#f6f2ee',
       },
     ],
   ],

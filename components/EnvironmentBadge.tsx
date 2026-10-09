@@ -1,9 +1,10 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import {
   databaseLabel,
   isProductionDatabase,
 } from '@/lib/config/database';
+import { Text } from '@/components/ui/Text';
 
 export function EnvironmentBadge() {
   if (isProductionDatabase || !__DEV__) {

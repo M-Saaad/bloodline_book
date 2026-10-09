@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { createDocument } from '@/lib/db/documents';
 import type { FarmDocument } from '@/lib/types/documents';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const DOCUMENT_TYPES: { value: FarmDocument['type']; label: string }[] = [
   { value: 'registration', label: 'Registration' },

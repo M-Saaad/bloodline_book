@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { GoatName, SectionTitle } from '@/components/land/PageHeading';
 import {
@@ -23,6 +23,7 @@ import type { PastureStatus } from '@/lib/types/land';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { formatForageType } from '@/lib/ui/pasture-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const PASTURE_STATUSES: PastureStatus[] = [
   'resting',

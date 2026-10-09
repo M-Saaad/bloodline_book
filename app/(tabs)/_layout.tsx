@@ -1,14 +1,16 @@
 import { router, Tabs } from 'expo-router';
-import { Platform, Text } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNav } from '@/components/BottomNav';
+import { useTextScale } from '@/lib/store/text-size';
 import { RequireAuth } from '@/components/RequireAuth';
 import { syncBadgeHeaderRight } from '@/components/SyncBadge';
 import {
   currentNestedRouteName,
   tabPressShouldOpenRoot,
 } from '@/lib/navigation/more-tab';
+import { Text } from '@/components/ui/Text';
 
 function TabIcon({ label }: { label: string }) {
   // className on a tab icon is drawn twice by NativeWind's style interop.
@@ -17,6 +19,7 @@ function TabIcon({ label }: { label: string }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const textScale = useTextScale();
   const webTabBarStyle =
     Platform.OS === 'web'
       ? { paddingBottom: Math.max(insets.bottom, 8) }
@@ -31,7 +34,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#5a4b46',
         headerStyle: { backgroundColor: '#f6f2ee' },
         headerTintColor: '#5e1a0e',
-        headerTitleStyle: { fontWeight: '800', fontSize: 20 },
+        headerTitleStyle: { fontWeight: '800', fontSize: Math.round(20 * textScale) },
         headerShadowVisible: false,
         headerRight: syncBadgeHeaderRight(),
         tabBarStyle: webTabBarStyle,
