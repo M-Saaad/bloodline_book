@@ -3,11 +3,14 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { SUPPORT_EMAIL } from '@/lib/config/support';
 import { shouldRouteToCreateFarm } from '@/lib/domain/offline-replica';
+import { useTextSizeStore } from '@/lib/store/text-size';
 import { useFarm } from '@/providers/FarmProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { Text } from '@/components/ui/Text';
 
 export default function IndexScreen() {
+  const textHydrated = useTextSizeStore((state) => state.hydrated);
+  const onboardingCompleted = useTextSizeStore((state) => state.onboardingCompleted);
   const { isLoading: authLoading, session, isConfigured } = useAuth();
   const {
     farms,
@@ -15,6 +18,18 @@ export default function IndexScreen() {
     isLoading: farmsLoading,
     localFarmsResolved,
   } = useFarm();
+
+  if (!textHydrated) {
+    return (
+      <View className="flex-1 items-center justify-center bg-paper">
+        <ActivityIndicator size="large" color="#a52f1a" />
+      </View>
+    );
+  }
+
+  if (!onboardingCompleted) {
+    return <Redirect href="/choose-text-size" />;
+  }
 
   if (!isConfigured) {
     return (

@@ -5,8 +5,10 @@ import { create } from 'zustand';
 import {
   DEFAULT_TEXT_SIZE,
   LEGACY_TEXT_SIZE_STORAGE_KEY,
+  TEXT_SIZE_ONBOARDING_KEY,
   TEXT_SIZE_STORAGE_KEY,
   isTextSizeKey,
+  isTextSizeOnboardingComplete,
   migrateLegacyStoredTextSize,
   parseTextSize,
   scaleForTextSize,
@@ -17,7 +19,9 @@ type TextSizeState = {
   size: TextSizeKey;
   scale: number;
   hydrated: boolean;
+  onboardingCompleted: boolean;
   setSize: (size: TextSizeKey) => void;
+  completeOnboarding: () => Promise<void>;
   hydrate: () => Promise<void>;
 };
 
@@ -26,25 +30,51 @@ export const useTextSizeStore = create<TextSizeState>((set) => ({
   size: DEFAULT_TEXT_SIZE,
   scale: scaleForTextSize(DEFAULT_TEXT_SIZE),
   hydrated: false,
+  onboardingCompleted: false,
   setSize: (size) => {
     set({ size, scale: scaleForTextSize(size) });
     AsyncStorage.setItem(TEXT_SIZE_STORAGE_KEY, size).catch(() => {
       // The choice still applies for this session if storage fails.
     });
   },
+  completeOnboarding: async () => {
+    try {
+      await AsyncStorage.setItem(TEXT_SIZE_ONBOARDING_KEY, '1');
+    } catch {
+      // Still let them into the app for this session.
+    }
+    set({ onboardingCompleted: true });
+  },
   hydrate: async () => {
     try {
-      let raw = await AsyncStorage.getItem(TEXT_SIZE_STORAGE_KEY);
+      const [v2Raw, legacyRaw, onboardingFlag] = await Promise.all([
+        AsyncStorage.getItem(TEXT_SIZE_STORAGE_KEY),
+        AsyncStorage.getItem(LEGACY_TEXT_SIZE_STORAGE_KEY),
+        AsyncStorage.getItem(TEXT_SIZE_ONBOARDING_KEY),
+      ]);
+
+      let raw = v2Raw;
       if (raw == null) {
-        const legacy = await AsyncStorage.getItem(LEGACY_TEXT_SIZE_STORAGE_KEY);
-        if (legacy != null && isTextSizeKey(legacy)) {
-          const migrated = migrateLegacyStoredTextSize(legacy);
+        if (legacyRaw != null && isTextSizeKey(legacyRaw)) {
+          const migrated = migrateLegacyStoredTextSize(legacyRaw);
           raw = migrated;
           await AsyncStorage.setItem(TEXT_SIZE_STORAGE_KEY, migrated);
         }
       }
+
       const size = parseTextSize(raw);
-      set({ size, scale: scaleForTextSize(size), hydrated: true });
+      const onboardingCompleted = isTextSizeOnboardingComplete(
+        onboardingFlag,
+        v2Raw,
+        legacyRaw,
+      );
+
+      set({
+        size,
+        scale: scaleForTextSize(size),
+        onboardingCompleted,
+        hydrated: true,
+      });
     } catch {
       set({ hydrated: true });
     }

@@ -21,6 +21,8 @@ export const DEFAULT_TEXT_SIZE: TextSizeKey = 'default';
 export const TEXT_SIZE_STORAGE_KEY = 'bloodline.textSize.v2';
 /** Previous per-device key (four options with older scale steps). */
 export const LEGACY_TEXT_SIZE_STORAGE_KEY = 'bloodline.textSize';
+/** Set when the farmer finishes the one-time text size welcome screen. */
+export const TEXT_SIZE_ONBOARDING_KEY = 'bloodline.textSizeOnboarding.v1';
 
 const LEGACY_STORED_KEY_TO_V2: Record<TextSizeKey, TextSizeKey> = {
   small: 'default',
@@ -46,6 +48,31 @@ export function isTextSizeKey(value: unknown): value is TextSizeKey {
 
 export function parseTextSize(raw: unknown): TextSizeKey {
   return isTextSizeKey(raw) ? raw : DEFAULT_TEXT_SIZE;
+}
+
+export function hasStoredTextSizeChoice(
+  v2Raw: string | null | undefined,
+  legacyRaw: string | null | undefined,
+): boolean {
+  if (v2Raw != null && isTextSizeKey(v2Raw)) {
+    return true;
+  }
+  if (legacyRaw != null && isTextSizeKey(legacyRaw)) {
+    return true;
+  }
+  return false;
+}
+
+/** Skip the welcome screen for upgrades that already picked a size in Settings. */
+export function isTextSizeOnboardingComplete(
+  onboardingFlag: string | null | undefined,
+  v2Raw: string | null | undefined,
+  legacyRaw: string | null | undefined,
+): boolean {
+  if (onboardingFlag === '1') {
+    return true;
+  }
+  return hasStoredTextSizeChoice(v2Raw, legacyRaw);
 }
 
 export function scaleForTextSize(key: TextSizeKey): number {
