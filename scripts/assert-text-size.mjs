@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   MAX_COMBINED_SCALE,
   TEXT_SIZE_OPTIONS,
+  isTextSizeOnboardingComplete,
   migrateLegacyStoredTextSize,
   parseTextSize,
   scaleFontStyle,
@@ -28,6 +29,11 @@ assert.equal(migrateLegacyStoredTextSize('small'), 'default');
 assert.equal(migrateLegacyStoredTextSize('default'), 'large');
 assert.equal(migrateLegacyStoredTextSize('large'), 'xlarge');
 assert.equal(migrateLegacyStoredTextSize('xlarge'), 'xlarge');
+
+assert.equal(isTextSizeOnboardingComplete('1', null, null), true);
+assert.equal(isTextSizeOnboardingComplete(null, 'large', null), true);
+assert.equal(isTextSizeOnboardingComplete(null, null, 'default'), true);
+assert.equal(isTextSizeOnboardingComplete(null, null, null), false);
 
 // Bad or missing stored values fall back to Default (0.9).
 assert.equal(parseTextSize(undefined), 'default');

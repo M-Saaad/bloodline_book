@@ -81,6 +81,7 @@ export default function RootLayout() {
           <WebUploadQueueWarning />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
+            <Stack.Screen name="choose-text-size" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(onboarding)" />
             <Stack.Screen name="(tabs)" />
