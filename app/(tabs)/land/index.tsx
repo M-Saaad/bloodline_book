@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { PageHeading, SectionTitle } from '@/components/land/PageHeading';
 import { PastureStatusBadge } from '@/components/land/PastureStatusBadge';
@@ -13,6 +13,7 @@ import { formatDisplayDate } from '@/lib/dates';
 import { mapFeedLog, mapPasture } from '@/lib/db/mappers';
 import { formatForageType } from '@/lib/ui/pasture-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function LandScreen() {
   const { activeFarm } = useFarm();

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { registerConfirmOpener } from '@/lib/ui/confirm';
+import { Text } from '@/components/ui/Text';
 
 type ActiveConfirm = {
   title: string;

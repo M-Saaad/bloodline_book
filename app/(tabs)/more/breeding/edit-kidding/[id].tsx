@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -26,6 +26,7 @@ import type { KiddingEase } from '@/lib/types/breeding';
 import { kiddingDeleteKidsPrompt } from '@/lib/domain/kidding-delete';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function EditKiddingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

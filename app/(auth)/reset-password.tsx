@@ -1,7 +1,7 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Banner } from '@/components/ui/Banner';
 
@@ -16,6 +16,7 @@ import {
 import { recoveryParamsFromUrl } from '@/lib/auth/email';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/providers/AuthProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function ResetPasswordScreen() {
   const { updatePassword } = useAuth();

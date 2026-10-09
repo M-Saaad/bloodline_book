@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -16,6 +16,7 @@ import { createTransaction } from '@/lib/db/transactions';
 import { formatFarmCurrency } from '@/lib/format/money';
 import type { Transaction } from '@/lib/types/finances';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const KIND_OPTIONS: { value: Transaction['kind']; label: string }[] = [
   { value: 'expense', label: 'Spent' },

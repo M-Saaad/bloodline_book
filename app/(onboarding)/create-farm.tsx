@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { BrandMark } from '@/components/BrandMark';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
@@ -13,6 +13,7 @@ import { createFarm } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { useUiStore } from '@/lib/store/ui';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const SEGMENTS: { value: Farm['segment']; label: string }[] = [
   { value: 'dairy', label: 'Dairy' },
@@ -93,8 +94,8 @@ export default function CreateFarmScreen() {
         />
       }>
       <View className="px-1 mb-5">
-        <View className="mb-4">
-          <BrandMark size={72} />
+        <View className="mb-3">
+          <BrandMark size={52} />
         </View>
         <Text className="text-[15px] font-extrabold tracking-widest text-bloodline-600">
           STEP 1 OF 1

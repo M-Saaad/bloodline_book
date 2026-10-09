@@ -2,7 +2,7 @@ import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FlatList, ScrollView, Text, TextInput, View, Pressable } from 'react-native';
+import { FlatList, ScrollView, View, Pressable } from 'react-native';
 
 import { HerdFilterSheet } from '@/components/livestock/HerdFilterSheet';
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
@@ -36,6 +36,8 @@ import {
 } from '@/lib/domain/offline-replica';
 import type { Animal } from '@/lib/types/animals';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 const STATUS_FILTERS: { value: HerdStatusFilter; label: string }[] = [
   { value: 'active', label: 'Active' },

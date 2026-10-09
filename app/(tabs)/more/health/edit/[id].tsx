@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -32,6 +32,7 @@ import {
 import type { HealthRecordKind, TreatmentRoute } from '@/lib/types/health';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 const HEALTH_KINDS: { value: HealthRecordKind; label: string }[] = [
   { value: 'vaccination', label: 'Vaccination' },

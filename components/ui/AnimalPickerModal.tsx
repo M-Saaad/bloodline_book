@@ -1,13 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, Modal, Pressable, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 
@@ -33,6 +25,8 @@ import {
   type PickerBlock,
   type PickerRow,
 } from '@/lib/ui/animal-picker';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 export type PickerQuickChip = {
   id: string;

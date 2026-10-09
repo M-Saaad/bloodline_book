@@ -1,5 +1,5 @@
-import { Text } from 'react-native';
 
+import { Text } from '@/components/ui/Text';
 /** Label above a group of chips, a segmented bar or a picker. */
 export function FieldLabel({ children, optional = false }: { children: string; optional?: boolean }) {
   return (

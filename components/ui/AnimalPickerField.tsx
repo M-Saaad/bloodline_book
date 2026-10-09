@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import {
   AnimalPickerModal,
@@ -21,6 +21,7 @@ import {
   type PickerBlock,
 } from '@/lib/ui/animal-picker';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 type SharedPickerProps = {
   label: string;

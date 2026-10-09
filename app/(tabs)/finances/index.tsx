@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 
 import { PageHeading } from '@/components/land/PageHeading';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { mapTransaction } from '@/lib/db/mappers';
 import { formatDisplayDate } from '@/lib/dates';
 import { formatFarmCurrency } from '@/lib/format/money';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function FinancesScreen() {
   const { activeFarm } = useFarm();

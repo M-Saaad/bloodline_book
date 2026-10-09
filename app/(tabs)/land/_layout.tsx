@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 
-import { stackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
+import { useStackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
 
 export default function LandLayout() {
+  const stackOptions = useStackWithSyncBadge();
   return (
-    <Stack screenOptions={stackWithSyncBadge}>
+    <Stack screenOptions={stackOptions}>
       <Stack.Screen name="index" options={{ title: 'Land' }} />
       <Stack.Screen name="add-pasture" options={{ title: 'Add pasture' }} />
       <Stack.Screen name="add-grazing" options={{ title: 'Move goats' }} />

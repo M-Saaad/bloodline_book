@@ -1,10 +1,11 @@
 import { Redirect } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { SUPPORT_EMAIL } from '@/lib/config/support';
 import { shouldRouteToCreateFarm } from '@/lib/domain/offline-replica';
 import { useFarm } from '@/providers/FarmProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function IndexScreen() {
   const { isLoading: authLoading, session, isConfigured } = useAuth();

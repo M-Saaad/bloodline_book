@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { goatParts, SectionTitle } from '@/components/breeding/parts';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,7 @@ import { formatDisplayDate } from '@/lib/dates';
 import { litterSummaryLabel } from '@/lib/domain/kidding';
 import { formatSex } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function KiddingSummaryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

@@ -1,10 +1,11 @@
 import { router, usePathname } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { QuickAddSheet } from '@/components/QuickAddSheet';
 import { useFarmRole } from '@/hooks/useFarmRole';
+import { Text } from '@/components/ui/Text';
 
 type Item = { key: 'today' | 'herd' | 'breeding' | 'more'; label: string; symbol: string; href: string };
 
@@ -49,11 +50,13 @@ export function BottomNav() {
           }
           router.navigate(item.href as never);
         }}
-        className="w-[68px] min-h-[52px] items-center gap-0.5">
+        className="flex-1 min-w-[68px] min-h-[52px] items-center gap-0.5">
         <Text className={`text-[26px] leading-[30px] ${on ? 'text-bloodline-600' : 'text-gray-500'}`}>
           {item.symbol}
         </Text>
-        <Text className={`text-[13px] ${on ? 'font-extrabold text-bloodline-600' : 'font-semibold text-gray-500'}`}>
+        <Text
+          numberOfLines={1}
+          className={`text-[13px] ${on ? 'font-extrabold text-bloodline-600' : 'font-semibold text-gray-500'}`}>
           {item.label}
         </Text>
       </Pressable>

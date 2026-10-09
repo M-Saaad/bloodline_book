@@ -1,4 +1,4 @@
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -9,6 +9,7 @@ import type {
   HerdSexFilter,
   HerdStatusFilter,
 } from '@/lib/domain/animals';
+import { Text } from '@/components/ui/Text';
 
 type FilterOption<T extends string> = { value: T; label: string };
 

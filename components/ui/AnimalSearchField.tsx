@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 
 import { animalMatchesSearch, rememberAnimals } from '@/lib/domain/animals';
 import type { Animal } from '@/lib/types/animals';
+import { Text } from '@/components/ui/Text';
+import { TextInput } from '@/components/ui/TextInput';
 
 export function useAnimalSearch(animals: Animal[]) {
   const [query, setQuery] = useState('');

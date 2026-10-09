@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { CardRowShell, ScreenHeading, TextWithTags } from '@/components/breeding/parts';
@@ -18,6 +18,7 @@ import { hideOldCompletedTask } from '@/lib/domain/today';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function TasksScreen() {
   const { activeFarm } = useFarm();

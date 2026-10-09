@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
@@ -35,6 +35,7 @@ import {
 import { partitionOpenTasks } from '@/lib/domain/today';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function DashboardScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();

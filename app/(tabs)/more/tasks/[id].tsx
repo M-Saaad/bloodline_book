@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { DeleteRecordButton } from '@/components/DeleteRecordButton';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -20,6 +20,7 @@ import {
 } from '@/lib/db/documents';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import type { FarmTask } from '@/lib/types/documents';
+import { Text } from '@/components/ui/Text';
 
 const PRIORITIES: FarmTask['priority'][] = ['low', 'medium', 'high'];
 

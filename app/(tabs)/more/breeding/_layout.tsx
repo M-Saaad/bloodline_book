@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
 
-import { stackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
+import { useStackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
 
 export default function BreedingLayout() {
+  const stackOptions = useStackWithSyncBadge();
   return (
-    <Stack screenOptions={stackWithSyncBadge}>
+    <Stack screenOptions={stackOptions}>
       <Stack.Screen name="index" options={{ title: 'Breeding', headerTitle: '' }} />
       <Stack.Screen name="add-breeding" options={{ title: 'Log breeding' }} />
       <Stack.Screen name="add-kidding" options={{ title: 'Log kidding' }} />

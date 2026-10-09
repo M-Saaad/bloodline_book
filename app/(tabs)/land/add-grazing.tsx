@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { AnimalMultiSelectField } from '@/components/ui/AnimalMultiSelectField';
@@ -16,6 +16,7 @@ import { todayIso } from '@/lib/dates';
 import { mapAnimal, mapPasture } from '@/lib/db/mappers';
 import { moveAnimalsToPasture } from '@/lib/db/land';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function AddGrazingScreen() {
   const { pastureId: pastureIdParam, animalId: animalIdParam } =

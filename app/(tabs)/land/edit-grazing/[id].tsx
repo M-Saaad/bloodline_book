@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/db/land';
 import { getAnimalById } from '@/lib/db/animals';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { Text } from '@/components/ui/Text';
 
 export default function EditGrazingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

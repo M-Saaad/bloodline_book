@@ -1,7 +1,7 @@
 import { useStatus } from '@powersync/react';
 import { type Href, router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { SyncBadge } from '@/components/SyncBadge';
 
@@ -21,6 +21,7 @@ import { confirmAction } from '@/lib/ui/confirm';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 type MenuItem = { title: string; route: Href; symbol: string };
 

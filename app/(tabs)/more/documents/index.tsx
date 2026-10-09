@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router } from 'expo-router';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 
 import { CardRowShell } from '@/components/breeding/parts';
 import { Badge } from '@/components/ui/Badge';
@@ -10,6 +10,7 @@ import { ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapDocument } from '@/lib/db/mappers';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function DocumentsScreen() {
   const { activeFarm } = useFarm();

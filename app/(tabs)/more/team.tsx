@@ -1,7 +1,7 @@
 import { useQuery } from '@powersync/react';
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +16,7 @@ import { mapFarmInvite, mapFarmMember } from '@/lib/db/mappers';
 import { createFarmInvite, revokeFarmInvite } from '@/lib/db/team';
 import type { FarmInvite } from '@/lib/types/team';
 import { useFarm } from '@/providers/FarmProvider';
+import { Text } from '@/components/ui/Text';
 
 export default function TeamScreen() {
   const { activeFarm } = useFarm();
