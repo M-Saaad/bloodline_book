@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import '../global.css';
 
+import { WebStoragePersistOnStandalone } from '@/components/pilot/WebStoragePersistOnStandalone';
 import { WebTextZoom } from '@/components/WebTextZoom';
 import { WebUploadQueueWarning } from '@/components/WebUploadQueueWarning';
 import { ConfirmDialogHost } from '@/components/ui/ConfirmDialogHost';
@@ -76,12 +77,15 @@ export default function RootLayout() {
       <PowerSyncProvider>
         <FarmProvider>
           <WebTextZoom />
+          <WebStoragePersistOnStandalone />
           <SplashGate />
           <ConfirmDialogHost />
           <WebUploadQueueWarning />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="choose-text-size" />
+            <Stack.Screen name="install" />
+            <Stack.Screen name="guide" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(onboarding)" />
             <Stack.Screen name="(tabs)" />

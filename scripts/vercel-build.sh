@@ -42,11 +42,11 @@ if [[ "${EXPO_PUBLIC_DATABASE_TARGET}" == "production" ]]; then
   export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}}"
   export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${EXPO_PUBLIC_POWERSYNC_URL_PROD:-}}"
 else
-  export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-}}"
-  export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}}"
-  # Preview builds only receive Preview-scoped vars; fall back to legacy names and
-  # non-prefixed secrets when teams use a single shared PowerSync URL (see project docs).
-  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${NEXT_PUBLIC_POWERSYNC_URL:-${POWERSYNC_URL:-}}}"
+  # Preview deploys often only have Production-scoped dashboard vars. Fall back so
+  # PR previews still export (EXPO_PUBLIC_DATABASE_TARGET stays development).
+  export EXPO_PUBLIC_SUPABASE_URL="${EXPO_PUBLIC_SUPABASE_URL:-${NEXT_PUBLIC_SUPABASE_URL:-${EXPO_PUBLIC_SUPABASE_URL_PROD:-}}}"
+  export EXPO_PUBLIC_SUPABASE_ANON_KEY="${EXPO_PUBLIC_SUPABASE_ANON_KEY:-${NEXT_PUBLIC_SUPABASE_ANON_KEY:-${EXPO_PUBLIC_SUPABASE_ANON_KEY_PROD:-}}}"
+  export EXPO_PUBLIC_POWERSYNC_URL="${EXPO_PUBLIC_POWERSYNC_URL:-${NEXT_PUBLIC_POWERSYNC_URL:-${POWERSYNC_URL:-${EXPO_PUBLIC_POWERSYNC_URL_PROD:-}}}}"
 fi
 
 if [[ -n "${EXPO_PUBLIC_SUPABASE_URL:-}" ]]; then
@@ -55,6 +55,21 @@ fi
 
 if [[ -n "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]]; then
   export EXPO_PUBLIC_SUPABASE_ANON_KEY="$(sanitize_supabase_jwt_key "$EXPO_PUBLIC_SUPABASE_ANON_KEY")"
+fi
+
+# Vercel Preview often ships without Preview-scoped dashboard vars. These are the
+# same EXPO_PUBLIC_* client values as the dev backend (embedded in every web bundle).
+FALLBACK_PUBLIC_ENV="$ROOT/config/vercel-development-public.env"
+if [[ -f "$FALLBACK_PUBLIC_ENV" && "${VERCEL_ENV:-}" != "production" ]]; then
+  if [[ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" || -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" || -z "${EXPO_PUBLIC_POWERSYNC_URL:-}" ]]; then
+    echo "Vercel build: applying config/vercel-development-public.env (public dev client env)"
+    set -a
+    # shellcheck disable=SC1090
+    source "$FALLBACK_PUBLIC_ENV"
+    set +a
+    export EXPO_PUBLIC_SUPABASE_URL="$(normalize_supabase_url "${EXPO_PUBLIC_SUPABASE_URL:-}")"
+    export EXPO_PUBLIC_SUPABASE_ANON_KEY="$(sanitize_supabase_jwt_key "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}")"
+  fi
 fi
 
 if [[ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" || -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]]; then

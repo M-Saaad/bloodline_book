@@ -129,7 +129,7 @@ export default function SignInScreen() {
         className="mt-2"
       />
 
-      <View className="mt-5 flex-row justify-center items-center">
+      <View className="mt-5 flex-row flex-wrap justify-center items-center gap-x-1">
         <Text className="text-[17px] text-gray-500">No account? </Text>
         <Link href="/(auth)/sign-up" asChild>
           <Pressable className="min-h-[48px] justify-center">
@@ -137,8 +137,18 @@ export default function SignInScreen() {
           </Pressable>
         </Link>
       </View>
+      <View className="mt-4 flex-row flex-wrap justify-center items-center gap-x-1">
+        <Text className="text-[17px] text-gray-500">New here? </Text>
+        <Link href="/install" asChild>
+          <Pressable className="min-h-[48px] justify-center">
+            <Text className="text-base text-bloodline-600 font-bold">
+              How to get started
+            </Text>
+          </Pressable>
+        </Link>
+      </View>
       <Text className="mt-2 text-[15px] text-gray-500 text-center">
-        ◔ Works without signal after you sign in once
+        Works without signal after you sign in once
       </Text>
     </FormKeyboardScreen>
   );
