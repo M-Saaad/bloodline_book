@@ -17,7 +17,8 @@ const layout = read('app/_layout.tsx');
 const iosWeb = read('lib/pilot/ios-web.ts');
 const persist = read('lib/pilot/web-storage-persist.ts');
 
-assert.match(install, /bloodline-book\.vercel\.app/);
+assert.match(install, /WEB_APP_URL/);
+assert.match(read('lib/config/app.ts'), /app\.bloodlinebookapp\.com/);
 assert.match(install, /Add to Home screen|Install app/i);
 assert.match(install, /SUPPORT_EMAIL/);
 

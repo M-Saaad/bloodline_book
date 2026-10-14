@@ -4,10 +4,9 @@ import { Pressable, View } from 'react-native';
 import { IosShareButtonIcon } from '@/components/pilot/IosShareButtonIcon';
 import { PilotPublicLayout } from '@/components/pilot/PilotPublicLayout';
 import { PilotSection } from '@/components/pilot/PilotSection';
+import { WEB_APP_URL } from '@/lib/config/app';
 import { SUPPORT_EMAIL } from '@/lib/config/support';
 import { Text } from '@/components/ui/Text';
-
-const APP_URL = 'https://bloodline-book.vercel.app';
 
 export default function InstallScreen() {
   return (
@@ -17,7 +16,7 @@ export default function InstallScreen() {
       <PilotSection
         title="Computer"
         steps={[
-          `Open ${APP_URL} in your browser.`,
+          `Open ${WEB_APP_URL} in your browser.`,
           'Bookmark the page so you can find it again.',
         ]}
       />

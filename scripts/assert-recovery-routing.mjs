@@ -13,10 +13,10 @@ import {
 } from '../lib/config/app.ts';
 import { recoveryLinkErrorFromUrl } from '../lib/auth/recovery.ts';
 
-assert.equal(WEB_APP_URL, 'https://bloodline-book.vercel.app');
+assert.equal(WEB_APP_URL, 'https://app.bloodlinebookapp.com');
 assert.equal(
   PASSWORD_RESET_REDIRECT_URL,
-  'https://bloodline-book.vercel.app/reset-password',
+  'https://app.bloodlinebookapp.com/reset-password',
 );
 assert.equal(SIGNUP_EMAIL_REDIRECT_URL, WEB_APP_URL);
 
@@ -55,7 +55,7 @@ assert.equal(
 
 assert.match(
   recoveryLinkErrorFromUrl(
-    'https://bloodline-book.vercel.app/reset-password#error=access_denied&error_code=otp_expired',
+    'https://app.bloodlinebookapp.com/reset-password#error=access_denied&error_code=otp_expired',
   ),
   /expired or was already used/i,
 );

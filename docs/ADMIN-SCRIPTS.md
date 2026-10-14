@@ -35,7 +35,8 @@ Bloodline Book expects paths like:
 
 - `bloodlinebook://reset-password` (native)
 - `http://localhost:8081/reset-password` (local web)
-- `https://bloodline-book.vercel.app/reset-password` (production web)
+- `https://app.bloodlinebookapp.com/reset-password` (production web — custom domain)
+- `https://bloodline-book.vercel.app/reset-password` (legacy Vercel URL; keep until retired)
 
 See also [vercel-supabase-setup.md](vercel-supabase-setup.md).
 
@@ -45,7 +46,7 @@ See also [vercel-supabase-setup.md](vercel-supabase-setup.md).
 node -e "const u=new URL(process.argv[1]); console.log(u.searchParams.get('redirect_to'))" 'PASTE_ACTION_LINK_HERE'
 ```
 
-If `redirect_to` is missing or wrong, set **Site URL** / **Redirect URLs** in Supabase Auth settings, or pass a redirect when generating links (future script option). The app’s in-app “Forgot password?” flow uses `Linking.createURL('/reset-password')` — match that pattern in Auth settings for each environment.
+If `redirect_to` is missing or wrong, set **Site URL** / **Redirect URLs** in Supabase Auth settings, or pass a redirect when generating links (future script option). The app’s in-app “Forgot password?” and sign-up flows use `PASSWORD_RESET_REDIRECT_URL` and `SIGNUP_EMAIL_REDIRECT_URL` from `lib/config/app.ts` (derived from `WEB_APP_URL`).
 
 ### Farmer flow
 
