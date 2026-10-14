@@ -25,9 +25,12 @@ assert.match(guide, /Your first 10 goats/);
 assert.match(guide, /name or a tag number/);
 assert.match(guide, /href="\/data"/);
 
-assert.match(data, /Your data/);
-assert.match(read('lib/pilot/data-page-sections.ts'), /PowerSync Cloud/);
+assert.match(data, /DATA_PAGE_TITLE/);
+assert.match(read('lib/pilot/data-page-sections.ts'), /Your herd data/);
+assert.match(read('lib/pilot/data-page-sections.ts'), /PowerSync/);
+assert.match(read('lib/pilot/data-page-sections.ts'), /Backblaze/);
 assert.match(read('lib/config/data-storage.ts'), /BACKUP_B2_REGION/);
+assert.match(read('lib/config/data-storage.ts'), /POWERSYNC_CLOUD_REGION_PLACE/);
 
 assert.match(signIn, /How to get started/);
 assert.match(signIn, /href="\/install"/);
