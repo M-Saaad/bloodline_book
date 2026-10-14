@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupportedStorage } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 
+import { INITIAL_WEB_URL } from '@/lib/supabase/initial-web-url';
 import { selectAuthStorageKind } from '@/lib/supabase/auth-storage';
 import {
   isValidSupabaseProjectUrl,
@@ -44,6 +45,8 @@ export const isSupabaseConfigured = Boolean(
     !resolvedSupabaseUrl.includes('your-prod-project') &&
     isValidSupabaseProjectUrl(supabaseUrl),
 );
+
+export { INITIAL_WEB_URL };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

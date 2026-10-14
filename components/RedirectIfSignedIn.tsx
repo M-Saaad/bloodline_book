@@ -1,10 +1,17 @@
 import { Redirect, useSegments } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
+import { shouldRedirectToResetPassword } from '@/lib/auth/recovery-routing';
 import { useAuth } from '@/providers/AuthProvider';
 
 export function RedirectIfSignedIn({ children }: { children: React.ReactNode }) {
-  const { session, isLoading, isConfigured } = useAuth();
+  const {
+    session,
+    isLoading,
+    isConfigured,
+    recoveryPending,
+    recoveryLinkError,
+  } = useAuth();
   const segments = useSegments();
   const onResetPassword = (segments as readonly string[]).includes(
     'reset-password',
@@ -20,6 +27,13 @@ export function RedirectIfSignedIn({ children }: { children: React.ReactNode }) 
         <ActivityIndicator size="large" color="#a52f1a" />
       </View>
     );
+  }
+
+  if (
+    shouldRedirectToResetPassword({ recoveryPending, recoveryLinkError }) &&
+    !onResetPassword
+  ) {
+    return <Redirect href="/(auth)/reset-password" />;
   }
 
   if (session && !onResetPassword) {

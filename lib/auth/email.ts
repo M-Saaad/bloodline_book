@@ -22,6 +22,9 @@ export function recoveryParamsFromUrl(url: string): {
   accessToken: string | null;
   refreshToken: string | null;
   code: string | null;
+  type: string | null;
+  error: string | null;
+  errorCode: string | null;
 } {
   const hashIndex = url.indexOf('#');
   const queryIndex = url.indexOf('?');
@@ -40,5 +43,8 @@ export function recoveryParamsFromUrl(url: string): {
     accessToken: get('access_token'),
     refreshToken: get('refresh_token'),
     code: get('code'),
+    type: get('type'),
+    error: get('error'),
+    errorCode: get('error_code'),
   };
 }
