@@ -271,6 +271,9 @@ main() {
 
   rm -f -- "$plain_schema" "$plain_auth" "$plain_data"
   echo "Removed local plaintext SQL for set ${stamp}."
+
+  rm -f -- "$live_counts" "$restored_counts"
+  trap - EXIT
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

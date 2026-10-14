@@ -95,3 +95,7 @@ if [[ -z "$dump_major" ]] || ((10#$dump_major < 10#$server_major)); then
 fi
 
 echo "Using pg_dump major ${dump_major} (server major ${server_major})."
+
+if [[ -n "${GITHUB_ENV:-}" ]]; then
+  echo "PATH=${PATH}" >>"$GITHUB_ENV"
+fi
