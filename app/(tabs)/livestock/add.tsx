@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
@@ -15,9 +15,16 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Segmented } from '@/components/ui/Segmented';
 import { validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
+  addAnimalDraftFromDuplicateSource,
+  createEmptyAddAnimalDraft,
+  shouldResetAddAnimalDraftOnFocus,
+  type AddAnimalDraft,
+} from '@/lib/domain/add-animal-form';
+import {
   createAnimal,
   createFarmBreed,
   findAnimalByTagNumber,
+  getAnimalById,
   getBreedsForFarm,
   getParentPickerAnimals,
 } from '@/lib/db/animals';
@@ -30,6 +37,10 @@ import { Text } from '@/components/ui/Text';
 const SEX_OPTIONS: Animal['sex'][] = ['female', 'male'];
 
 export default function AddAnimalScreen() {
+  const params = useLocalSearchParams<{
+    duplicateFrom?: string;
+    prefill?: string;
+  }>();
   const { activeFarm } = useFarm();
   const [name, setName] = useState('');
   const [tagNumber, setTagNumber] = useState('');
@@ -52,6 +63,57 @@ export default function AddAnimalScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
+  const focusVisitRef = useRef(0);
+  const appliedDuplicatePrefillRef = useRef<string | null>(null);
+
+  const applyDraft = useCallback((draft: AddAnimalDraft) => {
+    setName(draft.name);
+    setTagNumber(draft.tagNumber);
+    setOfficialId(draft.officialId);
+    setRegistrationBody(draft.registrationBody);
+    setRegistrationNumber(draft.registrationNumber);
+    setTattoo(draft.tattoo);
+    setSex(draft.sex);
+    setBreedId(draft.breedId);
+    setBreedPercentage(draft.breedPercentage);
+    setDateOfBirth(draft.dateOfBirth);
+    setDamId(draft.damId);
+    setDamExternalName(draft.damExternalName);
+    setSireId(draft.sireId);
+    setSireExternalName(draft.sireExternalName);
+  }, []);
+
+  const resetToEmptyDraft = useCallback(() => {
+    applyDraft(createEmptyAddAnimalDraft());
+    setErrorMessage('');
+    setWarningMessage('');
+  }, [applyDraft]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const visitIndex = focusVisitRef.current;
+      focusVisitRef.current += 1;
+
+      if (
+        shouldResetAddAnimalDraftOnFocus(
+          visitIndex,
+          {
+            duplicateFrom: params.duplicateFrom,
+            prefill: params.prefill,
+          },
+          appliedDuplicatePrefillRef.current,
+        )
+      ) {
+        resetToEmptyDraft();
+      }
+
+      return () => {};
+    }, [
+      params.duplicateFrom,
+      params.prefill,
+      resetToEmptyDraft,
+    ]),
+  );
 
   useEffect(() => {
     if (!activeFarm) {
@@ -68,6 +130,35 @@ export default function AddAnimalScreen() {
       setSireAnimals(bucks);
     });
   }, [activeFarm]);
+
+  useEffect(() => {
+    const duplicateFrom = params.duplicateFrom;
+    const prefill = params.prefill;
+    if (!duplicateFrom || !prefill) {
+      return;
+    }
+    if (appliedDuplicatePrefillRef.current === prefill) {
+      return;
+    }
+
+    let cancelled = false;
+
+    getAnimalById(duplicateFrom).then((animal) => {
+      if (cancelled) {
+        return;
+      }
+      appliedDuplicatePrefillRef.current = prefill;
+      if (animal) {
+        applyDraft(addAnimalDraftFromDuplicateSource(animal));
+        setErrorMessage('');
+        setWarningMessage('');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.duplicateFrom, params.prefill, applyDraft]);
 
   useEffect(() => {
     if (!activeFarm || !tagNumber.trim()) {
