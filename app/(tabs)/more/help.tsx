@@ -46,6 +46,13 @@ export default function HelpScreen() {
               </Text>
             </Pressable>
           </Link>
+          <Link href="/data" asChild>
+            <Pressable className="min-h-[48px] justify-center">
+              <Text className="text-[17px] font-extrabold text-bloodline-600">
+                Your data and privacy
+              </Text>
+            </Pressable>
+          </Link>
         </View>
       </Card>
 
