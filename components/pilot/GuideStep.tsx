@@ -22,9 +22,9 @@ export function GuideStep({ step, title, body, image, imageAlt }: GuideStepProps
       <Image
         accessibilityLabel={imageAlt}
         source={image}
-        resizeMode="contain"
-        className="w-full rounded-2xl border border-gray-200 bg-white shadow-sm"
-        style={{ aspectRatio: 390 / 844, maxHeight: 560 }}
+        resizeMode="cover"
+        className="w-full rounded-2xl border border-gray-200 bg-paper overflow-hidden"
+        style={{ width: '100%', aspectRatio: 390 / 844 }}
       />
     </View>
   );

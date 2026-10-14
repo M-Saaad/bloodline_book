@@ -38,6 +38,15 @@ assert.match(iosWeb, /pathname === '\/install'/);
 assert.match(persist, /navigator\.storage/);
 assert.match(persist, /persist\(/);
 
+const iosGate = read('components/pilot/IosAddToHomeScreenGate.tsx');
+assert.match(iosGate, /Continue in browser anyway/);
+
+assert.doesNotMatch(
+  read('package.json'),
+  /"playwright"|"sharp"/,
+  'playwright/sharp must live under tools/pilot-guide-capture only',
+);
+
 const guideDir = path.join(root, 'assets/pilot-guide');
 const expectedShots = [
   'sign-up.webp',

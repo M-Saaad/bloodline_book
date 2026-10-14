@@ -1,27 +1,22 @@
 /**
- * Capture /guide screenshots at iPhone width, WebP under 150 KB each.
- *
- * Run (web dev server must already be listening):
- *   PILOT_GUIDE_BASE_URL=http://127.0.0.1:8081 \
- *   PILOT_GUIDE_EMAIL=… PILOT_GUIDE_PASSWORD=… \
- *   PLAYWRIGHT_BROWSERS_PATH=0 node scripts/capture-pilot-guide-screenshots.mjs
- *
- * Optional: SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to mint a magic-link session
- * instead of password sign-in.
+ * Capture /guide screenshots at iPhone viewport width, WebP under 150 KB each.
+ * Installed separately from the Expo app — see tools/pilot-guide-capture/package.json.
  */
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+
+const toolDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(toolDir, '../..');
 
 const require = createRequire(import.meta.url);
 const playwrightPath =
-  process.env.PLAYWRIGHT_MODULE ?? path.join(root, 'node_modules/playwright');
+  process.env.PLAYWRIGHT_MODULE ?? path.join(toolDir, 'node_modules/playwright');
 const { chromium } = require(playwrightPath);
 const { createClient } = require('@supabase/supabase-js');
-
-const root = path.resolve(import.meta.dirname, '..');
 const outDir = path.join(root, 'assets/pilot-guide');
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -57,11 +52,17 @@ async function skipTextSizeWelcome(page) {
 async function saveWebp(page, filename) {
   const outPath = path.join(outDir, filename);
   const tmpPng = path.join(os.tmpdir(), `pilot-guide-${filename}.png`);
-  await page.screenshot({ type: 'png', fullPage: true, path: tmpPng });
+  await page.screenshot({ type: 'png', fullPage: false, path: tmpPng });
+
+  const trimmed = await sharp(tmpPng)
+    .trim({ threshold: 12 })
+    .resize({ width: 390, withoutEnlargement: false })
+    .png()
+    .toBuffer();
 
   let bestSize = Infinity;
   for (let quality = 88; quality >= 40; quality -= 4) {
-    const buffer = await sharp(tmpPng).webp({ quality }).toBuffer();
+    const buffer = await sharp(trimmed).webp({ quality }).toBuffer();
     if (buffer.length < bestSize) {
       bestSize = buffer.length;
       fs.writeFileSync(outPath, buffer);
@@ -261,7 +262,7 @@ const browser = await chromium.launch({
 });
 const context = await browser.newContext({
   viewport: { width: 390, height: 844 },
-  deviceScaleFactor: 1,
+  deviceScaleFactor: 2,
 });
 const page = await context.newPage();
 

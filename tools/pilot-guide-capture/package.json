@@ -1,0 +1,13 @@
+{
+  "name": "pilot-guide-capture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "playwright": "^1.49.1",
+    "sharp": "^0.33.5"
+  },
+  "scripts": {
+    "capture": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 PLAYWRIGHT_BROWSERS_PATH=0 node capture.mjs"
+  }
+}

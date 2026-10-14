@@ -148,7 +148,7 @@ export default function SignInScreen() {
         </Link>
       </View>
       <Text className="mt-2 text-[15px] text-gray-500 text-center">
-        ◔ Works without signal after you sign in once
+        Works without signal after you sign in once
       </Text>
     </FormKeyboardScreen>
   );
