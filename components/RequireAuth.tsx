@@ -1,10 +1,17 @@
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
+import { signedInEntryRoute } from '@/lib/auth/recovery-routing';
 import { useAuth } from '@/providers/AuthProvider';
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { session, isLoading, isConfigured } = useAuth();
+  const {
+    session,
+    isLoading,
+    isConfigured,
+    recoveryPending,
+    recoveryLinkError,
+  } = useAuth();
 
   if (!isConfigured) {
     return <Redirect href="/" />;
@@ -18,8 +25,17 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session) {
+  const entryRoute = signedInEntryRoute({
+    recoveryPending,
+    hasSession: session != null,
+  });
+
+  if (entryRoute === 'sign-in') {
     return <Redirect href="/(auth)/sign-in" />;
+  }
+
+  if (entryRoute === 'reset-password' || recoveryLinkError) {
+    return <Redirect href="/(auth)/reset-password" />;
   }
 
   return <>{children}</>;

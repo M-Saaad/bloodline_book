@@ -5,13 +5,23 @@ import { SUPPORT_EMAIL } from '@/lib/config/support';
 import { shouldRouteToCreateFarm } from '@/lib/domain/offline-replica';
 import { useTextSizeStore } from '@/lib/store/text-size';
 import { useFarm } from '@/providers/FarmProvider';
+import {
+  shouldRedirectToResetPassword,
+  signedInEntryRoute,
+} from '@/lib/auth/recovery-routing';
 import { useAuth } from '@/providers/AuthProvider';
 import { Text } from '@/components/ui/Text';
 
 export default function IndexScreen() {
   const textHydrated = useTextSizeStore((state) => state.hydrated);
   const onboardingCompleted = useTextSizeStore((state) => state.onboardingCompleted);
-  const { isLoading: authLoading, session, isConfigured } = useAuth();
+  const {
+    isLoading: authLoading,
+    session,
+    isConfigured,
+    recoveryPending,
+    recoveryLinkError,
+  } = useAuth();
   const {
     farms,
     activeFarm,
@@ -55,7 +65,16 @@ export default function IndexScreen() {
     );
   }
 
-  if (!session) {
+  if (shouldRedirectToResetPassword({ recoveryPending, recoveryLinkError })) {
+    return <Redirect href="/(auth)/reset-password" />;
+  }
+
+  const entryRoute = signedInEntryRoute({
+    recoveryPending,
+    hasSession: session != null,
+  });
+
+  if (entryRoute === 'sign-in') {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
