@@ -17,8 +17,6 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      BACKUP_DIR: ${{ runner.temp }}/bloodline-backups
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -44,4 +42,6 @@ jobs:
           RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY }}
           RCLONE_CONFIG_OFFSITE_ENDPOINT: ${{ secrets.RCLONE_CONFIG_OFFSITE_ENDPOINT }}
           RCLONE_CONFIG_OFFSITE_ACL: ${{ secrets.RCLONE_CONFIG_OFFSITE_ACL }}
-        run: bash scripts/backup-offsite.sh
+        run: |
+          export BACKUP_DIR="${RUNNER_TEMP}/bloodline-backups"
+          bash scripts/backup-offsite.sh

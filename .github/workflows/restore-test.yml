@@ -10,8 +10,6 @@ jobs:
   restore-test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    env:
-      BACKUP_DIR: ${{ runner.temp }}/bloodline-restore-test
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -38,4 +36,6 @@ jobs:
           RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY }}
           RCLONE_CONFIG_OFFSITE_ENDPOINT: ${{ secrets.RCLONE_CONFIG_OFFSITE_ENDPOINT }}
           RCLONE_CONFIG_OFFSITE_ACL: ${{ secrets.RCLONE_CONFIG_OFFSITE_ACL }}
-        run: bash scripts/restore-test-offsite.sh
+        run: |
+          export BACKUP_DIR="${RUNNER_TEMP}/bloodline-restore-test"
+          bash scripts/restore-test-offsite.sh
