@@ -89,6 +89,45 @@ node scripts/export-farm-csv.mjs "Willow Creek"
 
 You can pass a farm id instead of a name. The script prints the project URL and waits for `yes` before it reads any rows. If several farms share the name, it lists their ids and stops.
 
+## Herd spreadsheet import (`scripts/import-herd.mjs`)
+
+**When to use it:** A pilot farmer emails a homemade Excel or CSV herd list (every layout is different) and you need those goats in their farm without building an in-app importer yet.
+
+The script reads `.xlsx` (first sheet, or `--sheet NAME`) and `.csv`, guesses columns from header names (name, tag, sex, DOB, breed, dam, sire, registration, tattoo, notes, and similar), and accepts overrides in a small JSON map file. It normalizes US dates, sex (`Doe` / `Buck` / `Wether`), breed names (global breeds plus new farm breeds), and registration bodies (ADGA, ABGA, USBGA). Dam and sire cells that match another row’s tag or name, or an animal already on the farm, become `dam_id` / `sire_id`; otherwise they are stored as `dam_external_name` / `sire_external_name`.
+
+**Default is a dry run:** it prints the column mapping, rows it would insert, rows skipped because the tag or name already exists on the farm, and any row it cannot import (with a reason). Nothing is written unless you pass `--apply`. With `--apply`, new goats are inserted in one batch (all new animals in a single insert, so the herd load is all-or-nothing). Re-running `--apply` is safe: it never duplicates an animal that is already on the farm.
+
+A messy sample sheet for testing lives at `scripts/fixtures/messy-herd-import.xlsx` (~40 meat-goat rows). Regenerate it with `node scripts/generate-messy-herd-fixture.mjs`.
+
+### Run
+
+```bash
+export SUPABASE_URL='https://YOUR_PROJECT.supabase.co'
+export SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'
+
+# Dry run (recommended first)
+node scripts/import-herd.mjs "Willow Creek" ~/Downloads/farmer-herd.xlsx
+
+# Optional column overrides (field name → spreadsheet header)
+node scripts/import-herd.mjs "Willow Creek" farmer.csv --map ./herd-map.json
+
+# Write to the database
+node scripts/import-herd.mjs "Willow Creek" farmer.xlsx --sheet "2026 herd" --apply
+```
+
+Example `herd-map.json` when auto-guess is wrong for one column:
+
+```json
+{
+  "dam": "Mother",
+  "sire": "Father"
+}
+```
+
+You can pass a farm id instead of a name. The script prints the project URL and waits for `yes` before it reads the file or writes anything.
+
+Parsing and normalization helpers are covered by `node scripts/assert-import-herd.mjs` (also run via `npm test`).
+
 ## Farm deletion (`scripts/admin-delete-farm.mjs`)
 
 **When to use it:** A farmer asks you to delete their farm and all associated data (for example under a privacy or account-closure request).
