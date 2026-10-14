@@ -26,6 +26,14 @@ major_from_server_version() {
   exit 1
 }
 
+activate_pg_client_major() {
+  local major="$1"
+  local bindir="/usr/lib/postgresql/${major}/bin"
+  if [[ -x "${bindir}/pg_dump" && -x "${bindir}/psql" ]]; then
+    export PATH="${bindir}:${PATH}"
+  fi
+}
+
 major_from_pg_dump_version() {
   local raw
   raw="$(pg_dump --version 2>/dev/null || true)"
@@ -72,6 +80,12 @@ echo "PostgreSQL server major ${server_major}; pg_dump major ${dump_major:-unkno
 if [[ -z "$dump_major" ]] || ((10#$dump_major < 10#$server_major)); then
   echo "Installing postgresql-client-${server_major} from PGDG."
   install_pgdg_client "$server_major"
+  activate_pg_client_major "$server_major"
+  dump_major="$(major_from_pg_dump_version)"
+fi
+
+if [[ -n "$dump_major" ]] && ((10#$dump_major < 10#$server_major)); then
+  activate_pg_client_major "$server_major"
   dump_major="$(major_from_pg_dump_version)"
 fi
 
