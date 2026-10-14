@@ -135,7 +135,9 @@ assert_remote_path() {
 }
 
 pick_encrypt_tool() {
-  if command -v age >/dev/null 2>&1; then
+  # age -p reads the passphrase from a TTY; GitHub Actions and other CI shells
+  # are non-interactive, so use OpenSSL there instead.
+  if command -v age >/dev/null 2>&1 && [[ -t 0 ]]; then
     ENC_TOOL="age"
     ENC_SUFFIX=".age"
     return 0

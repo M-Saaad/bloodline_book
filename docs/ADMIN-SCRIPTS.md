@@ -131,8 +131,6 @@ Supabase project **backups** (and any copies you keep from `scripts/backup-db.sh
 
 **When to run it:** from your own machine, once a week, and again before every migration, before you delete data, and before the isolation test (`npm run test:isolation`). The dump contains farmer records, emails, and password hashes. Keep it outside this repo.
 
-This repository is public. Do **not** add a GitHub Actions workflow for backups. Artifacts from a public repo can be downloaded by other GitHub users.
-
 The script reads `SUPABASE_DB_URL` and `BACKUP_DIR` from the shell only. It does not read `.env` or anything checked into the repo. It refuses to run if `BACKUP_DIR` is inside the git checkout, including when a symlink makes that path land inside the repo or the path you named is a symlink inside the repo. It never prints the connection string. It prints the database host only.
 
 It uses `pg_dump` and `psql` only. It does not call the Supabase CLI and it does not need Docker. Before dumping, it runs `psql "$SUPABASE_DB_URL" -Atc 'show server_version'` and exits if `pg_dump` is older than the server. If `pg_dump` or `psql` is missing, the script prints how to install the PostgreSQL client tools on Windows, macOS, and Linux.
@@ -205,9 +203,40 @@ Paths with spaces are fine. Quote them.
 
 **When to run it:** after `scripts/backup-db.sh` on a schedule, or instead of copying the backup folder by hand. The script runs `backup-db.sh`, encrypts the three SQL files for that run, uploads them with `rclone`, checks remote file sizes, keeps the newest **8** complete sets on the remote, and deletes the local **plaintext** SQL files for that set. Encrypted blobs may remain in `BACKUP_DIR` until you remove them.
 
-This repository is public. Do **not** add a GitHub Actions workflow that uploads backups. Use your own machine, a private cron host, or a Cursor Cloud Agent secret set on a manual schedule.
+The script never reads `.env`, never prints `SUPABASE_DB_URL` or `BACKUP_PASSPHRASE`, and refuses to run when `BACKUP_DIR` is inside this git checkout (same rule as `backup-db.sh`). On non-interactive shells (GitHub Actions), encryption uses **OpenSSL** (`.enc`); on a TTY it prefers **age** (`.age`) when installed.
 
-The script never reads `.env`, never prints `SUPABASE_DB_URL` or `BACKUP_PASSPHRASE`, and refuses to run when `BACKUP_DIR` is inside this git checkout (same rule as `backup-db.sh`).
+### GitHub Actions (automatic backups)
+
+Scheduled workflows live under `.github/workflows/`. They use **repository secrets** only — nothing sensitive is committed, and workflow logs must not echo connection strings or passphrases.
+
+| Workflow | Schedule | Purpose |
+|----------|----------|---------|
+| `backup.yml` | Sundays 06:15 UTC; `workflow_dispatch` | Runs `scripts/backup-offsite.sh` (Backblaze B2 via existing `offsite` rclone remote) |
+| `keepalive.yml` | Daily 04:30 UTC; `workflow_dispatch` | `select 1` against the live DB so a free Supabase project stays awake |
+| `restore-test.yml` | `workflow_dispatch` only | Downloads the newest B2 set, decrypts, restores into `RESTORE_DB_URL`, prints live vs restored row counts |
+
+**Repository secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Required for |
+|--------|----------------|
+| `SUPABASE_DB_URL` | backup, keepalive, restore-test (live counts / dump source) |
+| `BACKUP_PASSPHRASE` | backup, restore-test |
+| `BACKUP_REMOTE_PATH` | backup, restore-test (e.g. `offsite:your-bucket/bloodline`) |
+| `RCLONE_CONFIG_OFFSITE_TYPE` | backup, restore-test |
+| `RCLONE_CONFIG_OFFSITE_PROVIDER` | backup, restore-test (`Other` for B2) |
+| `RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID` | backup, restore-test |
+| `RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY` | backup, restore-test |
+| `RCLONE_CONFIG_OFFSITE_ENDPOINT` | backup, restore-test |
+| `RCLONE_CONFIG_OFFSITE_ACL` | backup, restore-test (`private`) |
+| `RESTORE_DB_URL` | restore-test only — empty **scratch** Supabase project (never the live DB) |
+
+Add any other `RCLONE_CONFIG_OFFSITE_*` variables your B2 S3 endpoint needs. Copy values from Cursor Cloud Agent secrets or your operator shell; use `gh secret set NAME` locally without printing them.
+
+Runners install `rclone`, `age` (for decrypting older `.age` sets), and a PostgreSQL client whose major version is **≥** the server (`scripts/ci-install-pg-client.sh`). `BACKUP_DIR` on the runner is under `$RUNNER_TEMP`, outside this checkout.
+
+**Restore rehearsal:** After secrets are set, run **Restore test (off-site)** from the Actions tab. It never restores into `SUPABASE_DB_URL`. Wipe or recreate the scratch project if a previous run left data behind.
+
+**Manual trigger:** Actions → **Off-site backup** → **Run workflow** (same as the weekly job).
 
 ### One-time setup
 

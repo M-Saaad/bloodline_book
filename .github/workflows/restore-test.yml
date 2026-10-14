@@ -1,0 +1,41 @@
+name: Restore test (off-site)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BACKUP_DIR: ${{ runner.temp }}/bloodline-restore-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install rclone and age
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq rclone age curl ca-certificates
+
+      - name: Install PostgreSQL client (match live server major)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: bash scripts/ci-install-pg-client.sh
+
+      - name: Restore rehearsal from newest B2 set
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          BACKUP_REMOTE_PATH: ${{ secrets.BACKUP_REMOTE_PATH }}
+          RCLONE_CONFIG_OFFSITE_TYPE: ${{ secrets.RCLONE_CONFIG_OFFSITE_TYPE }}
+          RCLONE_CONFIG_OFFSITE_PROVIDER: ${{ secrets.RCLONE_CONFIG_OFFSITE_PROVIDER }}
+          RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${{ secrets.RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${{ secrets.RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_OFFSITE_ENDPOINT: ${{ secrets.RCLONE_CONFIG_OFFSITE_ENDPOINT }}
+          RCLONE_CONFIG_OFFSITE_ACL: ${{ secrets.RCLONE_CONFIG_OFFSITE_ACL }}
+        run: bash scripts/restore-test-offsite.sh
