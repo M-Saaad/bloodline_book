@@ -1,11 +1,14 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 
+import { IosAddToHomeScreenGate } from '@/components/pilot/IosAddToHomeScreenGate';
 import { RedirectIfSignedIn } from '@/components/RedirectIfSignedIn';
 import { useTextScale } from '@/lib/store/text-size';
 
 export default function AuthLayout() {
   const textScale = useTextScale();
+  const pathname = usePathname();
   return (
+    <IosAddToHomeScreenGate pathname={pathname}>
     <RedirectIfSignedIn>
     <Stack
       screenOptions={{
@@ -20,5 +23,6 @@ export default function AuthLayout() {
       <Stack.Screen name="reset-password" options={{ title: 'New password' }} />
     </Stack>
     </RedirectIfSignedIn>
+    </IosAddToHomeScreenGate>
   );
 }

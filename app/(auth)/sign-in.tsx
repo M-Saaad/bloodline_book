@@ -129,11 +129,21 @@ export default function SignInScreen() {
         className="mt-2"
       />
 
-      <View className="mt-5 flex-row justify-center items-center">
+      <View className="mt-5 flex-row flex-wrap justify-center items-center gap-x-1">
         <Text className="text-[17px] text-gray-500">No account? </Text>
         <Link href="/(auth)/sign-up" asChild>
           <Pressable className="min-h-[48px] justify-center">
             <Text className="text-base text-bloodline-600 font-bold">Create one</Text>
+          </Pressable>
+        </Link>
+      </View>
+      <View className="mt-4 flex-row flex-wrap justify-center items-center gap-x-1">
+        <Text className="text-[17px] text-gray-500">New here? </Text>
+        <Link href="/install" asChild>
+          <Pressable className="min-h-[48px] justify-center">
+            <Text className="text-base text-bloodline-600 font-bold">
+              How to get started
+            </Text>
           </Pressable>
         </Link>
       </View>

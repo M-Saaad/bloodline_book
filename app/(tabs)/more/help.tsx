@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { router } from 'expo-router';
-import { Platform, Pressable, ScrollView } from 'react-native';
+import { Link, router } from 'expo-router';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -27,6 +27,28 @@ export default function HelpScreen() {
     <ScrollView
       className="flex-1 bg-paper"
       contentContainerClassName="px-5 pt-2 pb-10 gap-3.5">
+      <Card className="px-[18px] py-4 gap-2">
+        <Text className="text-[19px] font-extrabold text-ink mb-1">
+          Getting started
+        </Text>
+        <View className="gap-1">
+          <Link href="/install" asChild>
+            <Pressable className="min-h-[48px] justify-center">
+              <Text className="text-[17px] font-extrabold text-bloodline-600">
+                Install on your phone or computer
+              </Text>
+            </Pressable>
+          </Link>
+          <Link href="/guide" asChild>
+            <Pressable className="min-h-[48px] justify-center">
+              <Text className="text-[17px] font-extrabold text-bloodline-600">
+                Your first 10 goats
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
+      </Card>
+
       <Card className="px-[18px] py-4">
         <Text className="text-[19px] font-extrabold text-ink mb-1.5">
           Something wrong?
