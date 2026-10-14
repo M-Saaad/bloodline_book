@@ -14,6 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start throwaway local Supabase (Postgres 17, no repo migrations)
+        run: |
+          set -euo pipefail
+          WORKDIR="${RUNNER_TEMP}/supabase-restore-test"
+          mkdir -p "$WORKDIR"
+          supabase init --workdir "$WORKDIR"
+          # Match live Supabase Postgres major (17). Do not apply this repo's migrations.
+          sed -i 's/^major_version = .*/major_version = 17/' "$WORKDIR/supabase/config.toml"
+          sed -i '/^\[db.seed\]/,/^\[/ s/^enabled = true/enabled = false/' "$WORKDIR/supabase/config.toml"
+          mkdir -p "$WORKDIR/supabase/migrations"
+          supabase start --workdir "$WORKDIR" -x studio,imgproxy,vector,edge-runtime,logflare,supavisor,mailpit
+          echo "RESTORE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres" >>"$GITHUB_ENV"
+
       - name: Install rclone and age
         run: |
           sudo apt-get update -qq
@@ -27,7 +45,7 @@ jobs:
       - name: Restore rehearsal from newest B2 set
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          RESTORE_DB_URL: ${{ secrets.RESTORE_DB_URL }}
+          RESTORE_DB_URL: ${{ env.RESTORE_DB_URL }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
           BACKUP_REMOTE_PATH: ${{ secrets.BACKUP_REMOTE_PATH }}
           RCLONE_CONFIG_OFFSITE_TYPE: ${{ secrets.RCLONE_CONFIG_OFFSITE_TYPE }}
@@ -37,5 +55,13 @@ jobs:
           RCLONE_CONFIG_OFFSITE_ENDPOINT: ${{ secrets.RCLONE_CONFIG_OFFSITE_ENDPOINT }}
           RCLONE_CONFIG_OFFSITE_ACL: ${{ secrets.RCLONE_CONFIG_OFFSITE_ACL }}
         run: |
+          set -euo pipefail
+          case "${RESTORE_DB_URL}" in
+            postgresql://postgres:*@127.0.0.1:54322/* | postgres://postgres:*@127.0.0.1:54322/*) ;;
+            *)
+              echo "ERROR: RESTORE_DB_URL must target local Supabase on 127.0.0.1:54322 (never the live database)." >&2
+              exit 1
+              ;;
+          esac
           export BACKUP_DIR="${RUNNER_TEMP}/bloodline-restore-test"
           bash scripts/restore-test-offsite.sh
