@@ -58,12 +58,21 @@ export default function InstallScreen() {
         </Text>
       </View>
 
-      <View className="flex-row flex-wrap gap-x-2 gap-y-1 justify-center">
+      <View className="flex-row flex-wrap gap-x-2 gap-y-1 justify-center items-center">
         <Text className="text-[17px] text-gray-600">Next: </Text>
         <Link href="/guide" asChild>
           <Pressable className="min-h-[44px] justify-center">
             <Text className="text-[17px] font-extrabold text-bloodline-600">
               Your first 10 goats →
+            </Text>
+          </Pressable>
+        </Link>
+      </View>
+      <View className="mt-4 flex-row flex-wrap justify-center">
+        <Link href="/data" asChild>
+          <Pressable className="min-h-[44px] justify-center">
+            <Text className="text-[17px] font-extrabold text-bloodline-600">
+              Your data and privacy
             </Text>
           </Pressable>
         </Link>

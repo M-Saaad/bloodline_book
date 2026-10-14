@@ -86,6 +86,7 @@ export default function RootLayout() {
             <Stack.Screen name="choose-text-size" />
             <Stack.Screen name="install" />
             <Stack.Screen name="guide" />
+            <Stack.Screen name="data" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(onboarding)" />
             <Stack.Screen name="(tabs)" />

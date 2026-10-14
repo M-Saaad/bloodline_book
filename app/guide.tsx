@@ -59,11 +59,20 @@ export default function GuideScreen() {
         lead="Stuck on a step? Send us a screenshot and we will help."
       />
 
-      <View className="mt-6 flex-row flex-wrap gap-x-2 justify-center">
+      <View className="mt-6 flex-row flex-wrap gap-x-2 justify-center items-center">
         <Link href="/install" asChild>
           <Pressable className="min-h-[44px] justify-center">
             <Text className="text-[17px] font-extrabold text-bloodline-600">
               ← Install on your phone
+            </Text>
+          </Pressable>
+        </Link>
+      </View>
+      <View className="mt-4 flex-row flex-wrap justify-center">
+        <Link href="/data" asChild>
+          <Pressable className="min-h-[44px] justify-center">
+            <Text className="text-[17px] font-extrabold text-bloodline-600">
+              Your data and privacy
             </Text>
           </Pressable>
         </Link>

@@ -47,7 +47,7 @@ export function shouldShowIosAddToHomeGate(
   if (continueInBrowser) {
     return false;
   }
-  if (pathname === '/install' || pathname === '/guide') {
+  if (pathname === '/install' || pathname === '/guide' || pathname === '/data') {
     return false;
   }
   if (pathname.startsWith('/reset-password')) {

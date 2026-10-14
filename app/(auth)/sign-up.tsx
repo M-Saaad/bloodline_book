@@ -111,11 +111,20 @@ export default function SignUpScreen() {
 
       <View className="mt-4 bg-white border border-gray-200 rounded-[22px] px-4 py-3.5 flex-row gap-3">
         <Text className="text-2xl text-gray-500">⌂</Text>
-        <Text className="flex-1 text-[15px] leading-[22px] text-gray-500">
-          Your herd records belong to you. They are stored with Supabase in{' '}
-          {DATA_REGION}. They are never sold or shared. Email {SUPPORT_EMAIL} any
-          time to get a full export or have everything deleted.
-        </Text>
+        <View className="flex-1 gap-1">
+          <Text className="text-[15px] leading-[22px] text-gray-500">
+            Your herd records belong to you. They are stored with Supabase in{' '}
+            {DATA_REGION}. They are never sold or shared. Email {SUPPORT_EMAIL}{' '}
+            any time to get a full export or have everything deleted.
+          </Text>
+          <Link href="/data" asChild>
+            <Pressable className="min-h-[44px] justify-center -ml-1 self-start">
+              <Text className="text-[15px] leading-[22px] font-bold text-bloodline-600">
+                Read more
+              </Text>
+            </Pressable>
+          </Link>
+        </View>
       </View>
 
       <View className="mt-5 flex-row flex-wrap justify-center items-center">
