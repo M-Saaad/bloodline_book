@@ -56,11 +56,11 @@ https://*.vercel.app/**
 **Prod project** — add:
 
 ```
-https://your-production-domain.com/**
+https://app.bloodlinebookapp.com/**
 https://bloodline-book.vercel.app/**
 ```
 
-Replace with your actual Vercel production URL or custom domain.
+Keep the Vercel URL on the allowlist so the old production hostname still works until you retire it.
 
 **Password reset (Phase 5):** add these redirect URLs on **both** dev and prod Supabase projects so “Forgot password?” can open the app:
 
@@ -70,7 +70,12 @@ http://localhost:8081/reset-password
 https://*.vercel.app/reset-password
 ```
 
-For production, also add your stable site URL, for example `https://bloodline-book.vercel.app/reset-password`.
+For production, also add:
+
+- `https://app.bloodlinebookapp.com/reset-password` (custom domain)
+- `https://bloodline-book.vercel.app/reset-password` (legacy Vercel URL)
+
+Set **Site URL** to `https://app.bloodlinebookapp.com` so auth emails use the custom domain by default.
 
 **Dev tip:** disable email confirmation on the dev project (Authentication → Providers → Email).
 
