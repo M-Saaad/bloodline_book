@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Download the newest encrypted backup set from B2 (via rclone), decrypt,
-# restore into RESTORE_DB_URL, and print live vs restored row counts.
+# restore into RESTORE_DB_URL, and compare live vs restored row counts for
+# public tables plus auth.users and auth.identities. Fails on any mismatch or
+# when restored farm_members.user_id values are missing from auth.users.
 #
 # Shell environment only (never .env, never this repo):
 #   SUPABASE_DB_URL       Live project (row counts only; never restored into)
@@ -163,6 +165,27 @@ count_public_tables_tsv() {
   done <<< "$tables"
 }
 
+count_auth_tables_tsv() {
+  local url="$1"
+  local label="$2"
+  local table count
+  for table in users identities; do
+    count="$(psql "$url" -X -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM auth.\"${table}\"")" \
+      || fail "Could not count auth.${table} for ${label}."
+    if [[ ! "$count" =~ ^[0-9]+$ ]]; then
+      fail "Expected a numeric row count for auth.${table} (${label})."
+    fi
+    printf 'auth.%s\t%s\n' "$table" "$count"
+  done
+}
+
+collect_row_counts_tsv() {
+  local url="$1"
+  local label="$2"
+  count_public_tables_tsv "$url" "$label"
+  count_auth_tables_tsv "$url" "$label"
+}
+
 print_comparison() {
   local live_file="$1"
   local restored_file="$2"
@@ -184,6 +207,50 @@ print_comparison() {
   for table in $(printf '%s\n' "${!live[@]}" "${!restored[@]}" | sort -u); do
     printf '%s\t%s\t%s\n' "$table" "${live[$table]:-0}" "${restored[$table]:-0}"
   done
+}
+
+verify_counts_match() {
+  local live_file="$1"
+  local restored_file="$2"
+  local -A live=()
+  local -A restored=()
+  local table live_count restored_count
+  local -a mismatches=()
+
+  while IFS=$'\t' read -r table count; do
+    [[ -z "$table" ]] && continue
+    live["$table"]="$count"
+  done <"$live_file"
+
+  while IFS=$'\t' read -r table count; do
+    [[ -z "$table" ]] && continue
+    restored["$table"]="$count"
+  done <"$restored_file"
+
+  for table in $(printf '%s\n' "${!live[@]}" "${!restored[@]}" | sort -u); do
+    live_count="${live[$table]:-0}"
+    restored_count="${restored[$table]:-0}"
+    if [[ "$live_count" != "$restored_count" ]]; then
+      mismatches+=("${table} (live=${live_count}, restored=${restored_count})")
+    fi
+  done
+
+  if ((${#mismatches[@]} > 0)); then
+    fail "Row count mismatch between live and restored: ${mismatches[*]}"
+  fi
+}
+
+count_farm_members_missing_auth_users() {
+  local url="$1"
+  local count
+  count="$(psql "$url" -X -v ON_ERROR_STOP=1 -Atc \
+    "SELECT count(*) FROM public.farm_members fm WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = fm.user_id)")" \
+    || fail "Could not check farm_members.user_id against auth.users on restored database."
+  count="${count//$'\r'/}"
+  if [[ ! "$count" =~ ^[0-9]+$ ]]; then
+    fail "Expected a numeric count of farm_members rows missing auth.users."
+  fi
+  printf '%s\n' "$count"
 }
 
 main() {
@@ -252,7 +319,7 @@ main() {
   trap 'rm -f -- "$live_counts" "$restored_counts"' EXIT
 
   echo "Collecting live row counts (read-only)."
-  count_public_tables_tsv "$SUPABASE_DB_URL" live >"$live_counts"
+  collect_row_counts_tsv "$SUPABASE_DB_URL" live >"$live_counts"
 
   restore_host="$(db_host "$RESTORE_DB_URL")"
 
@@ -264,10 +331,17 @@ main() {
   elapsed="${SECONDS}"
 
   echo "Collecting restored row counts."
-  count_public_tables_tsv "$RESTORE_DB_URL" restored >"$restored_counts"
+  collect_row_counts_tsv "$RESTORE_DB_URL" restored >"$restored_counts"
 
   echo "Restore window: ${start_ts} .. ${end_ts} (${elapsed}s UTC)"
   print_comparison "$live_counts" "$restored_counts"
+  verify_counts_match "$live_counts" "$restored_counts"
+
+  missing_users="$(count_farm_members_missing_auth_users "$RESTORE_DB_URL")"
+  echo "farm_members.user_id missing from auth.users (restored DB): ${missing_users}"
+  if [[ "$missing_users" != "0" ]]; then
+    fail "Restored farm_members references ${missing_users} user_id value(s) not present in auth.users."
+  fi
 
   rm -f -- "$plain_schema" "$plain_auth" "$plain_data"
   echo "Removed local plaintext SQL for set ${stamp}."
