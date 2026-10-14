@@ -67,6 +67,24 @@ const authProvider = fs.readFileSync(
 );
 assert.match(authProvider, /PASSWORD_RESET_REDIRECT_URL/);
 assert.doesNotMatch(authProvider, /Linking\.createURL\(\s*['"]\/reset-password['"]\s*\)/);
+assert.match(authProvider, /recoveryLinkErrorFromInitialWebUrl/);
+assert.match(authProvider, /isRecoveryTypeInInitialWebUrl/);
+assert.match(
+  authProvider,
+  /signInWithPassword[\s\S]*clearRecoveryPending\(\)/,
+);
+
+const initialWebUrl = fs.readFileSync(
+  path.join(root, 'lib/supabase/initial-web-url.ts'),
+  'utf8',
+);
+assert.match(initialWebUrl, /window\.location\.href/);
+
+const client = fs.readFileSync(path.join(root, 'lib/supabase/client.ts'), 'utf8');
+assert.match(client, /from '@\/lib\/supabase\/initial-web-url'/);
+const exportIdx = client.indexOf('export { INITIAL_WEB_URL }');
+const createIdx = client.indexOf('export const supabase = createClient');
+assert.ok(exportIdx !== -1 && createIdx !== -1 && exportIdx < createIdx);
 
 const support = fs.readFileSync(
   path.join(root, 'lib/config/support.ts'),

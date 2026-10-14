@@ -1,4 +1,5 @@
 import { recoveryParamsFromUrl } from '@/lib/auth/email';
+import { INITIAL_WEB_URL } from '@/lib/supabase/initial-web-url';
 
 export const RECOVERY_PENDING_STORAGE_KEY = 'bloodline.auth.recoveryPending';
 
@@ -18,22 +19,16 @@ export function recoveryLinkErrorFromUrl(url: string): string | null {
   return null;
 }
 
-export function recoveryLinkErrorFromWebLocation(): string | null {
-  if (typeof window === 'undefined') {
+export function recoveryLinkErrorFromInitialWebUrl(): string | null {
+  if (!INITIAL_WEB_URL) {
     return null;
   }
-  return recoveryLinkErrorFromUrl(window.location.href);
+  return recoveryLinkErrorFromUrl(INITIAL_WEB_URL);
 }
 
-export function isRecoveryTypeInWebHash(): boolean {
-  if (typeof window === 'undefined') {
+export function isRecoveryTypeInInitialWebUrl(): boolean {
+  if (!INITIAL_WEB_URL) {
     return false;
   }
-  const hash = window.location.hash.startsWith('#')
-    ? window.location.hash.slice(1)
-    : window.location.hash;
-  if (!hash) {
-    return false;
-  }
-  return new URLSearchParams(hash).get('type') === 'recovery';
+  return isRecoveryTypeInUrl(INITIAL_WEB_URL);
 }

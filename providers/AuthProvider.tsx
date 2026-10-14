@@ -17,11 +17,11 @@ import {
   recoveryParamsFromUrl,
 } from '@/lib/auth/email';
 import {
+  isRecoveryTypeInInitialWebUrl,
   isRecoveryTypeInUrl,
-  isRecoveryTypeInWebHash,
   RECOVERY_PENDING_STORAGE_KEY,
+  recoveryLinkErrorFromInitialWebUrl,
   recoveryLinkErrorFromUrl,
-  recoveryLinkErrorFromWebLocation,
 } from '@/lib/auth/recovery';
 import {
   PASSWORD_RESET_REDIRECT_URL,
@@ -144,10 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (Platform.OS === 'web') {
-        const webLinkError = recoveryLinkErrorFromWebLocation();
+        const webLinkError = recoveryLinkErrorFromInitialWebUrl();
         if (webLinkError && !cancelled) {
           setRecoveryLinkError(webLinkError);
-        } else if (isRecoveryTypeInWebHash() && !cancelled) {
+        } else if (isRecoveryTypeInInitialWebUrl() && !cancelled) {
           await markRecoveryPending();
         }
       }
@@ -200,15 +200,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [adoptRecoveryUrl, markRecoveryPending, recoveryHydrated]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: normalizeAuthEmail(email),
-      password,
-    });
-    if (error) {
-      throw error;
-    }
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizeAuthEmail(email),
+        password,
+      });
+      if (error) {
+        throw error;
+      }
+      await clearRecoveryPending();
+    },
+    [clearRecoveryPending],
+  );
 
   const signUp = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({
