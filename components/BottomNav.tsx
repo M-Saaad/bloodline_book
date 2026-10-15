@@ -5,6 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { QuickAddSheet } from '@/components/QuickAddSheet';
 import { useFarmRole } from '@/hooks/useFarmRole';
+import {
+  isOnAddGoatScreen,
+  requestLeaveAddGoatScreen,
+} from '@/lib/navigation/add-animal-unsaved-guard';
 import { Text } from '@/components/ui/Text';
 
 type Item = { key: 'today' | 'herd' | 'breeding' | 'more'; label: string; symbol: string; href: string };
@@ -44,11 +48,19 @@ export function BottomNav() {
         accessibilityRole="button"
         accessibilityState={{ selected: on }}
         onPress={() => {
-          if (item.key === 'more' && on) {
-            router.navigate('/(tabs)/more' as never);
-            return;
-          }
-          router.navigate(item.href as never);
+          void (async () => {
+            if (isOnAddGoatScreen(pathname)) {
+              const allowed = await requestLeaveAddGoatScreen();
+              if (!allowed) {
+                return;
+              }
+            }
+            if (item.key === 'more' && on) {
+              router.navigate('/(tabs)/more' as never);
+              return;
+            }
+            router.navigate(item.href as never);
+          })();
         }}
         className="flex-1 min-w-[68px] min-h-[52px] items-center gap-0.5">
         <Text className={`text-[26px] leading-[30px] ${on ? 'text-bloodline-600' : 'text-gray-500'}`}>

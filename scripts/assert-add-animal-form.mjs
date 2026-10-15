@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import {
   addAnimalDraftFromDuplicateSource,
   createEmptyAddAnimalDraft,
+  isAddAnimalDraftDirty,
   shouldApplyDuplicatePrefillLoad,
   shouldResetAddAnimalDraftForSession,
 } from '../lib/domain/add-animal-form.ts';
+import { isOnAddGoatScreen } from '../lib/navigation/add-animal-unsaved-guard.ts';
 
 const empty = createEmptyAddAnimalDraft();
 assert.equal(empty.name, '');
@@ -46,6 +48,25 @@ assert.equal(
 
 assert.equal(shouldApplyDuplicatePrefillLoad(0, 0), true);
 assert.equal(shouldApplyDuplicatePrefillLoad(0, 1), false, 'stale duplicate callback');
+
+assert.equal(
+  isAddAnimalDraftDirty(
+    { ...empty, name: 'Daisy' },
+    empty,
+  ),
+  true,
+);
+assert.equal(isAddAnimalDraftDirty(empty, empty), false);
+assert.equal(isOnAddGoatScreen('/livestock/add'), true);
+assert.equal(isOnAddGoatScreen('/livestock/add?session=abc'), true);
+assert.equal(isOnAddGoatScreen('/livestock'), false);
+assert.equal(
+  isAddAnimalDraftDirty(
+    { ...empty, sex: 'male' },
+    empty,
+  ),
+  true,
+);
 
 const duplicate = addAnimalDraftFromDuplicateSource({
   id: 'a1',

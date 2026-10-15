@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
+import { usePreventRemove } from '@/lib/navigation/use-prevent-remove';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -17,6 +18,7 @@ import { validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
   addAnimalDraftFromDuplicateSource,
   createEmptyAddAnimalDraft,
+  isAddAnimalDraftDirty,
   shouldApplyDuplicatePrefillLoad,
   shouldResetAddAnimalDraftForSession,
   type AddAnimalDraft,
@@ -31,6 +33,7 @@ import {
 } from '@/lib/db/animals';
 import type { Animal, Breed } from '@/lib/types/animals';
 import { animalDisplayLabel, formatSex } from '@/lib/ui/animal-labels';
+import { registerAddAnimalUnsavedHandlers } from '@/lib/navigation/add-animal-unsaved-guard';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
@@ -75,9 +78,12 @@ export default function AddAnimalScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
+  const navigation = useNavigation();
   const committedSessionRef = useRef<string | null>(null);
   const appliedDuplicatePrefillRef = useRef<string | null>(null);
   const duplicateLoadGenerationRef = useRef(0);
+  const baselineDraftRef = useRef<AddAnimalDraft>(createEmptyAddAnimalDraft());
+  const allowLeaveRef = useRef(false);
 
   const applyDraft = useCallback((draft: AddAnimalDraft) => {
     setName(draft.name);
@@ -99,7 +105,9 @@ export default function AddAnimalScreen() {
   const resetToEmptyDraft = useCallback(() => {
     duplicateLoadGenerationRef.current += 1;
     appliedDuplicatePrefillRef.current = null;
-    applyDraft(createEmptyAddAnimalDraft());
+    const empty = createEmptyAddAnimalDraft();
+    applyDraft(empty);
+    baselineDraftRef.current = empty;
     setErrorMessage('');
     setWarningMessage('');
   }, [applyDraft]);
@@ -162,7 +170,9 @@ export default function AddAnimalScreen() {
       }
       appliedDuplicatePrefillRef.current = prefillParam;
       if (animal) {
-        applyDraft(addAnimalDraftFromDuplicateSource(animal));
+        const draft = addAnimalDraftFromDuplicateSource(animal);
+        applyDraft(draft);
+        baselineDraftRef.current = draft;
         setErrorMessage('');
         setWarningMessage('');
       }
@@ -203,6 +213,82 @@ export default function AddAnimalScreen() {
     () => activeFarm?.segment ?? 'both',
     [activeFarm?.segment],
   );
+
+  const currentDraft = useMemo(
+    (): AddAnimalDraft => ({
+      name,
+      tagNumber,
+      officialId,
+      registrationBody,
+      registrationNumber,
+      tattoo,
+      sex,
+      breedId,
+      breedPercentage,
+      dateOfBirth,
+      damId,
+      damExternalName,
+      sireId,
+      sireExternalName,
+    }),
+    [
+      name,
+      tagNumber,
+      officialId,
+      registrationBody,
+      registrationNumber,
+      tattoo,
+      sex,
+      breedId,
+      breedPercentage,
+      dateOfBirth,
+      damId,
+      damExternalName,
+      sireId,
+      sireExternalName,
+    ],
+  );
+
+  const hasUnsavedChanges = useMemo(
+    () => isAddAnimalDraftDirty(currentDraft, baselineDraftRef.current),
+    [currentDraft],
+  );
+
+  const confirmDiscardIfNeeded = useCallback(async (): Promise<boolean> => {
+    if (!hasUnsavedChanges || allowLeaveRef.current) {
+      return true;
+    }
+    const discard = await confirmAction(
+      'Discard this goat?',
+      'You have unsaved changes on this form.',
+      'Discard',
+      'Keep editing',
+    );
+    if (discard) {
+      allowLeaveRef.current = true;
+    }
+    return discard;
+  }, [hasUnsavedChanges]);
+
+  useFocusEffect(
+    useCallback(() => {
+      allowLeaveRef.current = false;
+      return registerAddAnimalUnsavedHandlers({
+        isDirty: () => hasUnsavedChanges && !allowLeaveRef.current,
+        confirmDiscard: confirmDiscardIfNeeded,
+      });
+    }, [confirmDiscardIfNeeded, hasUnsavedChanges]),
+  );
+
+  usePreventRemove(hasUnsavedChanges && !allowLeaveRef.current, ({ data }) => {
+    void (async () => {
+      const discard = await confirmDiscardIfNeeded();
+      if (!discard) {
+        return;
+      }
+      navigation.dispatch(data.action);
+    })();
+  });
 
   async function handleSave() {
     if (!activeFarm) {
@@ -258,6 +344,7 @@ export default function AddAnimalScreen() {
         registrationNumber: registrationNumber.trim() || null,
         tattoo: tattoo.trim() || null,
       });
+      allowLeaveRef.current = true;
       router.back();
     } catch (error) {
       setErrorMessage(
