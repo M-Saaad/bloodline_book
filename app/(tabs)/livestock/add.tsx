@@ -1,5 +1,5 @@
-import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
-import { usePreventRemove } from '@/lib/navigation/use-prevent-remove';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useAddGoatScreenLeave } from '@/lib/navigation/use-add-goat-screen-leave';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -78,7 +78,6 @@ export default function AddAnimalScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
-  const navigation = useNavigation();
   const committedSessionRef = useRef<string | null>(null);
   const appliedDuplicatePrefillRef = useRef<string | null>(null);
   const duplicateLoadGenerationRef = useRef(0);
@@ -270,24 +269,27 @@ export default function AddAnimalScreen() {
     return discard;
   }, [hasUnsavedChanges]);
 
+  const currentDraftRef = useRef(currentDraft);
+  currentDraftRef.current = currentDraft;
+
   useFocusEffect(
     useCallback(() => {
       allowLeaveRef.current = false;
       return registerAddAnimalUnsavedHandlers({
-        isDirty: () => hasUnsavedChanges && !allowLeaveRef.current,
+        isDirty: () =>
+          isAddAnimalDraftDirty(
+            currentDraftRef.current,
+            baselineDraftRef.current,
+          ) && !allowLeaveRef.current,
         confirmDiscard: confirmDiscardIfNeeded,
       });
-    }, [confirmDiscardIfNeeded, hasUnsavedChanges]),
+    }, [confirmDiscardIfNeeded]),
   );
 
-  usePreventRemove(hasUnsavedChanges && !allowLeaveRef.current, ({ data }) => {
-    void (async () => {
-      const discard = await confirmDiscardIfNeeded();
-      if (!discard) {
-        return;
-      }
-      navigation.dispatch(data.action);
-    })();
+  useAddGoatScreenLeave({
+    hasUnsavedChanges,
+    allowLeaveRef,
+    confirmDiscardIfNeeded,
   });
 
   async function handleSave() {
