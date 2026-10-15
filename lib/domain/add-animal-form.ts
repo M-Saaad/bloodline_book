@@ -86,3 +86,32 @@ export function shouldApplyDuplicatePrefillLoad(
 ): boolean {
   return loadGenerationAtStart === currentGeneration;
 }
+
+export function areAddAnimalDraftsEqual(
+  a: AddAnimalDraft,
+  b: AddAnimalDraft,
+): boolean {
+  return (
+    a.name === b.name &&
+    a.tagNumber === b.tagNumber &&
+    a.officialId === b.officialId &&
+    a.registrationBody === b.registrationBody &&
+    a.registrationNumber === b.registrationNumber &&
+    a.tattoo === b.tattoo &&
+    a.sex === b.sex &&
+    a.breedId === b.breedId &&
+    a.breedPercentage === b.breedPercentage &&
+    a.dateOfBirth === b.dateOfBirth &&
+    a.damId === b.damId &&
+    a.damExternalName === b.damExternalName &&
+    a.sireId === b.sireId &&
+    a.sireExternalName === b.sireExternalName
+  );
+}
+
+export function isAddAnimalDraftDirty(
+  current: AddAnimalDraft,
+  baseline: AddAnimalDraft,
+): boolean {
+  return !areAddAnimalDraftsEqual(current, baseline);
+}

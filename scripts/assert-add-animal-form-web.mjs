@@ -206,27 +206,62 @@ async function openAddGoat(page, sessionId) {
   await page.waitForTimeout(2000);
 }
 
+async function clickHerdTab(page) {
+  await page.getByText('Herd', { exact: true }).last().click();
+  await page.waitForTimeout(600);
+}
+
+async function clickTodayTab(page) {
+  await page.getByText('Today', { exact: true }).last().click();
+  await page.waitForTimeout(600);
+}
+
+/** In-app navigation only (works offline once the SPA is loaded). */
 async function clickAddGoatFromDashboard(page) {
-  await page.goto('http://127.0.0.1:8081/dashboard', {
-    waitUntil: 'domcontentloaded',
-    timeout: 60000,
-  });
-  await page.waitForTimeout(1000);
-  await page.getByText('Add goat', { exact: true }).first().click();
+  await clickTodayTab(page);
+  await page.waitForURL(/\/dashboard/, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Add goat' }).first().click();
   await page.waitForURL(/\/livestock\/add/, { timeout: 30000 });
   await page.waitForTimeout(1000);
 }
 
+async function discardAddGoatDraftIfPrompted(page) {
+  const visible = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 3000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!visible) {
+    return false;
+  }
+  await page.getByText('Discard', { exact: true }).click();
+  await page.waitForTimeout(800);
+  return true;
+}
+
+function labeledInput(page, label) {
+  return page
+    .getByText(label, { exact: true })
+    .locator('visible=true')
+    .last()
+    .locator('..')
+    .locator('input')
+    .first();
+}
+
 async function fieldValueByLabel(page, label) {
-  const labelNode = page.getByText(label, { exact: true }).first();
-  const container = labelNode.locator('..');
-  return container.locator('input').first().inputValue();
+  return labeledInput(page, label).inputValue();
 }
 
 async function fillFieldByLabel(page, label, value) {
-  const labelNode = page.getByText(label, { exact: true }).first();
-  const container = labelNode.locator('..');
-  await container.locator('input').first().fill(value);
+  const input = labeledInput(page, label);
+  await input.scrollIntoViewIfNeeded();
+  await input.fill(value);
+}
+
+async function clickSaveGoat(page) {
+  await page.getByRole('button', { name: 'Save goat' }).locator('visible=true').last().click();
 }
 
 const browser = await chromium.launch({
@@ -250,7 +285,7 @@ try {
   await openAddGoat(page);
   await fillFieldByLabel(page, 'Name', nameA);
   await fillFieldByLabel(page, 'Tag number', tagA);
-  await page.getByText('Save goat', { exact: true }).click();
+  await clickSaveGoat(page);
   await page.waitForFunction(
     () => !window.location.pathname.endsWith('/livestock/add'),
     { timeout: 45000 },
@@ -294,7 +329,7 @@ try {
   const exactPct = page.getByText('Exact percentage', { exact: true }).first();
   await exactPct.scrollIntoViewIfNeeded();
   await exactPct.locator('..').locator('input').first().fill('150');
-  await page.getByText('Save goat', { exact: true }).click();
+  await clickSaveGoat(page);
   await page.waitForTimeout(1500);
   const stillOnAdd = page.url().includes('/livestock/add');
   const draftName = await fieldValueByLabel(page, 'Name');
@@ -321,53 +356,103 @@ try {
     `name="${nameAfterPicker}" tag="${tagAfterPicker}"`,
   );
 
-  const routeSession = `route-blur-${suffix}`;
-  await openAddGoat(page, routeSession);
-  const activeSession = routeSession;
-  await fillFieldByLabel(page, 'Name', 'Route blur draft');
-  await fillFieldByLabel(page, 'Tag number', 'route-blur');
-  await page.getByText('Herd', { exact: true }).click();
-  await page.waitForURL(/\/livestock\/?(\?|$)/, { timeout: 20000 });
-  await page.goBack();
-  await page.waitForURL(/\/livestock\/add/, { timeout: 20000 });
-  const nameAfterRouteBlur = await fieldValueByLabel(page, 'Name');
-  const tagAfterRouteBlur = await fieldValueByLabel(page, 'Tag number');
+  await clickHerdTab(page);
+  await discardAddGoatDraftIfPrompted(page);
+
+  await clickAddGoatFromDashboard(page);
+  await clickHerdTab(page);
+  const untouchedDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .isVisible()
+    .catch(() => false);
   record(
-    'Route blur and return keeps draft (same session)',
-    nameAfterRouteBlur === 'Route blur draft' &&
-      tagAfterRouteBlur === 'route-blur' &&
-      page.url().includes(`session=${encodeURIComponent(activeSession)}`),
-    `name="${nameAfterRouteBlur}" url=${page.url()}`,
+    'Untouched add: Herd tab leaves without discard dialog',
+    !untouchedDialog && !page.url().includes('/livestock/add'),
+    `onAdd=${page.url().includes('/livestock/add')}`,
   );
 
-  await page.getByText('Herd', { exact: true }).click();
-  await page.waitForURL(/\/livestock\/?(\?|$)/, { timeout: 20000 });
   await clickAddGoatFromDashboard(page);
-  const nameNewSession = await fieldValueByLabel(page, 'Name');
-  const tagNewSession = await fieldValueByLabel(page, 'Tag number');
+  await fillFieldByLabel(page, 'Name', 'Tab draft');
+  await fillFieldByLabel(page, 'Tag number', 'tab-draft');
+  await clickHerdTab(page);
+  const dialogVisible = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (dialogVisible) {
+    await page.getByText('Keep editing', { exact: true }).click();
+    await page.waitForTimeout(400);
+  }
+  const nameAfterKeep = await fieldValueByLabel(page, 'Name');
+  const tagAfterKeep = await fieldValueByLabel(page, 'Tag number');
   record(
-    'New add session clears previous draft',
-    nameNewSession === '' && tagNewSession === '',
-    `name="${nameNewSession}" tag="${tagNewSession}"`,
+    'Herd tab + Keep editing preserves draft (online)',
+    dialogVisible &&
+      nameAfterKeep === 'Tab draft' &&
+      tagAfterKeep === 'tab-draft' &&
+      page.url().includes('/livestock/add'),
+    `dialog=${dialogVisible} name="${nameAfterKeep}"`,
   );
+
+  await clickHerdTab(page);
+  const dialogAgain = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (dialogAgain) {
+    await page.getByText('Discard', { exact: true }).click();
+    await page.waitForTimeout(800);
+  }
+  record(
+    'Discard leaves add without saving',
+    dialogAgain && !page.url().includes('/livestock/add'),
+    `url=${page.url()}`,
+  );
+
+  await context.setOffline(true);
+  await clickAddGoatFromDashboard(page);
+  await fillFieldByLabel(page, 'Name', 'Offline tab draft');
+  await fillFieldByLabel(page, 'Tag number', 'offline-tab');
+  await clickHerdTab(page);
+  const offlineDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (offlineDialog) {
+    await page.getByText('Keep editing', { exact: true }).click();
+    await page.waitForTimeout(400);
+  }
+  const offlineName = await fieldValueByLabel(page, 'Name');
+  record(
+    'Herd tab + Keep editing preserves draft (offline)',
+    offlineDialog &&
+      offlineName === 'Offline tab draft' &&
+      page.url().includes('/livestock/add'),
+    `dialog=${offlineDialog} name="${offlineName}"`,
+  );
+  await context.setOffline(false);
 
   const tagB = `AGF-${suffix}-B`;
   const nameB = `AddForm ${suffix} B`;
-  await page.goto('http://127.0.0.1:8081/dashboard', {
-    waitUntil: 'domcontentloaded',
-  });
-  await page.waitForTimeout(1500);
+  await clickHerdTab(page);
+  await discardAddGoatDraftIfPrompted(page);
+  await clickTodayTab(page);
+  await page.waitForTimeout(500);
   await context.setOffline(true);
-  await page.getByText('Add goat', { exact: true }).first().click();
-  await page.waitForURL(/\/livestock\/add/, { timeout: 30000 });
+  await clickAddGoatFromDashboard(page);
   await fillFieldByLabel(page, 'Name', nameB);
   await fillFieldByLabel(page, 'Tag number', tagB);
-  await page.getByText('Save goat', { exact: true }).click();
+  await clickSaveGoat(page);
   await page.waitForFunction(
     () => !window.location.pathname.endsWith('/livestock/add'),
     { timeout: 90000 },
   );
-  await page.getByText('Add goat', { exact: true }).first().click();
+  await clickTodayTab(page);
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Add goat' }).first().click();
   await page.waitForURL(/\/livestock\/add/, { timeout: 30000 });
   const offlineFresh =
     (await fieldValueByLabel(page, 'Name')) === '' &&
