@@ -1,4 +1,6 @@
 import { router } from 'expo-router';
+
+import { pushNewAddAnimalSession } from '@/lib/navigation/add-animal';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Text';
@@ -33,6 +35,10 @@ export function QuickAddSheet({ visible, onClose }: { visible: boolean; onClose:
                 accessibilityRole="button"
                 onPress={() => {
                   onClose();
+                  if (tile.label === 'Add goat') {
+                    pushNewAddAnimalSession();
+                    return;
+                  }
                   router.push(tile.href as never);
                 }}
                 className="w-[48%] min-h-[96px] rounded-[22px] bg-white border border-gray-200 px-4 py-3 justify-between active:bg-bloodline-50">

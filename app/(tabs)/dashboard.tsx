@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarmRole } from '@/hooks/useFarmRole';
 import { useLocalHerd } from '@/hooks/useLocalHerd';
 import { preferLocalRows } from '@/lib/domain/offline-replica';
+import { pushNewAddAnimalSession } from '@/lib/navigation/add-animal';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { setTaskCompleted } from '@/lib/db/documents';
 import { mapAnimal, mapBreedingEvent, mapHealthRecord, mapTask } from '@/lib/db/mappers';
@@ -339,7 +340,7 @@ export default function DashboardScreen() {
             <View className="gap-2">
               <Button
                 title="Add goat"
-                onPress={() => router.push('/(tabs)/livestock/add')}
+                onPress={() => pushNewAddAnimalSession()}
                 className="h-[60px]"
               />
               <Button
@@ -503,7 +504,7 @@ export default function DashboardScreen() {
             <Button
               title="Add goat"
               variant="outline"
-              onPress={() => router.push('/(tabs)/livestock/add')}
+              onPress={() => pushNewAddAnimalSession()}
             />
           </View>
         </FarmWriteGate>

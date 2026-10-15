@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
@@ -15,9 +15,17 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Segmented } from '@/components/ui/Segmented';
 import { validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
+  addAnimalDraftFromDuplicateSource,
+  createEmptyAddAnimalDraft,
+  shouldApplyDuplicatePrefillLoad,
+  shouldResetAddAnimalDraftForSession,
+  type AddAnimalDraft,
+} from '@/lib/domain/add-animal-form';
+import {
   createAnimal,
   createFarmBreed,
   findAnimalByTagNumber,
+  getAnimalById,
   getBreedsForFarm,
   getParentPickerAnimals,
 } from '@/lib/db/animals';
@@ -29,7 +37,22 @@ import { Text } from '@/components/ui/Text';
 
 const SEX_OPTIONS: Animal['sex'][] = ['female', 'male'];
 
+function routeParamFirst(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+  return value ?? '';
+}
+
 export default function AddAnimalScreen() {
+  const params = useLocalSearchParams<{
+    session?: string;
+    duplicateFrom?: string;
+    prefill?: string;
+  }>();
+  const sessionId = routeParamFirst(params.session);
+  const duplicateFromParam = routeParamFirst(params.duplicateFrom);
+  const prefillParam = routeParamFirst(params.prefill);
   const { activeFarm } = useFarm();
   const [name, setName] = useState('');
   const [tagNumber, setTagNumber] = useState('');
@@ -52,6 +75,51 @@ export default function AddAnimalScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
+  const committedSessionRef = useRef<string | null>(null);
+  const appliedDuplicatePrefillRef = useRef<string | null>(null);
+  const duplicateLoadGenerationRef = useRef(0);
+
+  const applyDraft = useCallback((draft: AddAnimalDraft) => {
+    setName(draft.name);
+    setTagNumber(draft.tagNumber);
+    setOfficialId(draft.officialId);
+    setRegistrationBody(draft.registrationBody);
+    setRegistrationNumber(draft.registrationNumber);
+    setTattoo(draft.tattoo);
+    setSex(draft.sex);
+    setBreedId(draft.breedId);
+    setBreedPercentage(draft.breedPercentage);
+    setDateOfBirth(draft.dateOfBirth);
+    setDamId(draft.damId);
+    setDamExternalName(draft.damExternalName);
+    setSireId(draft.sireId);
+    setSireExternalName(draft.sireExternalName);
+  }, []);
+
+  const resetToEmptyDraft = useCallback(() => {
+    duplicateLoadGenerationRef.current += 1;
+    appliedDuplicatePrefillRef.current = null;
+    applyDraft(createEmptyAddAnimalDraft());
+    setErrorMessage('');
+    setWarningMessage('');
+  }, [applyDraft]);
+
+  useEffect(() => {
+    if (
+      shouldResetAddAnimalDraftForSession(
+        sessionId,
+        committedSessionRef.current,
+        {
+          duplicateFrom: duplicateFromParam || undefined,
+          prefill: prefillParam || undefined,
+        },
+        appliedDuplicatePrefillRef.current,
+      )
+    ) {
+      resetToEmptyDraft();
+    }
+    committedSessionRef.current = sessionId;
+  }, [sessionId, duplicateFromParam, prefillParam, resetToEmptyDraft]);
 
   useEffect(() => {
     if (!activeFarm) {
@@ -68,6 +136,42 @@ export default function AddAnimalScreen() {
       setSireAnimals(bucks);
     });
   }, [activeFarm]);
+
+  useEffect(() => {
+    if (!duplicateFromParam || !prefillParam) {
+      return;
+    }
+    if (appliedDuplicatePrefillRef.current === prefillParam) {
+      return;
+    }
+
+    let cancelled = false;
+    const loadGeneration = duplicateLoadGenerationRef.current;
+
+    getAnimalById(duplicateFromParam).then((animal) => {
+      if (cancelled) {
+        return;
+      }
+      if (
+        !shouldApplyDuplicatePrefillLoad(
+          loadGeneration,
+          duplicateLoadGenerationRef.current,
+        )
+      ) {
+        return;
+      }
+      appliedDuplicatePrefillRef.current = prefillParam;
+      if (animal) {
+        applyDraft(addAnimalDraftFromDuplicateSource(animal));
+        setErrorMessage('');
+        setWarningMessage('');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [duplicateFromParam, prefillParam, applyDraft]);
 
   useEffect(() => {
     if (!activeFarm || !tagNumber.trim()) {

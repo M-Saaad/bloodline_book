@@ -17,6 +17,7 @@ import {
   type HerdSexFilter,
   type HerdStatusFilter,
 } from '@/lib/domain/animals';
+import { pushNewAddAnimalSession } from '@/lib/navigation/add-animal';
 import { compareHerdOrder, herdRowSubtitle } from '@/lib/ui/animal-picker';
 import { todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
@@ -432,7 +433,7 @@ export default function LivestockListScreen() {
             actionLabel={listIsUnfiltered ? 'Add goat' : undefined}
             onAction={
               listIsUnfiltered
-                ? () => router.push('/(tabs)/livestock/add')
+                ? () => pushNewAddAnimalSession()
                 : undefined
             }
           />

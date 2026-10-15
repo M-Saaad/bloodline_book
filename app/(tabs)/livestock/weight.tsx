@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useLocalHerd } from '@/hooks/useLocalHerd';
+import { pushNewAddAnimalSession } from '@/lib/navigation/add-animal';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
 import {
@@ -346,7 +347,7 @@ export default function WeighDayScreen() {
             title="No animals to weigh"
             description="Add animals before running weigh day."
             actionLabel="Add goat"
-            onAction={() => router.push('/(tabs)/livestock/add')}
+            onAction={() => pushNewAddAnimalSession()}
           />
         </View>
       </HandWriteBlocked>
