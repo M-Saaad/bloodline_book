@@ -86,4 +86,12 @@ for (const file of expectedShots) {
   );
 }
 
+const pilotAudit = read('scripts/pilot-flow-audit.mjs');
+assert.match(pilotAudit, /Offline ·/);
+assert.match(pilotAudit, /uploaded exactly once/);
+
+const connector = read('lib/powersync/connector.ts');
+assert.match(connector, /fatal \? 'error' : 'retry'/);
+assert.match(connector, /console\.warn\(logMessage/);
+
 console.log('assert-pilot-setup: ok');

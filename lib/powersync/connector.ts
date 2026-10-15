@@ -63,13 +63,21 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     } catch (error) {
       const uploadError = toUploadError(error);
       const failedOp = ops[failedOpIndex] ?? null;
-      console.error('PowerSync upload error:', formatUploadError(error), {
+      const fatal = isFatalUploadError(error);
+      const logDetail = {
         table: failedOp?.table,
         op: failedOp?.op,
         id: failedOp?.id,
-      });
+      };
+      const logMessage = `PowerSync upload ${fatal ? 'error' : 'retry'}: ${formatUploadError(error)}`;
+      if (fatal) {
+        console.error(logMessage, logDetail);
+      } else {
+        // Retryable (e.g. offline). Avoid console.error — Expo web treats it as a blocking error toast.
+        console.warn(logMessage, logDetail);
+      }
 
-      if (isFatalUploadError(error)) {
+      if (fatal) {
         console.error(
           'PowerSync upload error is not retryable — recording and completing transaction:',
           failedOp,
