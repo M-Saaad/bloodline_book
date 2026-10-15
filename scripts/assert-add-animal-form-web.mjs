@@ -391,24 +391,38 @@ try {
   );
 
   await clickAddGoatFromDashboard(page);
-  await fillFieldByLabel(page, 'Name', 'Back draft');
-  await fillFieldByLabel(page, 'Tag number', 'back-draft');
+  const urlBeforeHeaderBack = page.url();
+  await fillFieldByLabel(page, 'Name', 'Stable draft');
+  await fillFieldByLabel(page, 'Tag number', 'stable-tag');
   await clickHeaderBack(page);
   const backDialog = await page
     .getByText('Discard this goat?', { exact: true })
     .waitFor({ state: 'visible', timeout: 5000 })
     .then(() => true)
     .catch(() => false);
+  const urlDuringDialog = page.url();
+  const nameDuringDialog = await fieldValueByLabel(page, 'Name');
+  const tagDuringDialog = await fieldValueByLabel(page, 'Tag number');
+  record(
+    'Header back: route and fields unchanged while dialog open (online)',
+    backDialog &&
+      urlDuringDialog === urlBeforeHeaderBack &&
+      nameDuringDialog === 'Stable draft' &&
+      tagDuringDialog === 'stable-tag',
+    `dialog=${backDialog} urlMatch=${urlDuringDialog === urlBeforeHeaderBack}`,
+  );
   if (backDialog) {
     await clickKeepEditing(page);
   }
   const nameAfterBackKeep = await fieldValueByLabel(page, 'Name');
+  const tagAfterBackKeep = await fieldValueByLabel(page, 'Tag number');
   record(
-    'Header back + Keep editing preserves draft (online)',
+    'Header back + Keep editing preserves all fields (online)',
     backDialog &&
-      nameAfterBackKeep === 'Back draft' &&
-      page.url().includes('/livestock/add'),
-    `dialog=${backDialog} name="${nameAfterBackKeep}"`,
+      nameAfterBackKeep === 'Stable draft' &&
+      tagAfterBackKeep === 'stable-tag' &&
+      page.url() === urlBeforeHeaderBack,
+    `name="${nameAfterBackKeep}" url=${page.url()}`,
   );
 
   await clickHeaderBack(page);
@@ -420,8 +434,12 @@ try {
   if (backDiscardDialog) {
     await clickDiscardGoat(page);
   }
+  await page.waitForFunction(
+    () => !window.location.pathname.endsWith('/livestock/add'),
+    { timeout: 10000 },
+  );
   record(
-    'Header back + Discard leaves add (online)',
+    'Header back + Discard leaves add once (online)',
     backDiscardDialog && !page.url().includes('/livestock/add'),
     `url=${page.url()}`,
   );
@@ -539,21 +557,26 @@ try {
     `dialog=${offlineDialog} name="${offlineName}"`,
   );
 
+  const offlineUrlBeforeBack = page.url();
   await clickHeaderBack(page);
   const offlineBackDialog = await page
     .getByText('Discard this goat?', { exact: true })
     .waitFor({ state: 'visible', timeout: 5000 })
     .then(() => true)
     .catch(() => false);
+  record(
+    'Header back: route unchanged while dialog open (offline)',
+    offlineBackDialog && page.url() === offlineUrlBeforeBack,
+    `dialog=${offlineBackDialog} url=${page.url()}`,
+  );
   if (offlineBackDialog) {
-    await page.getByText('Keep editing', { exact: true }).click();
-    await page.waitForTimeout(400);
+    await clickKeepEditing(page);
   }
   record(
     'Header back + Keep editing preserves draft (offline)',
     offlineBackDialog &&
       (await fieldValueByLabel(page, 'Name')) === 'Offline tab draft' &&
-      page.url().includes('/livestock/add'),
+      page.url() === offlineUrlBeforeBack,
     `dialog=${offlineBackDialog}`,
   );
 

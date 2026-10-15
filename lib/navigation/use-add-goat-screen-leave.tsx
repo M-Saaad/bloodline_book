@@ -1,5 +1,12 @@
-import { useNavigation } from 'expo-router';
-import { useCallback, useEffect, useLayoutEffect, type MutableRefObject } from 'react';
+import { useFocusEffect, useNavigation } from 'expo-router';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from 'react';
 import { BackHandler, Platform, Pressable } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
@@ -12,7 +19,7 @@ type Options = {
 };
 
 /**
- * Stack back, OS back, and browser back/refresh hooks for Add goat.
+ * Stack back, OS back, and browser refresh hooks for Add goat.
  * Tab / quick-add guards use requestLeaveAddGoatScreen separately.
  */
 export function useAddGoatScreenLeave({
@@ -21,8 +28,18 @@ export function useAddGoatScreenLeave({
   confirmDiscardIfNeeded,
 }: Options) {
   const navigation = useNavigation();
+  const [leaveConfirmed, setLeaveConfirmed] = useState(false);
+  const pendingHeaderBackRef = useRef(false);
 
-  const shouldBlockLeave = hasUnsavedChanges && !allowLeaveRef.current;
+  useFocusEffect(
+    useCallback(() => {
+      setLeaveConfirmed(false);
+      pendingHeaderBackRef.current = false;
+    }, []),
+  );
+
+  const shouldBlockLeave =
+    hasUnsavedChanges && !leaveConfirmed && !allowLeaveRef.current;
 
   const leaveViaNavigation = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -30,21 +47,47 @@ export function useAddGoatScreenLeave({
     }
   }, [navigation]);
 
+  const requestHeaderOrHardwareBack = useCallback(() => {
+    void (async () => {
+      if (shouldBlockLeave) {
+        const discard = await confirmDiscardIfNeeded();
+        if (!discard) {
+          return;
+        }
+        setLeaveConfirmed(true);
+        pendingHeaderBackRef.current = true;
+        return;
+      }
+      leaveViaNavigation();
+    })();
+  }, [
+    confirmDiscardIfNeeded,
+    leaveViaNavigation,
+    shouldBlockLeave,
+  ]);
+
+  useEffect(() => {
+    if (!leaveConfirmed || !pendingHeaderBackRef.current) {
+      return;
+    }
+    pendingHeaderBackRef.current = false;
+    leaveViaNavigation();
+  }, [leaveConfirmed, leaveViaNavigation]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerBackVisible: false,
       headerLeft: () => (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back"
-          onPress={() => {
-            leaveViaNavigation();
-          }}
+          onPress={requestHeaderOrHardwareBack}
           className="min-h-[44px] min-w-[44px] justify-center px-2">
           <Text className="text-lg font-semibold text-bloodline-600">Back</Text>
         </Pressable>
       ),
     });
-  }, [navigation, leaveViaNavigation]);
+  }, [navigation, requestHeaderOrHardwareBack]);
 
   usePreventRemove(shouldBlockLeave, ({ data }) => {
     void (async () => {
@@ -52,21 +95,22 @@ export function useAddGoatScreenLeave({
       if (!discard) {
         return;
       }
+      setLeaveConfirmed(true);
       navigation.dispatch(data.action);
     })();
   });
 
   useEffect(() => {
     const onHardwareBack = () => {
-      if (!hasUnsavedChanges || allowLeaveRef.current) {
+      if (!shouldBlockLeave) {
         return false;
       }
-      leaveViaNavigation();
+      requestHeaderOrHardwareBack();
       return true;
     };
     const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
     return () => sub.remove();
-  }, [allowLeaveRef, hasUnsavedChanges, leaveViaNavigation]);
+  }, [requestHeaderOrHardwareBack, shouldBlockLeave]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') {
@@ -74,7 +118,7 @@ export function useAddGoatScreenLeave({
     }
 
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!hasUnsavedChanges || allowLeaveRef.current) {
+      if (!hasUnsavedChanges || allowLeaveRef.current || leaveConfirmed) {
         return;
       }
       event.preventDefault();
@@ -85,38 +129,5 @@ export function useAddGoatScreenLeave({
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload);
     };
-  }, [allowLeaveRef, hasUnsavedChanges]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') {
-      return;
-    }
-    if (!hasUnsavedChanges || allowLeaveRef.current) {
-      return;
-    }
-
-    const trapUrl = window.location.href;
-    window.history.pushState({ addGoatDraftTrap: true }, '', trapUrl);
-
-    const onPopState = () => {
-      if (allowLeaveRef.current || !hasUnsavedChanges) {
-        return;
-      }
-      window.history.pushState({ addGoatDraftTrap: true }, '', trapUrl);
-      void (async () => {
-        const discard = await confirmDiscardIfNeeded();
-        if (!discard) {
-          return;
-        }
-        allowLeaveRef.current = true;
-        window.removeEventListener('popstate', onPopState);
-        leaveViaNavigation();
-      })();
-    };
-
-    window.addEventListener('popstate', onPopState);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-    };
-  }, [allowLeaveRef, confirmDiscardIfNeeded, hasUnsavedChanges, leaveViaNavigation]);
+  }, [allowLeaveRef, hasUnsavedChanges, leaveConfirmed]);
 }
