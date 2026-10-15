@@ -226,6 +226,26 @@ async function clickAddGoatFromDashboard(page) {
   await page.waitForTimeout(1000);
 }
 
+async function clickHeaderBack(page) {
+  await page.getByRole('button', { name: 'Back' }).click();
+  await page.waitForTimeout(500);
+}
+
+async function openQuickAdd(page) {
+  await page.getByRole('button', { name: 'Quick add' }).click();
+  await page.waitForTimeout(500);
+}
+
+async function clickKeepEditing(page) {
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+  await page.waitForTimeout(400);
+}
+
+async function clickDiscardGoat(page) {
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await page.waitForTimeout(800);
+}
+
 async function discardAddGoatDraftIfPrompted(page) {
   const visible = await page
     .getByText('Discard this goat?', { exact: true })
@@ -235,8 +255,7 @@ async function discardAddGoatDraftIfPrompted(page) {
   if (!visible) {
     return false;
   }
-  await page.getByText('Discard', { exact: true }).click();
-  await page.waitForTimeout(800);
+  await clickDiscardGoat(page);
   return true;
 }
 
@@ -372,6 +391,92 @@ try {
   );
 
   await clickAddGoatFromDashboard(page);
+  await fillFieldByLabel(page, 'Name', 'Back draft');
+  await fillFieldByLabel(page, 'Tag number', 'back-draft');
+  await clickHeaderBack(page);
+  const backDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (backDialog) {
+    await clickKeepEditing(page);
+  }
+  const nameAfterBackKeep = await fieldValueByLabel(page, 'Name');
+  record(
+    'Header back + Keep editing preserves draft (online)',
+    backDialog &&
+      nameAfterBackKeep === 'Back draft' &&
+      page.url().includes('/livestock/add'),
+    `dialog=${backDialog} name="${nameAfterBackKeep}"`,
+  );
+
+  await clickHeaderBack(page);
+  const backDiscardDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (backDiscardDialog) {
+    await clickDiscardGoat(page);
+  }
+  record(
+    'Header back + Discard leaves add (online)',
+    backDiscardDialog && !page.url().includes('/livestock/add'),
+    `url=${page.url()}`,
+  );
+
+  await clickAddGoatFromDashboard(page);
+  await fillFieldByLabel(page, 'Name', 'Quick add draft');
+  await fillFieldByLabel(page, 'Tag number', 'quick-draft');
+  await openQuickAdd(page);
+  const urlBeforeQuick = page.url();
+  await page.getByText('Weigh goats', { exact: true }).click();
+  const quickDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (quickDialog) {
+    await clickKeepEditing(page);
+  }
+  await page.waitForFunction(
+    () => window.location.pathname.includes('/livestock/add'),
+    { timeout: 5000 },
+  );
+  const quickSheetOpen = await page
+    .getByText('What did you do?', { exact: true })
+    .isVisible()
+    .catch(() => false);
+  const quickName = await fieldValueByLabel(page, 'Name');
+  const stayedOnAdd = page.url().includes('/livestock/add') && page.url() === urlBeforeQuick;
+  record(
+    'Quick add + Keep editing preserves draft (online)',
+    quickDialog &&
+      !quickSheetOpen &&
+      quickName === 'Quick add draft' &&
+      stayedOnAdd,
+    `dialog=${quickDialog} sheet=${quickSheetOpen} name="${quickName}" url=${page.url()}`,
+  );
+
+  await openQuickAdd(page);
+  await page.getByText('Treatment', { exact: true }).click();
+  const quickDiscardDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (quickDiscardDialog) {
+    await page.getByText('Discard', { exact: true }).click();
+    await page.waitForTimeout(800);
+  }
+  record(
+    'Quick add + Discard navigates away (online)',
+    quickDiscardDialog && !page.url().includes('/livestock/add'),
+    `url=${page.url()}`,
+  );
+
+  await clickAddGoatFromDashboard(page);
   await fillFieldByLabel(page, 'Name', 'Tab draft');
   await fillFieldByLabel(page, 'Tag number', 'tab-draft');
   await clickHerdTab(page);
@@ -433,6 +538,45 @@ try {
       page.url().includes('/livestock/add'),
     `dialog=${offlineDialog} name="${offlineName}"`,
   );
+
+  await clickHeaderBack(page);
+  const offlineBackDialog = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (offlineBackDialog) {
+    await page.getByText('Keep editing', { exact: true }).click();
+    await page.waitForTimeout(400);
+  }
+  record(
+    'Header back + Keep editing preserves draft (offline)',
+    offlineBackDialog &&
+      (await fieldValueByLabel(page, 'Name')) === 'Offline tab draft' &&
+      page.url().includes('/livestock/add'),
+    `dialog=${offlineBackDialog}`,
+  );
+
+  await openQuickAdd(page);
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Breeding/ })
+    .click();
+  const offlineQuickDiscard = await page
+    .getByText('Discard this goat?', { exact: true })
+    .waitFor({ state: 'visible', timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (offlineQuickDiscard) {
+    await page.getByText('Discard', { exact: true }).click();
+    await page.waitForTimeout(800);
+  }
+  record(
+    'Quick add + Discard navigates away (offline)',
+    offlineQuickDiscard && !page.url().includes('/livestock/add'),
+    `url=${page.url()}`,
+  );
+
   await context.setOffline(false);
 
   const tagB = `AGF-${suffix}-B`;

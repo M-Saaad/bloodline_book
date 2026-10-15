@@ -1,6 +1,7 @@
 import { router, type Href } from 'expo-router';
 
 import { ADD_ANIMAL_SESSION_PARAM } from '@/lib/domain/add-animal-form';
+import { runAfterAddGoatLeaveConfirmed } from '@/lib/navigation/add-animal-unsaved-guard';
 
 export function createAddAnimalSessionId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -30,5 +31,7 @@ export function buildAddAnimalHref(
 export function pushNewAddAnimalSession(
   options: Omit<AddAnimalRouteParams, 'session'> = {},
 ): void {
-  router.push(buildAddAnimalHref(options));
+  void runAfterAddGoatLeaveConfirmed(() => {
+    router.push(buildAddAnimalHref(options));
+  });
 }
