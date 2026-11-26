@@ -4,6 +4,11 @@ import type { Transaction } from '@powersync/common';
 
 import { getAnimalById } from '@/lib/db/animals';
 import { dbNow } from '@/lib/db/now';
+import {
+  currentUserId,
+  deleteAnimalTagHistoryInTx,
+  recordInitialTagsInTx,
+} from '@/lib/db/tag-history';
 import { mapBreedingEvent, mapKiddingEvent } from '@/lib/db/mappers';
 import { getFarmById } from '@/lib/db/farms';
 import {
@@ -254,6 +259,7 @@ export async function createKiddingEvent(
 ): Promise<string> {
   const id = Crypto.randomUUID();
   const now = dbNow();
+  const createdBy = await currentUserId();
   const damLabel = input.damLabel ?? 'Dam';
   const drafts = input.registerKids ?? [];
   const aliveDrafts = drafts.filter((kid) => kid.outcome !== 'dead');
@@ -351,6 +357,17 @@ export async function createKiddingEvent(
           now,
         ],
       );
+      await recordInitialTagsInTx(tx, {
+        farmId,
+        animalId: kidId,
+        createdBy,
+        today: input.kidDate,
+        tags: {
+          tagNumber: kid.tagNumber?.trim() ? kid.tagNumber.trim() : null,
+          officialId: null,
+          tattoo: null,
+        },
+      });
       if (kid.birthWeight != null && kid.birthWeight > 0) {
         weighed.push({ animalId: kidId, weight: kid.birthWeight });
       }
@@ -740,6 +757,7 @@ async function syncKiddingLitterAnimals(
     }
 
     for (const animalId of deletableIds) {
+      await deleteAnimalTagHistoryInTx(tx, animalId);
       await tx.execute('DELETE FROM animals WHERE id = ?', [animalId]);
     }
   } else if (targetCount > litterRows.length) {

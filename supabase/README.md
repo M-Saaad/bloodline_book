@@ -17,6 +17,8 @@ Run SQL files in numeric order:
 13. `0014_kidding_ease_weaning.sql`
 14. `0015_health_withdrawal_split.sql`
 15. `0016_dam_external_name.sql`
+16. `0017_waitlist_signups.sql`
+17. `0018_tag_history.sql`
 
 ## PowerSync replication setup
 

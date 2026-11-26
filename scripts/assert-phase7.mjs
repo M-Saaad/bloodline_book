@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 
-function validateAnimalNameOrTag(name, tagNumber) {
-  if (!name.trim() && !tagNumber.trim()) {
-    return 'Enter a name or a tag number.';
-  }
+function validateAnimalNameOrTag(_name, _tagNumber) {
   return null;
 }
 
@@ -89,7 +86,7 @@ function formatAnimalAge(dateOfBirth, referenceIso) {
   return `${years} yr ${remainingMonths} mo`;
 }
 
-assert.equal(validateAnimalNameOrTag('', ''), 'Enter a name or a tag number.');
+assert.equal(validateAnimalNameOrTag('', ''), null);
 assert.equal(validateAnimalNameOrTag('Daisy', ''), null);
 assert.equal(validateAnimalNameOrTag('', 'A-1'), null);
 

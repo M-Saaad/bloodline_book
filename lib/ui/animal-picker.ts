@@ -234,8 +234,12 @@ export function buildPickerRows(input: {
   exclude: PickerBlock[];
   disabled: PickerBlock[];
   includeOutside: boolean;
+  pastTagsByAnimalId?: Readonly<Record<string, readonly string[]>>;
 }): PickerRow[] {
   const query = input.query.trim();
+  const pastTags = input.pastTagsByAnimalId ?? {};
+  const matchesAnimal = (animal: Animal) =>
+    animalMatchesSearch(animal, query, pastTags[animal.id] ?? []);
   const chip = input.chip ?? (() => true);
   const excludeIds = new Set(input.exclude.map((item) => item.id));
   const disabledIds = new Set(input.disabled.map((item) => item.id));
@@ -249,7 +253,7 @@ export function buildPickerRows(input: {
       !excludeIds.has(animal.id) &&
       !disabledIds.has(animal.id) &&
       chip(animal) &&
-      animalMatchesSearch(animal, query),
+      matchesAnimal(animal),
   );
   const eligibleById = new Map(eligible.map((animal) => [animal.id, animal]));
   const used = new Set<string>();
@@ -329,12 +333,12 @@ export function buildPickerRows(input: {
       (animal) =>
         disabledIds.has(animal.id) &&
         chip(animal) &&
-        animalMatchesSearch(animal, query),
+        matchesAnimal(animal),
     ),
     ...(query
       ? input.animals.filter(
           (animal) =>
-            excludeIds.has(animal.id) && animalMatchesSearch(animal, query),
+            excludeIds.has(animal.id) && matchesAnimal(animal),
         )
       : []),
   ].filter((animal) => {

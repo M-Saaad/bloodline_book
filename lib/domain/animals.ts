@@ -26,19 +26,58 @@ export const REGISTRATION_BODY_OPTIONS: {
   { value: 'other', label: 'Other' },
 ];
 
+/** A goat may be saved with no name and no tag. */
 export function validateAnimalNameOrTag(
-  name: string,
-  tagNumber: string,
+  _name: string,
+  _tagNumber: string,
 ): string | null {
-  if (!name.trim() && !tagNumber.trim()) {
-    return 'Enter a name or a tag number.';
-  }
   return null;
 }
 
+export function parseBirthOrder(raw: string): {
+  value: number | null;
+  error: string | null;
+} {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { value: null, error: null };
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return {
+      value: null,
+      error: 'Birth order is a whole number. 1 means the first kid born.',
+    };
+  }
+  const value = Number(trimmed);
+  if (value < 1) {
+    return {
+      value: null,
+      error: 'Birth order starts at 1 for the first kid born.',
+    };
+  }
+  if (value > 32767) {
+    return { value: null, error: 'Birth order is too large.' };
+  }
+  return { value, error: null };
+}
+
+export function formatBirthOrder(order: number | null | undefined): string | null {
+  if (order == null || Number.isNaN(order)) {
+    return null;
+  }
+  if (order === 1) {
+    return '1 · first born';
+  }
+  return String(order);
+}
+
 export function animalMatchesSearch(
-  animal: Animal,
+  animal: Pick<
+    Animal,
+    'name' | 'tagNumber' | 'officialId' | 'registrationNumber' | 'tattoo'
+  >,
   query: string,
+  pastTagValues: readonly string[] = [],
 ): boolean {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
@@ -53,9 +92,10 @@ export function animalMatchesSearch(
     animal.tattoo,
   ];
 
-  return fields.some((value) =>
-    value?.toLowerCase().includes(normalized),
-  );
+  if (fields.some((value) => value?.toLowerCase().includes(normalized))) {
+    return true;
+  }
+  return pastTagValues.some((value) => value.toLowerCase().includes(normalized));
 }
 
 export function formatAnimalAge(

@@ -21,17 +21,17 @@ import { getActiveMeatWithdrawal } from '@/lib/db/health';
 import { meatSaleWarning } from '@/lib/domain/health';
 import { confirmAction } from '@/lib/ui/confirm';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { validateAnimalNameOrTag } from '@/lib/domain/animals';
+import { parseBirthOrder, validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
   createFarmBreed,
   deleteAnimal,
-  findAnimalByTagNumber,
   getAnimalById,
   getAnimalDeleteInfo,
   getAnimalsByFarm,
   getBreedsForFarm,
   updateAnimal,
 } from '@/lib/db/animals';
+import { describeCurrentTagConflict } from '@/lib/db/tag-history';
 import { pedigreeBlockers, type PickerBlock } from '@/lib/ui/animal-picker';
 import {
   animalDeleteBlockedMessage,
@@ -39,7 +39,7 @@ import {
   type AnimalDeleteBlocker,
 } from '@/lib/domain/animal-delete';
 import type { Animal, Breed } from '@/lib/types/animals';
-import { animalDisplayLabel, formatLifecycleStage } from '@/lib/ui/animal-labels';
+import { formatLifecycleStage } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
@@ -84,6 +84,8 @@ export default function EditAnimalScreen() {
     useState<Animal['registrationBody']>(null);
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [tattoo, setTattoo] = useState('');
+  const [color, setColor] = useState('');
+  const [birthOrder, setBirthOrder] = useState('');
   const [sex, setSex] = useState<Animal['sex']>('female');
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [breedId, setBreedId] = useState<string | null>(null);
@@ -158,6 +160,8 @@ export default function EditAnimalScreen() {
         setRegistrationBody(animal.registrationBody);
         setRegistrationNumber(animal.registrationNumber ?? '');
         setTattoo(animal.tattoo ?? '');
+        setColor(animal.color ?? '');
+        setBirthOrder(animal.birthOrder != null ? String(animal.birthOrder) : '');
         setSex(animal.sex);
         setBreedId(animal.breedPrimaryId);
         setBreedPercentage(
@@ -204,30 +208,27 @@ export default function EditAnimalScreen() {
   }, [activeFarm, id]);
 
   useEffect(() => {
-    if (!activeFarm || !id || !tagNumber.trim()) {
+    if (!activeFarm || !id || (!tagNumber.trim() && !officialId.trim() && !tattoo.trim())) {
       setWarningMessage('');
       return;
     }
 
     let cancelled = false;
 
-    findAnimalByTagNumber(activeFarm.id, tagNumber, id).then((existing) => {
-      if (cancelled) {
-        return;
-      }
-      if (existing) {
-        setWarningMessage(
-          `Tag ${tagNumber.trim()} is already used by ${animalDisplayLabel(existing)}.`,
-        );
-      } else {
-        setWarningMessage('');
+    describeCurrentTagConflict(
+      activeFarm.id,
+      { tagNumber, officialId, tattoo },
+      id,
+    ).then((message) => {
+      if (!cancelled) {
+        setWarningMessage(message ?? '');
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [activeFarm, id, tagNumber]);
+  }, [activeFarm, id, officialId, tagNumber, tattoo]);
 
   const breedSegment = useMemo(
     () => activeFarm?.segment ?? 'both',
@@ -257,6 +258,22 @@ export default function EditAnimalScreen() {
         setErrorMessage('Enter a breed percentage between 0 and 100.');
         return;
       }
+    }
+
+    const birth = parseBirthOrder(birthOrder);
+    if (birth.error) {
+      setErrorMessage(birth.error);
+      return;
+    }
+
+    const conflict = await describeCurrentTagConflict(
+      activeFarm.id,
+      { tagNumber, officialId, tattoo },
+      id,
+    );
+    if (conflict) {
+      setErrorMessage(conflict);
+      return;
     }
 
     const leavingToSale =
@@ -303,6 +320,8 @@ export default function EditAnimalScreen() {
         registrationBody,
         registrationNumber: registrationNumber.trim() || null,
         tattoo: tattoo.trim() || null,
+        color: color.trim() || null,
+        birthOrder: birth.value,
       });
 
       router.back();
@@ -457,6 +476,22 @@ export default function EditAnimalScreen() {
           onChange={setDateOfBirth}
           optional
           maximumDate={new Date()}
+        />
+
+        <Input
+          label="Colour"
+          value={color}
+          onChangeText={setColor}
+          placeholder="Black, white splash"
+          optional
+        />
+        <Input
+          label="Birth order"
+          value={birthOrder}
+          onChangeText={setBirthOrder}
+          placeholder="1 is first born"
+          optional
+          keyboardType="numeric"
         />
 
         <AnimalBreedFields section="breed" {...breedProps} />

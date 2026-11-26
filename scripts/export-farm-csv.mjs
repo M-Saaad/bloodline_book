@@ -120,6 +120,9 @@ const READABLE_AFTER = {
   feed_logs: {
     pasture_id: ['pasture_name'],
   },
+  tag_history: {
+    animal_id: ['animal_name', 'animal_tag'],
+  },
 };
 
 function usage() {
@@ -187,7 +190,8 @@ function readableValues(table, column, row, maps) {
     case 'weight_logs.animal_id':
     case 'health_records.animal_id':
     case 'documents.animal_id':
-    case 'grazing_records.animal_id': {
+    case 'grazing_records.animal_id':
+    case 'tag_history.animal_id': {
       const bits = animalBits(maps, row.animal_id);
       return { animal_name: bits.name, animal_tag: bits.tag };
     }
@@ -254,6 +258,14 @@ async function fetchAll(client, table, farmId) {
       .eq('farm_id', farmId)
       .range(from, from + pageSize - 1);
     if (error) {
+      const missing =
+        error.code === 'PGRST205' ||
+        /schema cache/i.test(error.message) ||
+        /does not exist/i.test(error.message);
+      if (missing) {
+        console.warn(`${table}: skipped (table is not in the database yet)`);
+        return [];
+      }
       throw new Error(`${table}: ${error.message}`);
     }
     rows.push(...(data ?? []));

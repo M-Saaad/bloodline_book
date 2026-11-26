@@ -18,6 +18,9 @@ streams:
       - SELECT * FROM animals WHERE farm_id IN (
           SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
         )
+      - SELECT * FROM tag_history WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
       - SELECT * FROM weigh_sessions WHERE farm_id IN (
           SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
         )

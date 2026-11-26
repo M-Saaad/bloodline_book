@@ -12,9 +12,10 @@ import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { FieldLabel } from '@/components/ui/FieldLabel';
+import { Input } from '@/components/ui/Input';
 import { FormMessage } from '@/components/ui/FormMessage';
 import { Segmented } from '@/components/ui/Segmented';
-import { validateAnimalNameOrTag } from '@/lib/domain/animals';
+import { parseBirthOrder, validateAnimalNameOrTag } from '@/lib/domain/animals';
 import {
   addAnimalDraftFromDuplicateSource,
   createEmptyAddAnimalDraft,
@@ -26,13 +27,13 @@ import {
 import {
   createAnimal,
   createFarmBreed,
-  findAnimalByTagNumber,
   getAnimalById,
   getBreedsForFarm,
   getParentPickerAnimals,
 } from '@/lib/db/animals';
+import { describeCurrentTagConflict } from '@/lib/db/tag-history';
 import type { Animal, Breed } from '@/lib/types/animals';
-import { animalDisplayLabel, formatSex } from '@/lib/ui/animal-labels';
+import { formatSex } from '@/lib/ui/animal-labels';
 import { registerAddAnimalUnsavedHandlers } from '@/lib/navigation/add-animal-unsaved-guard';
 import { confirmAction } from '@/lib/ui/confirm';
 import { useFarm } from '@/providers/FarmProvider';
@@ -64,6 +65,8 @@ export default function AddAnimalScreen() {
     useState<Animal['registrationBody']>(null);
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [tattoo, setTattoo] = useState('');
+  const [color, setColor] = useState('');
+  const [birthOrder, setBirthOrder] = useState('');
   const [sex, setSex] = useState<Animal['sex']>('female');
   const [breeds, setBreeds] = useState<Breed[]>([]);
   const [breedId, setBreedId] = useState<string | null>(null);
@@ -91,6 +94,8 @@ export default function AddAnimalScreen() {
     setRegistrationBody(draft.registrationBody);
     setRegistrationNumber(draft.registrationNumber);
     setTattoo(draft.tattoo);
+    setColor(draft.color);
+    setBirthOrder(draft.birthOrder);
     setSex(draft.sex);
     setBreedId(draft.breedId);
     setBreedPercentage(draft.breedPercentage);
@@ -183,30 +188,27 @@ export default function AddAnimalScreen() {
   }, [duplicateFromParam, prefillParam, applyDraft]);
 
   useEffect(() => {
-    if (!activeFarm || !tagNumber.trim()) {
+    if (!activeFarm || (!tagNumber.trim() && !officialId.trim() && !tattoo.trim())) {
       setWarningMessage('');
       return;
     }
 
     let cancelled = false;
 
-    findAnimalByTagNumber(activeFarm.id, tagNumber).then((existing) => {
-      if (cancelled) {
-        return;
-      }
-      if (existing) {
-        setWarningMessage(
-          `Tag ${tagNumber.trim()} is already used by ${animalDisplayLabel(existing)}.`,
-        );
-      } else {
-        setWarningMessage('');
+    describeCurrentTagConflict(activeFarm.id, {
+      tagNumber,
+      officialId,
+      tattoo,
+    }).then((message) => {
+      if (!cancelled) {
+        setWarningMessage(message ?? '');
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [activeFarm, tagNumber]);
+  }, [activeFarm, officialId, tagNumber, tattoo]);
 
   const breedSegment = useMemo(
     () => activeFarm?.segment ?? 'both',
@@ -221,6 +223,8 @@ export default function AddAnimalScreen() {
       registrationBody,
       registrationNumber,
       tattoo,
+      color,
+      birthOrder,
       sex,
       breedId,
       breedPercentage,
@@ -237,6 +241,8 @@ export default function AddAnimalScreen() {
       registrationBody,
       registrationNumber,
       tattoo,
+      color,
+      birthOrder,
       sex,
       breedId,
       breedPercentage,
@@ -317,15 +323,22 @@ export default function AddAnimalScreen() {
       }
     }
 
-    if (warningMessage) {
-      const confirmed = await confirmAction(
-        'Duplicate tag?',
-        warningMessage,
-        'Save anyway',
-      );
-      if (!confirmed) {
-        return;
-      }
+    const birth = parseBirthOrder(birthOrder);
+    if (birth.error) {
+      setErrorMessage(birth.error);
+      return;
+    }
+
+    const conflict =
+      warningMessage ||
+      (await describeCurrentTagConflict(activeFarm.id, {
+        tagNumber,
+        officialId,
+        tattoo,
+      }));
+    if (conflict) {
+      setErrorMessage(conflict);
+      return;
     }
 
     setLoading(true);
@@ -345,6 +358,8 @@ export default function AddAnimalScreen() {
         registrationBody,
         registrationNumber: registrationNumber.trim() || null,
         tattoo: tattoo.trim() || null,
+        color: color.trim() || null,
+        birthOrder: birth.value,
       });
       allowLeaveRef.current = true;
       router.back();
@@ -410,6 +425,22 @@ export default function AddAnimalScreen() {
           onChange={setDateOfBirth}
           optional
           maximumDate={new Date()}
+        />
+
+        <Input
+          label="Colour"
+          value={color}
+          onChangeText={setColor}
+          placeholder="Black, white splash"
+          optional
+        />
+        <Input
+          label="Birth order"
+          value={birthOrder}
+          onChangeText={setBirthOrder}
+          placeholder="1 is first born"
+          optional
+          keyboardType="numeric"
         />
 
         <AnimalBreedFields

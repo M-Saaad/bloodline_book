@@ -569,7 +569,7 @@ Phones that have synced before still show the farm and the herd from the local d
 
 Run the SQL below in `psql` against the farmer database (`SUPABASE_DB_URL`). It does not print the connection string or the role password. It is safe to run more than once. It does not set a password. If `powersync_role` is missing, it stops. Create that role with a password in the Supabase SQL editor (see `supabase/README.md`), then run this again.
 
-The publication block creates `powersync` for the synced `public` tables when the publication is missing. Those tables are the ones in `powersync/sync-rules.yaml`: `farms`, `farm_members`, `breeds`, `animals`, `weigh_sessions`, `weight_logs`, `transactions`, `farm_invites`, `documents`, `tasks`, `kidding_events`, `breeding_events`, `health_records`, `pastures`, `grazing_records`, `feed_logs`. If the publication exists and is not `FOR ALL TABLES`, missing tables from that list are added. If it is `FOR ALL TABLES`, it is left as it is. An active replication slot is left in place. The last statement drops only inactive slots whose names start with `powersync` and that still hold WAL. A slot that is streaming when that statement runs is not dropped. If the grants disconnect a replica, that slot is inactive and is removed so the next connection can create a fresh one. Run that statement on its own, outside a `BEGIN` block.
+The publication block creates `powersync` for the synced `public` tables when the publication is missing. Those tables are the ones in `powersync/sync-rules.yaml`: `farms`, `farm_members`, `breeds`, `animals`, `tag_history`, `weigh_sessions`, `weight_logs`, `transactions`, `farm_invites`, `documents`, `tasks`, `kidding_events`, `breeding_events`, `health_records`, `pastures`, `grazing_records`, `feed_logs`. If the publication exists and is not `FOR ALL TABLES`, missing tables from that list are added. If it is `FOR ALL TABLES`, it is left as it is. An active replication slot is left in place. The last statement drops only inactive slots whose names start with `powersync` and that still hold WAL. A slot that is streaming when that statement runs is not dropped. If the grants disconnect a replica, that slot is inactive and is removed so the next connection can create a fresh one. Run that statement on its own, outside a `BEGIN` block.
 
 ```sql
 DO $$
@@ -581,6 +581,7 @@ DECLARE
     'farm_members',
     'breeds',
     'animals',
+    'tag_history',
     'weigh_sessions',
     'weight_logs',
     'transactions',

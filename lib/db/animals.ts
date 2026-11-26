@@ -8,6 +8,13 @@ import {
 } from '@/lib/domain/animal-delete';
 import { mapAnimal, mapBreed } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
+import {
+  currentUserId,
+  deleteAnimalTagHistoryInTx,
+  recordInitialTagsInTx,
+  syncChangedTagsInTx,
+} from '@/lib/db/tag-history';
+import { todayIso } from '@/lib/dates';
 import { powersync } from '@/lib/powersync/system';
 import type { Animal, Breed } from '@/lib/types/animals';
 
@@ -29,6 +36,8 @@ export type AnimalWriteInput = {
   registrationBody?: Animal['registrationBody'];
   registrationNumber?: string | null;
   tattoo?: string | null;
+  color?: string | null;
+  birthOrder?: number | null;
   status?: Animal['status'];
   notes?: string | null;
   outDate?: string | null;
@@ -149,38 +158,55 @@ export async function createAnimal(
 ): Promise<string> {
   const id = Crypto.randomUUID();
   const now = dbNow();
+  const createdBy = await currentUserId();
+  const tags = {
+    tagNumber: input.tagNumber ?? null,
+    officialId: input.officialId ?? null,
+    tattoo: input.tattoo ?? null,
+  };
 
-  await powersync.execute(
-    `INSERT INTO animals (
-      id, farm_id, name, tag_number, official_id, sex, status, lifecycle_stage,
-      purpose, breed_primary_id, breed_percentage, date_of_birth, dam_id,
-      dam_external_name, sire_id, sire_external_name, litter_id, registration_body,
-      registration_number, tattoo, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await tx.execute(
+      `INSERT INTO animals (
+        id, farm_id, name, tag_number, official_id, sex, status, lifecycle_stage,
+        purpose, breed_primary_id, breed_percentage, date_of_birth, dam_id,
+        dam_external_name, sire_id, sire_external_name, litter_id, registration_body,
+        registration_number, tattoo, color, birth_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        farmId,
+        input.name ?? null,
+        tags.tagNumber,
+        tags.officialId,
+        input.sex,
+        input.lifecycleStage ?? 'kid',
+        input.purpose ?? null,
+        input.breedPrimaryId ?? null,
+        input.breedPercentage ?? null,
+        input.dateOfBirth ?? null,
+        input.damId ?? null,
+        input.damExternalName ?? null,
+        input.sireId ?? null,
+        input.sireExternalName ?? null,
+        input.litterId ?? null,
+        input.registrationBody ?? null,
+        input.registrationNumber ?? null,
+        tags.tattoo,
+        input.color ?? null,
+        input.birthOrder ?? null,
+        now,
+        now,
+      ],
+    );
+    await recordInitialTagsInTx(tx, {
       farmId,
-      input.name ?? null,
-      input.tagNumber ?? null,
-      input.officialId ?? null,
-      input.sex,
-      input.lifecycleStage ?? 'kid',
-      input.purpose ?? null,
-      input.breedPrimaryId ?? null,
-      input.breedPercentage ?? null,
-      input.dateOfBirth ?? null,
-      input.damId ?? null,
-      input.damExternalName ?? null,
-      input.sireId ?? null,
-      input.sireExternalName ?? null,
-      input.litterId ?? null,
-      input.registrationBody ?? null,
-      input.registrationNumber ?? null,
-      input.tattoo ?? null,
-      now,
-      now,
-    ],
-  );
+      animalId: id,
+      createdBy,
+      today: todayIso(),
+      tags,
+    });
+  });
 
   return id;
 }
@@ -268,6 +294,12 @@ export async function updateAnimal(
   if (input.tattoo !== undefined) {
     assign('tattoo', input.tattoo);
   }
+  if (input.color !== undefined) {
+    assign('color', input.color);
+  }
+  if (input.birthOrder !== undefined) {
+    assign('birth_order', input.birthOrder);
+  }
 
   if (fields.length === 0) {
     return;
@@ -277,10 +309,61 @@ export async function updateAnimal(
   values.push(now);
   values.push(animalId);
 
-  await powersync.execute(
-    `UPDATE animals SET ${fields.join(', ')} WHERE id = ?`,
-    values,
-  );
+  const touchesTags =
+    input.tagNumber !== undefined ||
+    input.officialId !== undefined ||
+    input.tattoo !== undefined;
+
+  if (!touchesTags) {
+    await powersync.execute(
+      `UPDATE animals SET ${fields.join(', ')} WHERE id = ?`,
+      values,
+    );
+    return;
+  }
+
+  const createdBy = await currentUserId();
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    const row = await tx.getOptional<Record<string, unknown>>(
+      'SELECT farm_id, tag_number, official_id, tattoo FROM animals WHERE id = ?',
+      [animalId],
+    );
+    if (!row) {
+      throw new Error('Animal not found.');
+    }
+    await syncChangedTagsInTx(tx, {
+      farmId: String(row.farm_id),
+      animalId,
+      createdBy,
+      today: todayIso(),
+      previous: {
+        tagNumber: row.tag_number != null ? String(row.tag_number) : null,
+        officialId: row.official_id != null ? String(row.official_id) : null,
+        tattoo: row.tattoo != null ? String(row.tattoo) : null,
+      },
+      next: {
+        tagNumber:
+          input.tagNumber !== undefined
+            ? input.tagNumber
+            : row.tag_number != null
+              ? String(row.tag_number)
+              : null,
+        officialId:
+          input.officialId !== undefined
+            ? input.officialId
+            : row.official_id != null
+              ? String(row.official_id)
+              : null,
+        tattoo:
+          input.tattoo !== undefined
+            ? input.tattoo
+            : row.tattoo != null
+              ? String(row.tattoo)
+              : null,
+      },
+    });
+    await tx.execute(`UPDATE animals SET ${fields.join(', ')} WHERE id = ?`, values);
+  });
 }
 
 export type AnimalDeleteInfo = {
@@ -354,6 +437,7 @@ export async function deleteAnimal(animalId: string): Promise<void> {
   }
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await deleteAnimalTagHistoryInTx(tx, animalId);
     await tx.execute('DELETE FROM weight_logs WHERE animal_id = ?', [animalId]);
     await tx.execute('DELETE FROM health_records WHERE animal_id = ?', [
       animalId,
