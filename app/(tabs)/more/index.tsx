@@ -1,6 +1,6 @@
 import { useStatus } from '@powersync/react';
 import { type Href, router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { FarmSwitcherSheet } from '@/components/FarmSwitcherSheet';
@@ -61,7 +61,7 @@ export default function MoreScreen() {
   const { activeFarm, farms, setActiveFarmId } = useFarm();
   const canSwitch = canSwitchFarm(farms.length);
   const [farmPickerOpen, setFarmPickerOpen] = useState(false);
-  const { isHand } = useFarmRole();
+  const { isHand, canWrite } = useFarmRole();
   const syncStatus = useStatus();
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [signOutMessage, setSignOutMessage] = useState('');
@@ -82,9 +82,20 @@ export default function MoreScreen() {
     }, [refreshUploadState]),
   );
 
-  const menuItems = showChangesNotSaved
-    ? [...BASE_MENU_ITEMS, CHANGES_NOT_SAVED_ITEM]
-    : BASE_MENU_ITEMS;
+  const menuItems = useMemo(() => {
+    const base = showChangesNotSaved
+      ? [...BASE_MENU_ITEMS, CHANGES_NOT_SAVED_ITEM]
+      : BASE_MENU_ITEMS;
+    if (canWrite) {
+      return base;
+    }
+    return base.filter(
+      (item) =>
+        item.title !== 'Settings' &&
+        item.title !== 'Team' &&
+        item.title !== 'Money',
+    );
+  }, [showChangesNotSaved, canWrite]);
 
   async function handleSignOut() {
     setSignOutMessage('');

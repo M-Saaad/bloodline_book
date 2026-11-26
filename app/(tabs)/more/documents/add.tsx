@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
 import { Chip, ChipRow } from '@/components/ui/Chip';
@@ -63,6 +64,7 @@ export default function AddDocumentScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <FormKeyboardScreen
       contentContainerClassName="px-5 pt-2 pb-8"
       footer={
@@ -108,5 +110,6 @@ export default function AddDocumentScreen() {
         Photos are coming later. Note where the paper is kept.
       </Text>
     </FormKeyboardScreen>
+    </HandWriteBlocked>
   );
 }

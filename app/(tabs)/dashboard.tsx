@@ -483,7 +483,7 @@ function DashboardScreen() {
               pillText="text-[#7a200f]"
               pillSymbol=""
               onPress={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={() => tickTask(task.id)}
+              onTick={canWrite ? () => tickTask(task.id) : undefined}
             />
           ))}
         </View>
@@ -498,7 +498,7 @@ function DashboardScreen() {
               title={shownTaskTitle(task)}
               detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={() => tickTask(task.id)}
+              onTick={canWrite ? () => tickTask(task.id) : undefined}
             />
           ))}
           {partitioned.undated.map((task) => (
@@ -507,7 +507,7 @@ function DashboardScreen() {
               title={shownTaskTitle(task)}
               detail="No date"
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={() => tickTask(task.id)}
+              onTick={canWrite ? () => tickTask(task.id) : undefined}
             />
           ))}
         </View>
@@ -531,7 +531,7 @@ function DashboardScreen() {
                   title={shownTaskTitle(task)}
                   detail={task.dueDate ? formatDisplayDate(task.dueDate) : ''}
                   onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-                  onTick={() => tickTask(task.id)}
+                  onTick={canWrite ? () => tickTask(task.id) : undefined}
                 />
               ))
             : null}
@@ -687,11 +687,11 @@ function TaskRow({
   title: string;
   detail: string;
   onOpen: () => void;
-  onTick: () => void;
+  onTick?: () => void;
 }) {
   return (
     <View className="flex-row items-center gap-2 min-h-[56px]">
-      <CheckCircle onPress={onTick} />
+      {onTick ? <CheckCircle onPress={onTick} /> : <View className="w-12 h-12" />}
       <Pressable onPress={onOpen} className="flex-1 flex-row items-center gap-2 min-h-[52px]">
         <Text className="flex-1 text-[17px] font-medium text-ink">{title}</Text>
         {detail ? (

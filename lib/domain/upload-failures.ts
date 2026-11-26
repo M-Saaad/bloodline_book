@@ -23,7 +23,7 @@ export function uploadFailureTableLabel(tableName: string): string {
 export function uploadFailurePlainReason(errorCode: string | null): string {
   switch (errorCode) {
     case '42501':
-      return "Your role on this farm can't make this change.";
+      return 'View only: ask the farm owner for manager access.';
     case '23503':
       return 'This record is linked to other records.';
     default:

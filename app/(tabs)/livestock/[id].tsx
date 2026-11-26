@@ -5,6 +5,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import {
   TagHistoryCard,
   type TagHistoryRow,
@@ -55,6 +56,7 @@ import { Text } from '@/components/ui/Text';
 export default function AnimalDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { activeFarm } = useFarm();
+  const { canWrite } = useFarmRole();
   const insets = useSafeAreaInsets();
 
   const { data: animalRows, isLoading: animalLoading } = useQuery(
@@ -806,9 +808,11 @@ export default function AnimalDetailScreen() {
             return (
               <Pressable
                 key={record.id}
-                onPress={() =>
-                  router.push(`/(tabs)/more/health/edit/${record.id}`)
-                }
+                onPress={() => {
+                  if (canWrite) {
+                    router.push(`/(tabs)/more/health/edit/${record.id}`);
+                  }
+                }}
                 className="min-h-[56px] justify-center py-2 border-b border-gray-100">
                 <View className="flex-row justify-between items-start">
                   <Text className="text-[17px] text-ink font-bold">
@@ -856,9 +860,11 @@ export default function AnimalDetailScreen() {
             return (
               <Pressable
                 key={entry.id}
-                onPress={() =>
-                  router.push(`/(tabs)/livestock/weight-log/${entry.id}`)
-                }
+                onPress={() => {
+                  if (canWrite) {
+                    router.push(`/(tabs)/livestock/weight-log/${entry.id}`);
+                  }
+                }}
                 className="flex-row justify-between items-center min-h-[56px] py-2 border-b border-gray-100">
                 <View>
                   <Text className="text-[17px] text-ink font-bold">{entry.date}</Text>

@@ -1,10 +1,14 @@
 import { useQuery } from '@powersync/react';
 
-import type { FarmMember } from '@/lib/types/tenancy';
+import {
+  farmRoleCanWrite,
+  farmRoleIsHand,
+  type FarmMemberRole,
+} from '@/lib/domain/farm-role-access';
 import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
 
-export type FarmRole = FarmMember['role'];
+export type FarmRole = FarmMemberRole;
 
 export function useFarmRole(): {
   role: FarmRole | null;
@@ -28,10 +32,12 @@ export function useFarmRole(): {
       ? roleRaw
       : null;
 
+  const roleLoading = Boolean(user && activeFarm && isLoading);
+
   return {
     role,
-    isHand: role === 'hand',
-    canWrite: role !== 'hand',
-    isLoading: Boolean(user && activeFarm && isLoading),
+    isHand: farmRoleIsHand(role),
+    canWrite: farmRoleCanWrite(role, roleLoading),
+    isLoading: roleLoading,
   };
 }

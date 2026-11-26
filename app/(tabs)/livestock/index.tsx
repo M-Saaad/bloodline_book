@@ -76,7 +76,7 @@ export default function LivestockListScreen() {
     isLoading: farmLoading,
     hasSyncedBefore,
   } = useFarm();
-  const { isHand } = useFarmRole();
+  const { isHand, canWrite } = useFarmRole();
   const params = useLocalSearchParams<{ status?: string }>();
   const initialStatus = parseHerdStatusFilter(params.status);
 
@@ -436,9 +436,9 @@ export default function LivestockListScreen() {
                 ? 'Add your first goat to start tracking weights and records.'
                 : 'Try another search term or filter.'
             }
-            actionLabel={listIsUnfiltered ? 'Add goat' : undefined}
+            actionLabel={listIsUnfiltered && canWrite ? 'Add goat' : undefined}
             onAction={
-              listIsUnfiltered
+              listIsUnfiltered && canWrite
                 ? () => pushNewAddAnimalSession()
                 : undefined
             }
