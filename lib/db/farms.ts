@@ -113,6 +113,7 @@ export async function updateFarmSettings(
     gestationDays?: number;
     weaningDays?: number | null;
     famachaRecheckDays?: number;
+    kiddingSeasonStart?: string | null;
   },
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -142,6 +143,10 @@ export async function updateFarmSettings(
   if (input.famachaRecheckDays !== undefined) {
     fields.push('famacha_recheck_days = ?');
     values.push(input.famachaRecheckDays);
+  }
+  if (input.kiddingSeasonStart !== undefined) {
+    fields.push('kidding_season_start = ?');
+    values.push(input.kiddingSeasonStart);
   }
 
   if (fields.length === 0) {

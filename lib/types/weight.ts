@@ -18,7 +18,7 @@ export interface WeighSession {
 export interface WeightLog {
   id: string;
   farmId: string;
-  weighSessionId: string;
+  weighSessionId: string | null;
   animalId: string;
   weightValue: number;
   weightUnit: 'lb' | 'kg';

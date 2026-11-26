@@ -42,6 +42,9 @@ streams:
       - SELECT * FROM kidding_events WHERE farm_id IN (
           SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
         )
+      - SELECT * FROM kidding_season_marks WHERE farm_id IN (
+          SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
+        )
       - SELECT * FROM breeding_events WHERE farm_id IN (
           SELECT farm_id FROM farm_members WHERE user_id = auth.user_id()
         )

@@ -102,11 +102,16 @@ export default function AnimalDetailScreen() {
 
   const { data: weightRows, isLoading: weightsLoading } = useQuery(
     id
-      ? `SELECT wl.id, ws.date, ws.weigh_point, wl.weight_value, wl.weight_unit
+      ? `SELECT wl.id,
+           COALESCE(ws.date, a.date_of_birth) AS date,
+           COALESCE(ws.weigh_point, 'birth') AS weigh_point,
+           wl.weight_value,
+           wl.weight_unit
          FROM weight_logs wl
-         JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+         LEFT JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+         JOIN animals a ON a.id = wl.animal_id
          WHERE wl.animal_id = ?
-         ORDER BY ws.date DESC, wl.created_at DESC`
+         ORDER BY COALESCE(ws.date, a.date_of_birth) DESC, wl.created_at DESC`
       : 'SELECT 1 WHERE 0',
     id ? [id] : [],
   );

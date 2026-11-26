@@ -27,6 +27,10 @@ export function mapFarm(row: Record<string, unknown>): Farm {
       row.famacha_recheck_days != null
         ? Number(row.famacha_recheck_days)
         : 14,
+    kiddingSeasonStart:
+      row.kidding_season_start != null
+        ? String(row.kidding_season_start).slice(0, 10)
+        : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -117,7 +121,10 @@ export function mapWeightLog(row: Record<string, unknown>): WeightLog {
   return {
     id: String(row.id),
     farmId: String(row.farm_id),
-    weighSessionId: String(row.weigh_session_id),
+    weighSessionId:
+      row.weigh_session_id != null && String(row.weigh_session_id).length > 0
+        ? String(row.weigh_session_id)
+        : null,
     animalId: String(row.animal_id),
     weightValue: Number(row.weight_value),
     weightUnit: row.weight_unit as WeightLog['weightUnit'],

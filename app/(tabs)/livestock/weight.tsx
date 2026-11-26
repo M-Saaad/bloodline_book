@@ -104,11 +104,13 @@ export default function WeighDayScreen() {
 
   const { data: weightRows } = useQuery(
     activeFarm
-      ? `SELECT wl.animal_id, wl.weight_value, wl.weight_unit, ws.date
+      ? `SELECT wl.animal_id, wl.weight_value, wl.weight_unit,
+           COALESCE(ws.date, a.date_of_birth) AS date
          FROM weight_logs wl
-         JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+         LEFT JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+         JOIN animals a ON a.id = wl.animal_id
          WHERE wl.farm_id = ?
-         ORDER BY ws.date DESC, wl.created_at DESC`
+         ORDER BY COALESCE(ws.date, a.date_of_birth) DESC, wl.created_at DESC`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );

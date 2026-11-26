@@ -7,6 +7,8 @@ export interface Farm {
   gestationDays: number;
   weaningDays: number | null;
   famachaRecheckDays: number;
+  /** Null uses 1 December of the current kidding season. */
+  kiddingSeasonStart: string | null;
   createdAt: string;
   updatedAt: string;
 }
