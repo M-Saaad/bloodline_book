@@ -76,6 +76,26 @@ export function currentTagDuplicateMessage(
 export const TAG_HISTORY_NOT_ON_PHONE =
   'Tag history for this goat is not on this phone yet. Wait for sync, then try again.';
 
+type SqlReader = {
+  getOptional<T>(sql: string, parameters?: unknown[]): Promise<T | null>;
+};
+
+/**
+ * PowerSync keeps synced rows in `ps_data__tag_history` and exposes
+ * `tag_history` as a view. A plain SQLite table of the same name also counts.
+ */
+export const TAG_HISTORY_READY_SQL =
+  "SELECT name FROM sqlite_master WHERE name = 'tag_history' AND type IN ('table', 'view')";
+
+export async function tagHistoryTableReady(db: SqlReader): Promise<boolean> {
+  try {
+    const row = await db.getOptional<{ name: string }>(TAG_HISTORY_READY_SQL);
+    return row?.name === 'tag_history';
+  } catch {
+    return false;
+  }
+}
+
 export function planTagChange(input: {
   action: TagChangeAction;
   kind: TagKind;
