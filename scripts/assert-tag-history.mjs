@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +15,8 @@ import {
   pastTagSearchHint,
   planTagChange,
   sortTagHistory,
+  TAG_HISTORY_READY_SQL,
+  tagHistoryTableReady,
 } from '../lib/domain/tag-history.ts';
 import {
   isDuplicateKeyError,
@@ -367,5 +370,84 @@ assert.equal(
   2,
   'insert and update both skip a unique violation instead of retrying it',
 );
+
+const dbSource = readFileSync(join(root, 'lib/db/tag-history.ts'), 'utf8');
+assert.match(dbSource, /tagHistoryTableReady/);
+assert.doesNotMatch(dbSource, /type = 'table' AND name = 'tag_history'/);
+assert.doesNotMatch(dbSource, /sqlite_master/);
+
+const OLD_TABLE_ONLY_SQL =
+  "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tag_history'";
+
+function sqliteReader(database) {
+  return {
+    async getOptional(sql, parameters = []) {
+      const row = database.prepare(sql).get(...parameters);
+      return row ?? null;
+    },
+  };
+}
+
+const powersyncShape = new DatabaseSync(':memory:');
+try {
+  powersyncShape.exec(`
+    CREATE TABLE ps_data__tag_history (
+      id TEXT PRIMARY KEY,
+      farm_id TEXT,
+      animal_id TEXT,
+      kind TEXT,
+      value TEXT,
+      started_on TEXT,
+      ended_on TEXT,
+      note TEXT,
+      created_at TEXT,
+      created_by TEXT
+    );
+    INSERT INTO ps_data__tag_history (
+      id, farm_id, animal_id, kind, value, started_on, ended_on, note, created_at, created_by
+    ) VALUES (
+      'hist-1', 'farm-alyumn', '7de727df-76ec-4cf5-afee-366738e8b9ed',
+      'farm_tag', 'A-001', NULL, NULL, NULL, '2026-01-01T00:00:00Z', NULL
+    );
+    CREATE VIEW tag_history AS SELECT * FROM ps_data__tag_history;
+  `);
+  const reader = sqliteReader(powersyncShape);
+  const oldHit = await reader.getOptional(OLD_TABLE_ONLY_SQL);
+  assert.equal(oldHit, null, 'the old table-only check must miss a PowerSync view');
+  assert.equal(await tagHistoryTableReady(reader), true);
+  const openRow = await reader.getOptional(
+    `SELECT id, value, started_on FROM tag_history
+     WHERE animal_id = ? AND kind = ? AND ended_on IS NULL
+     LIMIT 1`,
+    ['7de727df-76ec-4cf5-afee-366738e8b9ed', 'farm_tag'],
+  );
+  assert.equal(openRow.id, 'hist-1');
+  assert.equal(openRow.value, 'A-001');
+  assert.equal(openRow.started_on, null);
+} finally {
+  powersyncShape.close();
+}
+
+const plainTable = new DatabaseSync(':memory:');
+try {
+  plainTable.exec(`
+    CREATE TABLE tag_history (
+      id TEXT PRIMARY KEY,
+      value TEXT
+    );
+  `);
+  assert.equal(await tagHistoryTableReady(sqliteReader(plainTable)), true);
+} finally {
+  plainTable.close();
+}
+
+const missing = new DatabaseSync(':memory:');
+try {
+  assert.equal(await tagHistoryTableReady(sqliteReader(missing)), false);
+} finally {
+  missing.close();
+}
+
+assert.match(TAG_HISTORY_READY_SQL, /type IN \('table', 'view'\)/);
 
 console.log('assert-tag-history: ok');

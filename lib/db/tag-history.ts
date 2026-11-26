@@ -9,6 +9,7 @@ import {
   planTagChange,
   TAG_KIND_COLUMN,
   TAG_KINDS,
+  tagHistoryTableReady,
   tagValuesMatch,
   type CurrentTagHolder,
   type TagChangeAction,
@@ -35,17 +36,6 @@ export async function currentUserId(): Promise<string | null> {
     return data.session?.user?.id ?? null;
   } catch {
     return null;
-  }
-}
-
-export async function tagHistoryTableReady(db: Sql): Promise<boolean> {
-  try {
-    const row = await db.getOptional<{ name: string }>(
-      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tag_history'`,
-    );
-    return row?.name === 'tag_history';
-  } catch {
-    return false;
   }
 }
 
