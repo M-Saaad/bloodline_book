@@ -1,4 +1,5 @@
 import { useQuery, useStatus, useSyncStream } from '@powersync/react';
+import { useNetworkState } from 'expo-network';
 import React, {
   createContext,
   useCallback,
@@ -17,10 +18,12 @@ import {
 } from '@/lib/db/farms';
 import { mapFarm } from '@/lib/db/mappers';
 import {
+  mergeFarmLists,
   resolveActiveFarmId,
   savedFarmIdForUser,
 } from '@/lib/domain/active-farm';
 import { shouldShowReplicaLoading } from '@/lib/domain/offline-replica';
+import { deviceHasSignal } from '@/lib/domain/sync-badge';
 import { reconnectPowerSync } from '@/lib/powersync/system';
 import { useUiStore } from '@/lib/store/ui';
 import type { Farm } from '@/lib/types/tenancy';
@@ -64,11 +67,16 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const [selectionUserId, setSelectionUserId] = useState<
     string | null | undefined
   >(undefined);
+  const network = useNetworkState();
   const staleSyncRecoveryAttemptedRef = useRef(false);
   const signedIn = Boolean(session);
   const userId = user?.id ?? null;
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+  const deviceOnline = deviceHasSignal(network);
+  const listsBelongToUser = farmsForUserId === userId;
 
-  if (farmsForUserId !== userId) {
+  if (!listsBelongToUser) {
     setFarmsForUserId(userId);
     setReadLocalFarms(null);
     setBootstrapFarms(null);
@@ -112,14 +120,17 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   );
 
   const queryFarms = useMemo(() => {
-    if (!user) {
+    if (!user || !listsBelongToUser) {
       return [];
     }
     return (farmRows ?? [])
       .filter((row) => String(row.member_user_id ?? '') === user.id)
       .map(mapFarm);
-  }, [farmRows, user]);
+  }, [farmRows, listsBelongToUser, user]);
   const localFarms = useMemo(() => {
+    if (!listsBelongToUser) {
+      return [];
+    }
     if (queryFarms.length > 0) {
       return queryFarms;
     }
@@ -127,16 +138,15 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       return readLocalFarms;
     }
     return queryFarms;
-  }, [queryFarms, readLocalFarms]);
+  }, [listsBelongToUser, queryFarms, readLocalFarms]);
   const localFarmsResolved =
     !user || readLocalFarms !== null || !farmsQueryLoading;
 
-  const farms = useMemo(() => {
-    if (localFarms.length > 0) {
-      return localFarms;
-    }
-    return bootstrapFarms ?? [];
-  }, [localFarms, bootstrapFarms]);
+  const serverFarms = listsBelongToUser ? bootstrapFarms : null;
+  const farms = useMemo(
+    () => mergeFarmLists(localFarms, serverFarms),
+    [localFarms, serverFarms],
+  );
 
   const syncSettledForEmptyFarmCheck =
     farmDataStreamSynced &&
@@ -150,32 +160,45 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
         hasSynced: hasSyncedBefore,
         localRowCount: localFarms.length,
         localQueryLoading: !localFarmsResolved,
-        emptyBootstrapPending: bootstrapFarms === null,
+        emptyBootstrapPending:
+          deviceOnline !== false && bootstrapFarms === null,
       }),
   );
 
   const refreshFarms = useCallback(async () => {
-    const userId = user?.id;
-    if (!userId || !session) {
+    const requestedUserId = user?.id;
+    if (!requestedUserId || !session) {
       return;
     }
 
     await refresh?.();
+    if (userIdRef.current !== requestedUserId) {
+      return;
+    }
 
-    const local = await getFarmsForUser(userId);
+    const local = await getFarmsForUser(requestedUserId);
+    if (userIdRef.current !== requestedUserId) {
+      return;
+    }
     setReadLocalFarms(local);
-    if (local.length > 0) {
-      setBootstrapFarms(null);
+    if (deviceOnline !== true) {
       return;
     }
 
     try {
-      setBootstrapFarms(await getFarmsForUserFromSupabase(userId));
+      const rows = await getFarmsForUserFromSupabase(requestedUserId);
+      if (userIdRef.current !== requestedUserId) {
+        return;
+      }
+      setBootstrapFarms(rows);
     } catch (error) {
       console.error('Supabase farm bootstrap failed:', error);
-      setBootstrapFarms([]);
+      if (userIdRef.current !== requestedUserId) {
+        return;
+      }
+      setBootstrapFarms((current) => current ?? []);
     }
-  }, [user, session, refresh]);
+  }, [deviceOnline, user, session, refresh]);
 
   useEffect(() => {
     staleSyncRecoveryAttemptedRef.current = false;
@@ -208,29 +231,29 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const userId = user?.id;
-    if (!userId || !session) {
+    if (!userId || !session || deviceOnline !== true) {
       return;
     }
 
     let cancelled = false;
 
     getFarmsForUserFromSupabase(userId)
-      .then((serverFarms) => {
+      .then((rows) => {
         if (!cancelled) {
-          setBootstrapFarms(serverFarms);
+          setBootstrapFarms(rows);
         }
       })
       .catch((error) => {
         console.error('Supabase farm bootstrap failed:', error);
         if (!cancelled) {
-          setBootstrapFarms([]);
+          setBootstrapFarms((current) => current ?? []);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [user, session]);
+  }, [deviceOnline, user, session]);
 
   useEffect(() => {
     const userId = user?.id;
@@ -277,12 +300,6 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     bootstrapFarms,
     refresh,
   ]);
-
-  useEffect(() => {
-    if (localFarms.length > 0) {
-      setBootstrapFarms(null);
-    }
-  }, [localFarms.length]);
 
   const preferredFarmId = selectionUserId === userId ? activeFarmId : null;
   const resolvedFarmId = activeFarmHydrated

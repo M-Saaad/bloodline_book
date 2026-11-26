@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import {
   canSwitchFarm,
+  mergeFarmLists,
   parseRememberedFarm,
   resolveActiveFarmId,
   savedFarmIdForUser,
@@ -24,6 +25,61 @@ assert.equal(canSwitchFarm(0), false);
 assert.equal(canSwitchFarm(1), false);
 assert.equal(canSwitchFarm(2), true);
 assert.equal(canSwitchFarm(3), true);
+
+const named = (id, name) => ({ id, name });
+const alphaFarm = named('farm-alpha', 'Alpha');
+const bravoFarm = named('farm-bravo', 'Bravo');
+const charlieFarm = named('farm-charlie', 'Charlie');
+const localOrder = [charlieFarm, alphaFarm, bravoFarm];
+
+const sameSetDifferentOrder = mergeFarmLists(localOrder, [
+  bravoFarm,
+  { id: 'farm-alpha', name: 'Alpha from server' },
+  charlieFarm,
+]);
+assert.deepEqual(
+  sameSetDifferentOrder.map((farm) => farm.id),
+  ['farm-charlie', 'farm-alpha', 'farm-bravo'],
+);
+assert.equal(sameSetDifferentOrder[1], alphaFarm);
+assert.equal(sameSetDifferentOrder[1].name, 'Alpha');
+
+const shortLocal = mergeFarmLists([alphaFarm], [
+  charlieFarm,
+  alphaFarm,
+  bravoFarm,
+  charlieFarm,
+]);
+assert.deepEqual(
+  shortLocal.map((farm) => farm.name),
+  ['Alpha', 'Bravo', 'Charlie'],
+);
+assert.equal(shortLocal[0], alphaFarm);
+assert.equal(canSwitchFarm(shortLocal.length), true);
+
+assert.deepEqual(mergeFarmLists(localOrder, null), localOrder);
+assert.deepEqual(mergeFarmLists(localOrder, []), localOrder);
+assert.deepEqual(mergeFarmLists([], null), []);
+
+const serverOnly = mergeFarmLists(
+  [],
+  [bravoFarm, alphaFarm],
+);
+assert.deepEqual(
+  serverOnly.map((farm) => farm.id),
+  ['farm-alpha', 'farm-bravo'],
+);
+assert.equal(
+  resolveActiveFarmId({
+    farms: serverOnly,
+    preferredFarmId: 'farm-bravo',
+  }),
+  'farm-bravo',
+);
+assert.equal(
+  serverOnly.find((farm) => farm.id === 'farm-bravo')?.name,
+  'Bravo',
+);
 
 assert.equal(
   resolveActiveFarmId({ farms: [alpha], preferredFarmId: null }),
@@ -89,6 +145,14 @@ const provider = read('providers/FarmProvider.tsx');
 assert.match(provider, /resolveActiveFarmId/);
 assert.match(provider, /savedFarmIdForUser/);
 assert.match(provider, /member_user_id/);
+assert.match(provider, /mergeFarmLists\(localFarms, serverFarms\)/);
+assert.match(provider, /deviceOnline !== true/);
+assert.match(provider, /setReadLocalFarms\(null\)/);
+assert.match(provider, /setBootstrapFarms\(null\)/);
+assert.doesNotMatch(
+  provider,
+  /if \(localFarms\.length > 0\) \{\s*setBootstrapFarms\(null\)/,
+);
 assert.match(provider, /useFarmScopeKey/);
 
 const store = read('lib/store/ui.ts');

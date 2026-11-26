@@ -61,3 +61,40 @@ export function resolveActiveFarmId(input: {
 export function canSwitchFarm(farmCount: number): boolean {
   return farmCount >= 2;
 }
+
+/**
+ * Memberships from the local replica plus any the server still lists.
+ * The same id appears once, and the local row wins.
+ * When the replica already contains every server farm, the local list is
+ * returned in its existing order (name order from the local query).
+ * A short replica is filled from the server list and then sorted by name.
+ */
+export function mergeFarmLists<T extends { id: string; name: string }>(
+  localFarms: readonly T[],
+  serverFarms: readonly T[] | null,
+): T[] {
+  if (serverFarms == null || serverFarms.length === 0) {
+    return [...localFarms];
+  }
+
+  const localIds = new Set(localFarms.map((farm) => farm.id));
+  const onlyOnServer: T[] = [];
+  const seenServerIds = new Set<string>();
+  for (const farm of serverFarms) {
+    if (localIds.has(farm.id) || seenServerIds.has(farm.id)) {
+      continue;
+    }
+    seenServerIds.add(farm.id);
+    onlyOnServer.push(farm);
+  }
+
+  if (onlyOnServer.length === 0) {
+    return [...localFarms];
+  }
+
+  const union = [...localFarms, ...onlyOnServer];
+  union.sort(
+    (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+  );
+  return union;
+}
