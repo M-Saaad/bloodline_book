@@ -16,6 +16,10 @@ import {
   getFarmsForUserFromSupabase,
 } from '@/lib/db/farms';
 import { mapFarm } from '@/lib/db/mappers';
+import {
+  resolveActiveFarmId,
+  savedFarmIdForUser,
+} from '@/lib/domain/active-farm';
 import { shouldShowReplicaLoading } from '@/lib/domain/offline-replica';
 import { reconnectPowerSync } from '@/lib/powersync/system';
 import { useUiStore } from '@/lib/store/ui';
@@ -50,11 +54,42 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
   const { user, session } = useAuth();
   const activeFarmId = useUiStore((s) => s.activeFarmId);
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
+  const rememberedFarm = useUiStore((s) => s.rememberedFarm);
+  const activeFarmHydrated = useUiStore((s) => s.activeFarmHydrated);
+  const rememberActiveFarmId = useUiStore((s) => s.rememberActiveFarmId);
   const [fallbackFarm, setFallbackFarm] = useState<Farm | null>(null);
   const [bootstrapFarms, setBootstrapFarms] = useState<Farm[] | null>(null);
   const [readLocalFarms, setReadLocalFarms] = useState<Farm[] | null>(null);
+  const [farmsForUserId, setFarmsForUserId] = useState<string | null>(null);
+  const [selectionUserId, setSelectionUserId] = useState<
+    string | null | undefined
+  >(undefined);
   const staleSyncRecoveryAttemptedRef = useRef(false);
   const signedIn = Boolean(session);
+  const userId = user?.id ?? null;
+
+  if (farmsForUserId !== userId) {
+    setFarmsForUserId(userId);
+    setReadLocalFarms(null);
+    setBootstrapFarms(null);
+  }
+
+  if (activeFarmHydrated && selectionUserId !== userId) {
+    setSelectionUserId(userId);
+    const savedForThisUser = savedFarmIdForUser(rememberedFarm, userId);
+    if (savedForThisUser !== activeFarmId) {
+      setActiveFarmId(savedForThisUser);
+    }
+  } else if (
+    activeFarmHydrated &&
+    selectionUserId === userId &&
+    activeFarmId == null
+  ) {
+    const savedForThisUser = savedFarmIdForUser(rememberedFarm, userId);
+    if (savedForThisUser) {
+      setActiveFarmId(savedForThisUser);
+    }
+  }
 
   const syncStatus = useStatus();
   const farmStreamStatus = useSyncStream({ name: FARMS_SYNC_STREAM });
@@ -76,10 +111,14 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     user ? FARMS_QUERY_OPTIONS : undefined,
   );
 
-  const queryFarms = useMemo(
-    () => (user ? (farmRows ?? []).map(mapFarm) : []),
-    [farmRows, user],
-  );
+  const queryFarms = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+    return (farmRows ?? [])
+      .filter((row) => String(row.member_user_id ?? '') === user.id)
+      .map(mapFarm);
+  }, [farmRows, user]);
   const localFarms = useMemo(() => {
     if (queryFarms.length > 0) {
       return queryFarms;
@@ -140,9 +179,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     staleSyncRecoveryAttemptedRef.current = false;
-    setBootstrapFarms(null);
-    setReadLocalFarms(null);
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
     const userId = user?.id;
@@ -247,30 +284,60 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
     }
   }, [localFarms.length]);
 
-  useEffect(() => {
-    if (farms.length === 0) {
-      return;
-    }
-    if (!activeFarmId || !farms.some((f) => f.id === activeFarmId)) {
-      setActiveFarmId(farms[0].id);
-    }
-  }, [farms, activeFarmId, setActiveFarmId]);
+  const preferredFarmId = selectionUserId === userId ? activeFarmId : null;
+  const resolvedFarmId = activeFarmHydrated
+    ? resolveActiveFarmId({ farms, preferredFarmId })
+    : null;
 
   useEffect(() => {
-    if (!activeFarmId) {
+    if (!activeFarmHydrated || !userId || farms.length === 0) {
+      return;
+    }
+    if (selectionUserId !== userId) {
+      return;
+    }
+    if (resolvedFarmId && resolvedFarmId !== activeFarmId) {
+      setActiveFarmId(resolvedFarmId);
+    }
+  }, [
+    activeFarmHydrated,
+    userId,
+    selectionUserId,
+    farms.length,
+    resolvedFarmId,
+    activeFarmId,
+    setActiveFarmId,
+  ]);
+
+  useEffect(() => {
+    if (!resolvedFarmId) {
       setFallbackFarm(null);
       return;
     }
-    if (farms.some((f) => f.id === activeFarmId)) {
+    if (farms.some((farm) => farm.id === resolvedFarmId)) {
+      setFallbackFarm(null);
+      return;
+    }
+    if (farms.length > 0) {
       setFallbackFarm(null);
       return;
     }
 
-    getFarmById(activeFarmId).then(setFallbackFarm);
-  }, [activeFarmId, farms]);
+    getFarmById(resolvedFarmId).then(setFallbackFarm);
+  }, [resolvedFarmId, farms]);
 
   const activeFarm =
-    farms.find((farm) => farm.id === activeFarmId) ?? fallbackFarm ?? null;
+    farms.find((farm) => farm.id === resolvedFarmId) ?? fallbackFarm ?? null;
+
+  const chooseActiveFarmId = useCallback(
+    (farmId: string) => {
+      if (!userId) {
+        return;
+      }
+      rememberActiveFarmId(userId, farmId);
+    },
+    [rememberActiveFarmId, userId],
+  );
 
   const value = useMemo(
     () => ({
@@ -279,7 +346,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       localFarmsResolved,
       hasSyncedBefore,
-      setActiveFarmId,
+      setActiveFarmId: chooseActiveFarmId,
       refreshFarms,
     }),
     [
@@ -288,7 +355,7 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       localFarmsResolved,
       hasSyncedBefore,
-      setActiveFarmId,
+      chooseActiveFarmId,
       refreshFarms,
     ],
   );
@@ -302,4 +369,10 @@ export function useFarm(): FarmContextValue {
     throw new Error('useFarm must be used within FarmProvider');
   }
   return context;
+}
+
+/** Remount farm screens when the active farm changes so queries and stacks refresh. */
+export function useFarmScopeKey(): string {
+  const { activeFarm } = useFarm();
+  return activeFarm?.id ?? 'none';
 }

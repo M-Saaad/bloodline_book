@@ -1,4 +1,19 @@
-import type { Farm } from '@/lib/types/tenancy';
+import type { Farm, FarmMember } from '@/lib/types/tenancy';
+
+export function formatFarmRole(role: FarmMember['role']): string {
+  switch (role) {
+    case 'owner':
+      return 'Owner';
+    case 'manager':
+      return 'Manager';
+    case 'hand':
+      return 'Hand';
+    default: {
+      const _exhaustive: never = role;
+      return _exhaustive;
+    }
+  }
+}
 
 export function formatFarmOperationType(segment: Farm['segment']): string {
   switch (segment) {

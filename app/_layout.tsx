@@ -12,6 +12,7 @@ import { ConfirmDialogHost } from '@/components/ui/ConfirmDialogHost';
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { FarmProvider, useFarm } from '@/providers/FarmProvider';
 import { useTextSizeStore } from '@/lib/store/text-size';
+import { useUiStore } from '@/lib/store/ui';
 import { PowerSyncProvider } from '@/providers/PowerSyncProvider';
 
 export { ErrorBoundary } from 'expo-router';
@@ -57,18 +58,21 @@ export default function RootLayout() {
   }, [error]);
 
   const textSizeHydrated = useTextSizeStore((state) => state.hydrated);
+  const activeFarmHydrated = useUiStore((state) => state.activeFarmHydrated);
 
   useEffect(() => {
     useTextSizeStore.getState().hydrate();
+    void useUiStore.getState().hydrateActiveFarm();
     const timer = setTimeout(() => {
       // Never leave a farmer on a blank screen if storage is slow.
       useTextSizeStore.setState({ hydrated: true });
+      useUiStore.setState({ activeFarmHydrated: true });
       hideSplash();
     }, SPLASH_MAX_MS);
     return () => clearTimeout(timer);
   }, []);
 
-  if (!loaded || !textSizeHydrated) {
+  if (!loaded || !textSizeHydrated || !activeFarmHydrated) {
     return null;
   }
 
