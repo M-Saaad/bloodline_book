@@ -7,7 +7,7 @@ import { goatParts, ScreenHeading, SectionTitle } from '@/components/breeding/pa
 import { breedingStatusTone } from '@/components/breeding/status';
 import { Badge } from '@/components/ui/Badge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
-import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -34,7 +34,7 @@ import { useFarm } from '@/providers/FarmProvider';
 
 export default function BreedingScreen() {
   const { activeFarm } = useFarm();
-  const { canWrite, isHand } = useFarmRole();
+  const { canWrite } = useFarmRole();
 
   const {
     data: breedingRows,
@@ -138,11 +138,9 @@ export default function BreedingScreen() {
         title="Breeding"
         subtitle={`${openCount} open breeding${openCount === 1 ? '' : 's'}`}
       />
-      {isHand ? (
-        <View className="mt-1">
-          <ReadOnlyFarmBanner />
-        </View>
-      ) : null}
+      <View className="mt-1">
+        <FarmRoleStatusBanner />
+      </View>
       <FarmWriteGate>
         <View className="flex-row gap-2.5 mt-1">
           <Button

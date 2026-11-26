@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
-import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { ScreenHeading } from '@/components/breeding/parts';
 import { Banner } from '@/components/ui/Banner';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -26,7 +26,7 @@ import { useFarm } from '@/providers/FarmProvider';
 
 export default function NotKiddedScreen() {
   const { activeFarm } = useFarm();
-  const { canWrite, isHand } = useFarmRole();
+  const { canWrite } = useFarmRole();
   const [errorMessage, setErrorMessage] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const today = todayIso();
@@ -118,11 +118,9 @@ export default function NotKiddedScreen() {
         title={notKiddedYetLabel(does.length)}
         subtitle={`Since ${formatDisplayDate(seasonStart)}`}
       />
-      {isHand ? (
-        <View className="mt-3">
-          <ReadOnlyFarmBanner />
-        </View>
-      ) : null}
+      <View className="mt-3">
+        <FarmRoleStatusBanner />
+      </View>
       {!marksReady ? (
         <View className="mt-3">
           <Banner

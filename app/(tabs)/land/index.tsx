@@ -5,7 +5,7 @@ import { ScrollView, View } from 'react-native';
 import { PageHeading, SectionTitle } from '@/components/land/PageHeading';
 import { PastureStatusBadge } from '@/components/land/PastureStatusBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
-import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ListCard, ListRow } from '@/components/ui/ListRow';
@@ -20,7 +20,7 @@ import { Text } from '@/components/ui/Text';
 
 export default function LandScreen() {
   const { activeFarm } = useFarm();
-  const { canWrite, isHand } = useFarmRole();
+  const { canWrite } = useFarmRole();
 
   const { data: pastureRows, isLoading: pasturesLoading } = useQuery(
     activeFarm
@@ -86,7 +86,7 @@ export default function LandScreen() {
         subtitle={`${pastures.length} ${pastures.length === 1 ? 'pasture' : 'pastures'} · ${grazingCount} goats out`}
       />
 
-      {isHand ? <ReadOnlyFarmBanner /> : null}
+      <FarmRoleStatusBanner />
 
       <FarmWriteGate>
         <View className="flex-row gap-2.5">

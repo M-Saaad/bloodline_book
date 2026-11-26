@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FlatList, ScrollView, View, Pressable } from 'react-native';
 
 import { HerdFilterSheet } from '@/components/livestock/HerdFilterSheet';
-import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Badge } from '@/components/ui/Badge';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -76,7 +76,7 @@ export default function LivestockListScreen() {
     isLoading: farmLoading,
     hasSyncedBefore,
   } = useFarm();
-  const { isHand, canWrite } = useFarmRole();
+  const { canWrite } = useFarmRole();
   const params = useLocalSearchParams<{ status?: string }>();
   const initialStatus = parseHerdStatusFilter(params.status);
 
@@ -328,11 +328,9 @@ export default function LivestockListScreen() {
 
   return (
     <View className="flex-1 bg-paper" style={{ paddingTop: insets.top }}>
-      {isHand ? (
-        <View className="px-5 pt-3">
-          <ReadOnlyFarmBanner />
-        </View>
-      ) : null}
+      <View className="px-5 pt-3">
+        <FarmRoleStatusBanner />
+      </View>
       <View className="px-5 pt-6 pb-3">
         <Text className="text-[32px] leading-[35px] font-extrabold text-ink" accessibilityRole="header">
           Herd

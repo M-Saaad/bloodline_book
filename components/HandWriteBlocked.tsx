@@ -8,10 +8,10 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarmRole } from '@/hooks/useFarmRole';
 
 export function HandWriteBlocked({ children }: { children: ReactNode }) {
-  const { canWrite, isLoading } = useFarmRole();
+  const { canWrite, isRolePending } = useFarmRole();
 
-  if (isLoading) {
-    return <LoadingState message="Checking farm access…" />;
+  if (isRolePending) {
+    return <LoadingState message="Checking permissions…" />;
   }
 
   if (canWrite) {

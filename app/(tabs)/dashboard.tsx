@@ -5,7 +5,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
-import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { SyncBadge } from '@/components/SyncBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Banner } from '@/components/ui/Banner';
@@ -46,7 +46,7 @@ import { Text } from '@/components/ui/Text';
 
 function DashboardScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();
-  const { isHand, canWrite } = useFarmRole();
+  const { canWrite } = useFarmRole();
   const [weekOpen, setWeekOpen] = useState(false);
   const today = todayIso();
 
@@ -338,7 +338,7 @@ function DashboardScreen() {
         </View>
         <SyncBadge />
       </View>
-      {isHand ? <ReadOnlyFarmBanner /> : null}
+      <FarmRoleStatusBanner />
 
       {animals.length > 0 ? (
         <View className="rounded-[22px] bg-bloodline-900 px-5 py-4 flex-row items-center gap-4">

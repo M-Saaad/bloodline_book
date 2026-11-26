@@ -6,7 +6,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { FarmSwitcherSheet } from '@/components/FarmSwitcherSheet';
 import { SyncBadge } from '@/components/SyncBadge';
 
-import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chevron } from '@/components/ui/ListRow';
@@ -61,7 +61,7 @@ export default function MoreScreen() {
   const { activeFarm, farms, setActiveFarmId } = useFarm();
   const canSwitch = canSwitchFarm(farms.length);
   const [farmPickerOpen, setFarmPickerOpen] = useState(false);
-  const { isHand, canWrite } = useFarmRole();
+  const { canWrite } = useFarmRole();
   const syncStatus = useStatus();
   const [signOutBusy, setSignOutBusy] = useState(false);
   const [signOutMessage, setSignOutMessage] = useState('');
@@ -164,7 +164,7 @@ export default function MoreScreen() {
         <SyncBadge />
       </View>
 
-      {isHand ? <ReadOnlyFarmBanner /> : null}
+      <FarmRoleStatusBanner />
 
       {activeFarm && !canSwitch ? (
         <Card className="px-[18px] py-4">

@@ -3,6 +3,10 @@ import * as Crypto from 'expo-crypto';
 import type { Transaction } from '@powersync/common';
 
 import { getAnimalById } from '@/lib/db/animals';
+import {
+  assertFarmWriteAllowed,
+  assertFarmWriteAllowedByRecord,
+} from '@/lib/db/farm-write-guard';
 import { dbNow } from '@/lib/db/now';
 import {
   currentUserId,
@@ -166,6 +170,7 @@ export async function createBreedingEvent(
     closeBreedingIds?: string[];
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const window = computeBreedingWindow({
     bredDate: input.bredDate,
@@ -201,6 +206,7 @@ export async function createExposureBreedings(
     closeBreedingIds?: string[];
   },
 ): Promise<string[]> {
+  await assertFarmWriteAllowed(farmId);
   const window = computeBreedingWindow({
     bredDate: input.startDate,
     exposureEndDate: input.endDate,
@@ -257,6 +263,7 @@ export async function createKiddingEvent(
     registerKids?: KiddingKidDraft[];
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
   const createdBy = await currentUserId();
@@ -445,6 +452,7 @@ export async function confirmBreeding(
   breedingId: string,
   input: { confirmedDate: string; method: ConfirmMethod },
 ): Promise<void> {
+  await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const now = dbNow();
   await powersync.execute(
     `UPDATE breeding_events
@@ -455,6 +463,7 @@ export async function confirmBreeding(
 }
 
 export async function markBreedingOpen(breedingId: string): Promise<void> {
+  await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   await powersync.writeTransaction(async (tx: Transaction) => {
     await markBreedingsOpenInTx(tx, [breedingId]);
   });
@@ -464,6 +473,7 @@ export async function markBreedingLost(
   breedingId: string,
   note: string,
 ): Promise<void> {
+  await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const existing = await getBreedingEventById(breedingId);
   const notes = [existing?.notes?.trim(), note.trim()].filter(Boolean).join('\n');
   const now = dbNow();
@@ -568,6 +578,7 @@ export async function updateBreedingEvent(
     status?: BreedingStatus;
   },
 ): Promise<void> {
+  await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const existing = await getBreedingEventById(breedingId);
   const status = input.status ?? existing?.status ?? 'bred';
   const now = dbNow();
@@ -647,6 +658,7 @@ export async function ensureBreedingDueTask(breedingId: string): Promise<void> {
 }
 
 export async function deleteBreedingEvent(breedingId: string): Promise<void> {
+  await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const breeding = await getBreedingEventById(breedingId);
   if (!breeding) {
     return;
@@ -802,6 +814,7 @@ export async function updateKiddingEvent(
     notes?: string;
   },
 ): Promise<void> {
+  await assertFarmWriteAllowedByRecord('kidding_events', kiddingId);
   const kidding = await getKiddingEventById(kiddingId);
   if (!kidding) {
     throw new Error('Kidding record not found.');
@@ -871,6 +884,7 @@ export async function deleteKiddingEvent(
   kiddingId: string,
   options: { deleteRegisteredKids: boolean },
 ): Promise<void> {
+  await assertFarmWriteAllowedByRecord('kidding_events', kiddingId);
   const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
