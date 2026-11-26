@@ -36,10 +36,12 @@ import {
 import { formatHealthRecordKind } from '@/lib/ui/health-labels';
 import {
   animalDisplayLabel,
+  animalTitleParts,
   formatAnimalStatus,
   formatLifecycleStage,
   formatRegistrationBody,
   statusBadgeTone,
+  UNNAMED_ANIMAL_LABEL,
 } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
@@ -132,7 +134,8 @@ export default function AnimalDetailScreen() {
 
   const { data: breedingRows } = useQuery(
     id && animalRows?.[0]?.sex === 'female'
-      ? `SELECT b.*, s.name AS sire_name, s.tag_number AS sire_tag
+      ? `SELECT b.*, s.name AS sire_name, s.tag_number AS sire_tag,
+           s.official_id AS sire_official_id
          FROM breeding_events b
          LEFT JOIN animals s ON s.id = b.sire_id
          WHERE b.dam_id = ?
@@ -152,7 +155,7 @@ export default function AnimalDetailScreen() {
 
   const { data: siblingRows } = useQuery(
     litterId
-      ? `SELECT id, name, tag_number FROM animals
+      ? `SELECT id, name, tag_number, official_id FROM animals
          WHERE litter_id = ? AND id != ?
          ORDER BY created_at ASC`
       : 'SELECT 1 WHERE 0',
@@ -202,7 +205,12 @@ export default function AnimalDetailScreen() {
   const animal = mapAnimal(animalRow as Record<string, unknown>);
   const breedName =
     breedRows?.[0]?.name != null ? String(breedRows[0].name) : null;
-  const displayName = animal.name ?? animal.tagNumber ?? 'Unnamed';
+  const title = animalTitleParts(animal);
+  const displayName =
+    animal.name?.trim() ||
+    animal.tagNumber?.trim() ||
+    animal.officialId?.trim() ||
+    UNNAMED_ANIMAL_LABEL;
   const weights = weightRows ?? [];
   const birthWeight = weights.find(
     (row) => String((row as { weigh_point?: string }).weigh_point) === 'birth',
@@ -248,11 +256,7 @@ export default function AnimalDetailScreen() {
     : null;
   const activeSire = activeBreeding
     ? activeBreeding.breeding.sireId
-      ? String(
-          activeBreeding.record.sire_name ??
-            activeBreeding.record.sire_tag ??
-            '',
-        )
+      ? onFarmSireLabel(activeBreeding.record, '')
       : activeBreeding.breeding.sireExternalName
     : null;
   const latestWeight = weights[0] as
@@ -379,9 +383,12 @@ export default function AnimalDetailScreen() {
           </View>
           <View className="flex-1">
             <Text className="text-[34px] leading-[37px] font-extrabold text-white" numberOfLines={2}>
-              {animal.name ?? animal.tagNumber ?? 'Unnamed'}
-              {animal.name && animal.tagNumber ? (
-                <Text className="font-bold text-white/85"> #{animal.tagNumber}</Text>
+              {title.primary}
+              {title.tag ? (
+                <Text className="font-bold text-white/85">
+                  {title.primary ? ' ' : ''}
+                  {title.tag}
+                </Text>
               ) : null}
             </Text>
             <Text className="text-base text-white/90 mt-0.5" numberOfLines={2}>
@@ -577,7 +584,7 @@ export default function AnimalDetailScreen() {
                 key={kid.id}
                 onPress={() => router.push(`/(tabs)/livestock/${kid.id}`)}
                 className="min-h-[56px] justify-center py-2 border-b border-gray-100">
-                <GoatName name={kid.name} tag={kid.tagNumber} id={kid.id} />
+                <GoatName animal={kid} />
                 <Text className="text-gray-500 text-[15px] capitalize">
                   {kid.sex} · {formatLifecycleStage(kid.lifecycleStage)}
                 </Text>
@@ -606,14 +613,20 @@ export default function AnimalDetailScreen() {
               id: string;
               name: string | null;
               tag_number: string | null;
+              official_id: string | null;
+            };
+            const siblingAnimal = {
+              name: sibling.name,
+              tagNumber: sibling.tag_number,
+              officialId: sibling.official_id,
             };
             return (
               <Pressable
                 key={sibling.id}
                 onPress={() => router.push(`/(tabs)/livestock/${sibling.id}`)}
                 className="min-h-[56px] justify-center py-2 border-b border-gray-100">
-                {sibling.name?.trim() || sibling.tag_number ? (
-                  <GoatName name={sibling.name} tag={sibling.tag_number} id={sibling.id} />
+                {sibling.name?.trim() || sibling.tag_number || sibling.official_id ? (
+                  <GoatName animal={siblingAnimal} />
                 ) : (
                   <Text className="text-[17px] text-bloodline-600 font-bold">Litter mate</Text>
                 )}
@@ -653,7 +666,7 @@ export default function AnimalDetailScreen() {
               activeFarm.gestationDays,
             );
             const sire = breeding.sireId
-              ? String(record.sire_name ?? record.sire_tag ?? 'On-farm sire')
+              ? onFarmSireLabel(record, 'On-farm sire')
               : breeding.sireExternalName;
             return (
               <Pressable
@@ -841,26 +854,35 @@ export default function AnimalDetailScreen() {
   );
 }
 
+function onFarmSireLabel(record: Record<string, unknown>, emptyLabel: string): string {
+  const label = animalDisplayLabel({
+    name: record.sire_name != null ? String(record.sire_name) : null,
+    tagNumber: record.sire_tag != null ? String(record.sire_tag) : null,
+    officialId:
+      record.sire_official_id != null ? String(record.sire_official_id) : null,
+  });
+  return label === UNNAMED_ANIMAL_LABEL ? emptyLabel : label;
+}
+
 function GoatName({
-  name,
-  tag,
-  id,
+  animal,
 }: {
-  name: string | null | undefined;
-  tag: string | null | undefined;
-  id: string;
+  animal: {
+    name?: string | null;
+    tagNumber?: string | null;
+    officialId?: string | null;
+  };
 }) {
-  const cleanName = name?.trim();
-  const cleanTag = tag?.trim();
+  const title = animalTitleParts(animal);
   return (
     <Text className="text-[17px] text-ink font-bold">
-      {cleanName ?? ''}
-      {cleanTag ? (
+      {title.primary}
+      {title.tag ? (
         <Text className="text-bloodline-600">
-          {cleanName ? ' ' : ''}#{cleanTag}
+          {title.primary ? ' ' : ''}
+          {title.tag}
         </Text>
       ) : null}
-      {!cleanName && !cleanTag ? animalDisplayLabel({ name: null, tagNumber: null, id }) : ''}
     </Text>
   );
 }

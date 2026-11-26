@@ -206,7 +206,7 @@ export function AnimalPickerModal({
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder="Search name, tag, or registration"
+                  placeholder="Search name, tag, official ID, or registration"
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"

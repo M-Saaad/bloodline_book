@@ -32,6 +32,7 @@ import {
   type WeighGroup,
 } from '@/lib/storage/barn-memory';
 import { herdRowSubtitle } from '@/lib/ui/animal-picker';
+import { animalDisplayLabel, animalTitleParts } from '@/lib/ui/animal-labels';
 import type { Animal } from '@/lib/types/animals';
 import type { WeighSession } from '@/lib/types/weight';
 import { useFarm } from '@/providers/FarmProvider';
@@ -386,6 +387,7 @@ export default function WeighDayScreen() {
     animalMatchesSearch(animal, listQuery),
   );
   const current = queue[index];
+  const currentTitle = current ? animalTitleParts(current) : null;
   const last = current ? lastWeightByAnimal.get(current.id) : undefined;
   const groupLabel = weighGroupLabel(group, pastures);
   const pointLabel =
@@ -463,11 +465,11 @@ export default function WeighDayScreen() {
             <View className="bg-white border border-gray-200 rounded-[22px] px-5 py-[18px]">
               <View className="flex-row items-baseline justify-between">
                 <Text className="flex-1 text-4xl leading-[40px] font-extrabold text-ink" numberOfLines={1}>
-                  {current.name?.trim() || (current.tagNumber ? '' : 'Unnamed')}
+                  {currentTitle?.primary}
                 </Text>
-                {current.tagNumber ? (
+                {currentTitle?.tag ? (
                   <Text className="text-[22px] font-extrabold text-bloodline-600">
-                    #{current.tagNumber.trim()}
+                    {currentTitle.tag}
                   </Text>
                 ) : null}
               </View>
@@ -542,6 +544,7 @@ export default function WeighDayScreen() {
                 const focused = focusedId === item.id;
                 const first = rowIndex === 0;
                 const lastRow = rowIndex === listAnimals.length - 1;
+                const title = animalTitleParts(item);
                 return (
                   <View
                     className={`bg-white border-x border-gray-200 ${
@@ -553,10 +556,11 @@ export default function WeighDayScreen() {
                       }`}>
                       <View className="flex-1">
                         <Text className="text-lg font-extrabold text-ink" numberOfLines={1}>
-                          {item.name?.trim() || (item.tagNumber ? '' : 'Unnamed')}
-                          {item.tagNumber ? (
+                          {title.primary}
+                          {title.tag ? (
                             <Text className="text-bloodline-600">
-                              {item.name?.trim() ? ' ' : ''}#{item.tagNumber.trim()}
+                              {title.primary ? ' ' : ''}
+                              {title.tag}
                             </Text>
                           ) : null}
                         </Text>
@@ -591,7 +595,7 @@ export default function WeighDayScreen() {
                           }
                           onFocus={() => setFocusedId(item.id)}
                           onBlur={() => setFocusedId((id) => (id === item.id ? null : id))}
-                          accessibilityLabel={`Weight for ${item.name?.trim() || item.tagNumber || 'goat'}`}
+                          accessibilityLabel={`Weight for ${animalDisplayLabel(item)}`}
                           keyboardType="decimal-pad"
                           placeholder="0"
                           className="flex-1 text-right text-xl font-extrabold text-ink p-0"

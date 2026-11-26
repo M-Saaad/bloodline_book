@@ -11,6 +11,7 @@ import { ListCard, Chevron } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import { deleteWeighSession } from '@/lib/db/weights';
+import { animalTitleParts } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
@@ -25,7 +26,7 @@ export default function WeighSessionScreen() {
 
   const { data: logRows, isLoading: logsLoading } = useQuery(
     id
-      ? `SELECT wl.*, a.name, a.tag_number
+      ? `SELECT wl.*, a.name, a.tag_number, a.official_id
          FROM weight_logs wl
          LEFT JOIN animals a ON a.id = wl.animal_id
          WHERE wl.weigh_session_id = ?
@@ -88,8 +89,11 @@ export default function WeighSessionScreen() {
           <ListCard>
             {logs.map((row, index) => {
               const log = row as Record<string, unknown>;
-              const name = log.name != null ? String(log.name) : null;
-              const tag = log.tag_number != null ? String(log.tag_number) : null;
+              const title = animalTitleParts({
+                name: log.name != null ? String(log.name) : null,
+                tagNumber: log.tag_number != null ? String(log.tag_number) : null,
+                officialId: log.official_id != null ? String(log.official_id) : null,
+              });
               return (
                 <Pressable
                   key={String(log.id)}
@@ -103,10 +107,11 @@ export default function WeighSessionScreen() {
                       index === logs.length - 1 ? '' : 'border-b border-gray-100'
                     }`}>
                     <Text className="flex-1 text-lg font-extrabold text-ink" numberOfLines={1}>
-                      {name ?? (tag ? '' : 'Unnamed')}
-                      {tag ? (
+                      {title.primary}
+                      {title.tag ? (
                         <Text className="text-bloodline-600">
-                          {name ? ' ' : ''}#{tag}
+                          {title.primary ? ' ' : ''}
+                          {title.tag}
                         </Text>
                       ) : null}
                     </Text>

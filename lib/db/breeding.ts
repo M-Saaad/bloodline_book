@@ -683,7 +683,7 @@ async function syncKiddingLitterAnimals(
   damLabel: string,
 ): Promise<void> {
   const litterRows = await tx.getAll<Record<string, unknown>>(
-    'SELECT id, name, tag_number FROM animals WHERE litter_id = ? ORDER BY created_at ASC',
+    'SELECT id, name, tag_number, official_id FROM animals WHERE litter_id = ? ORDER BY created_at ASC',
     [kidding.id],
   );
   if (litterRows.length === 0) {
@@ -719,12 +719,11 @@ async function syncKiddingLitterAnimals(
         break;
       }
       const animalId = String(row.id);
-      const label =
-        row.name != null
-          ? String(row.name)
-          : row.tag_number != null
-            ? `Tag ${String(row.tag_number)}`
-            : 'Kid';
+      const label = animalDisplayLabel({
+        name: row.name != null ? String(row.name) : null,
+        tagNumber: row.tag_number != null ? String(row.tag_number) : null,
+        officialId: row.official_id != null ? String(row.official_id) : null,
+      });
       if (await animalHasWeightOrHealth(tx, animalId)) {
         blockedLabels.push(label);
         continue;
@@ -823,6 +822,7 @@ export type KiddingKidSummary = {
   id: string;
   name: string | null;
   tagNumber: string | null;
+  officialId: string | null;
   hasWeights: boolean;
   hasHealth: boolean;
 };
@@ -831,7 +831,7 @@ export async function getKidsForKidding(
   kiddingId: string,
 ): Promise<KiddingKidSummary[]> {
   const rows = await powersync.getAll<Record<string, unknown>>(
-    `SELECT a.id, a.name, a.tag_number,
+    `SELECT a.id, a.name, a.tag_number, a.official_id,
       (SELECT COUNT(*) FROM weight_logs wl WHERE wl.animal_id = a.id) as weight_count,
       (SELECT COUNT(*) FROM health_records hr WHERE hr.animal_id = a.id) as health_count
      FROM animals a
@@ -843,6 +843,7 @@ export async function getKidsForKidding(
     id: String(row.id),
     name: row.name != null ? String(row.name) : null,
     tagNumber: row.tag_number != null ? String(row.tag_number) : null,
+    officialId: row.official_id != null ? String(row.official_id) : null,
     hasWeights: Number(row.weight_count) > 0,
     hasHealth: Number(row.health_count) > 0,
   }));

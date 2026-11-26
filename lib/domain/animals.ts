@@ -1,5 +1,6 @@
 import { parseIsoDate, todayIso } from '@/lib/dates';
 import type { Animal } from '@/lib/types/animals';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
 export type HerdStatusFilter =
   | 'active'
@@ -128,20 +129,16 @@ export function windowAnimalChoices(
   };
 }
 
-export function formatLivestockRowTitle(animal: Animal): string {
+export function formatLivestockRowTitle(
+  animal: Pick<Animal, 'name' | 'tagNumber'> & Partial<Pick<Animal, 'officialId'>>,
+): string {
   const tag = animal.tagNumber?.trim();
   const name = animal.name?.trim();
 
   if (tag && name) {
     return `#${tag} · ${name}`;
   }
-  if (name) {
-    return name;
-  }
-  if (tag) {
-    return `#${tag}`;
-  }
-  return 'Unnamed';
+  return animalDisplayLabel(animal);
 }
 
 export function parseHerdStatusFilter(

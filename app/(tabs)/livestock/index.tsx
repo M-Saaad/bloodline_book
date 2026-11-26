@@ -26,6 +26,7 @@ import {
   withdrawalBadgeLabel,
 } from '@/lib/domain/health';
 import {
+  animalTitleParts,
   formatAnimalStatus,
   statusBadgeTone,
 } from '@/lib/ui/animal-labels';
@@ -339,8 +340,8 @@ export default function LivestockListScreen() {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Name or tag number"
-          accessibilityLabel="Search by name or tag"
+          placeholder="Name, tag, or official ID"
+          accessibilityLabel="Search by name, tag, or official ID"
           autoCapitalize="none"
           autoCorrect={false}
           clearButtonMode="while-editing"
@@ -498,8 +499,7 @@ function LivestockRow({
   first: boolean;
   last: boolean;
 }) {
-  const name = animal.name?.trim();
-  const tag = animal.tagNumber?.trim();
+  const title = animalTitleParts(animal);
   return (
     <Pressable
       onPress={() => router.push(`/(tabs)/livestock/${animal.id}`)}
@@ -513,13 +513,13 @@ function LivestockRow({
         }`}>
         <View className="flex-1">
           <Text className="text-[19px] font-extrabold text-ink" numberOfLines={1}>
-            {name ?? ''}
-            {tag ? (
+            {title.primary}
+            {title.tag ? (
               <Text className="text-bloodline-600">
-                {name ? ' ' : ''}#{tag}
+                {title.primary ? ' ' : ''}
+                {title.tag}
               </Text>
             ) : null}
-            {!name && !tag ? 'Unnamed animal' : ''}
           </Text>
           <Text className="text-[15px] text-gray-500" numberOfLines={1}>
             {herdRowSubtitle(animal, {

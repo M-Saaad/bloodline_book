@@ -124,7 +124,7 @@ function compareTag(left: string | null, right: string | null): number {
 }
 
 export function searchRank(
-  animal: Pick<Animal, 'tagNumber'>,
+  animal: Pick<Animal, 'tagNumber'> & Partial<Pick<Animal, 'officialId'>>,
   query: string,
 ): number {
   const normalized = query.trim().toLowerCase();
@@ -132,10 +132,14 @@ export function searchRank(
     return 1;
   }
   const tag = animal.tagNumber?.trim().toLowerCase() ?? '';
-  if (tag === normalized) {
+  const officialId = animal.officialId?.trim().toLowerCase() ?? '';
+  if (tag === normalized || officialId === normalized) {
     return 0;
   }
-  if (/^\d+$/.test(normalized) && tag.startsWith(normalized)) {
+  if (
+    /^\d+$/.test(normalized) &&
+    (tag.startsWith(normalized) || officialId.startsWith(normalized))
+  ) {
     return 1;
   }
   return 2;

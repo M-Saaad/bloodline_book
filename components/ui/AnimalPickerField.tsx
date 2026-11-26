@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/AnimalPickerModal';
 import { FieldLabel } from '@/components/ui/FieldLabel';
 import { formatLivestockRowTitle } from '@/lib/domain/animals';
+import { animalTitleParts } from '@/lib/ui/animal-labels';
 import {
   loadOutsideAnimals,
   loadRecentAnimalIds,
@@ -102,6 +103,7 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
     props.mode === 'multi'
       ? props.selectedIds.length > 0
       : Boolean(props.value) || Boolean(props.externalLabel?.trim());
+  const selectedTitle = selectedAnimal ? animalTitleParts(selectedAnimal) : null;
 
   return (
     <View className="mb-4">
@@ -112,15 +114,16 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
         accessibilityLabel={`${props.label}. ${summary}. Change`}
         className="min-h-[56px] flex-row items-center rounded-[18px] border border-gray-300 bg-white px-4 py-2 active:bg-gray-50">
         <Text numberOfLines={1} className={`flex-1 pr-3 text-lg ${hasValue ? 'text-ink' : 'text-gray-500'}`}>
-          {selectedAnimal && selectedAnimal.name?.trim() ? (
+          {selectedTitle ? (
             <>
-              {selectedAnimal.name.trim()}
-              {selectedAnimal.tagNumber?.trim() ? (
-                <Text className="text-bloodline-600"> #{selectedAnimal.tagNumber.trim()}</Text>
+              {selectedTitle.primary}
+              {selectedTitle.tag ? (
+                <Text className="text-bloodline-600">
+                  {selectedTitle.primary ? ' ' : ''}
+                  {selectedTitle.tag}
+                </Text>
               ) : null}
             </>
-          ) : selectedAnimal?.tagNumber?.trim() ? (
-            <Text className="text-bloodline-600">#{selectedAnimal.tagNumber.trim()}</Text>
           ) : (
             summary
           )}

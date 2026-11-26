@@ -1,4 +1,5 @@
 import type { KiddingKidSummary } from '@/lib/db/breeding';
+import { animalDisplayLabel, UNNAMED_ANIMAL_LABEL } from '@/lib/ui/animal-labels';
 
 export function kiddingDeleteKidsPrompt(kids: KiddingKidSummary[]): string {
   if (kids.length === 0) {
@@ -10,7 +11,10 @@ export function kiddingDeleteKidsPrompt(kids: KiddingKidSummary[]): string {
 
   if (withRecords.length > 0) {
     const names = withRecords
-      .map((kid) => kid.name ?? kid.tagNumber ?? 'Unnamed kid')
+      .map((kid) => {
+        const label = animalDisplayLabel(kid);
+        return label === UNNAMED_ANIMAL_LABEL ? 'Unnamed kid' : label;
+      })
       .join(', ');
     message += ` ${names} already have weights or health records.`;
   }

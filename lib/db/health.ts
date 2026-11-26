@@ -138,8 +138,9 @@ export async function createDewormFollowUpTask(
     id: string;
     name: string | null;
     tag_number: string | null;
+    official_id: string | null;
   }>(
-    `SELECT a.id, a.name, a.tag_number
+    `SELECT a.id, a.name, a.tag_number, a.official_id
      FROM health_records h
      JOIN animals a ON a.id = h.animal_id
      WHERE h.id = ?`,
@@ -150,6 +151,7 @@ export async function createDewormFollowUpTask(
         id: String(goat.id),
         name: goat.name,
         tagNumber: goat.tag_number,
+        officialId: goat.official_id,
       })
     : input.animalLabel;
   await powersync.execute(
