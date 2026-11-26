@@ -1,3 +1,4 @@
+import { useQuery, useStatus } from '@powersync/react';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +31,38 @@ export type TagHistoryRow = {
   note: string | null;
   createdAt: string;
 };
+
+/** Temporary. Remove after the tag-history sync check is confirmed. */
+function TagHistorySyncDebug() {
+  const status = useStatus();
+  const { data: meta } = useQuery<{
+    history_table: number;
+    history_view: number;
+    history_internal: number;
+    animal_count: number;
+  }>(
+    `SELECT
+       (SELECT COUNT(*) FROM sqlite_master WHERE name = 'tag_history' AND type = 'table') AS history_table,
+       (SELECT COUNT(*) FROM sqlite_master WHERE name = 'tag_history' AND type = 'view') AS history_view,
+       (SELECT COUNT(*) FROM sqlite_master WHERE name = 'ps_data__tag_history') AS history_internal,
+       (SELECT COUNT(*) FROM animals) AS animal_count`,
+  );
+  const { data: history, error: historyError } = useQuery<{ c: number }>(
+    'SELECT COUNT(*) AS c FROM tag_history',
+  );
+  const row = meta?.[0];
+  const historyCount = historyError
+    ? `error ${historyError.message}`
+    : String(history?.[0]?.c ?? '…');
+  const last = status.lastSyncedAt ? status.lastSyncedAt.toISOString() : 'never';
+  const downloadError = status.downloadError?.message;
+
+  return (
+    <Text className="text-[13px] leading-5 text-gray-500 mb-3">
+      {`Debug: tag_history ${historyCount} (sqlite table ${row?.history_table ?? '…'}, view ${row?.history_view ?? '…'}, internal ${row?.history_internal ?? '…'}), animals ${row?.animal_count ?? '…'}, connected ${status.connected ? 'yes' : 'no'}, synced ${status.hasSynced === true ? 'yes' : status.hasSynced === false ? 'no' : 'unknown'}, downloading ${status.downloading ? 'yes' : 'no'}, last ${last}${downloadError ? `, download error ${downloadError}` : ''}`}
+    </Text>
+  );
+}
 
 function currentValue(animal: Animal, kind: TagKind): string | null {
   switch (kind) {
@@ -80,6 +113,7 @@ export function TagHistoryCard({
   return (
     <Card>
       <Text className="text-xl font-extrabold text-ink mb-3">Tags</Text>
+      <TagHistorySyncDebug />
       {history.length === 0 ? (
         <Text className="text-gray-500 mb-3">No tags recorded yet.</Text>
       ) : (
@@ -188,6 +222,7 @@ function TagActionSheet({
           style={{ paddingBottom: Math.max(insets.bottom, 16) }}
           onPress={() => undefined}>
           <Text className="text-2xl font-extrabold text-ink mb-3">{title}</Text>
+          <TagHistorySyncDebug />
           {error ? <FormMessage message={error} /> : null}
           <Text className="text-base font-bold text-ink mb-2">Kind</Text>
           <View className="mb-4">
