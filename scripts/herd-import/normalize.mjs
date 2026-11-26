@@ -187,6 +187,25 @@ export function cleanText(raw) {
   return text === '' ? null : text;
 }
 
+/**
+ * Ear tags and scrapie / official IDs stay text. A string keeps leading zeros
+ * ("0007" stays "0007"). A number only appears when the spreadsheet already
+ * stored a number, so there are no leading zeros left to keep.
+ */
+export function asTagText(raw) {
+  if (raw == null) {
+    return null;
+  }
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) {
+      return null;
+    }
+    return String(raw);
+  }
+  const text = String(raw).trim();
+  return text === '' ? null : text;
+}
+
 export function appendNote(existing, addition) {
   const base = existing?.trim() ?? '';
   const extra = addition?.trim() ?? '';
@@ -280,11 +299,12 @@ function titleCaseBreed(name) {
     .join(' ');
 }
 
-export function validateNameOrTag(name, tag) {
+export function validateNameOrTag(name, tag, officialId) {
   const n = name?.trim() ?? '';
   const t = tag?.trim() ?? '';
-  if (!n && !t) {
-    return 'Need a name or tag number';
+  const o = officialId?.trim() ?? '';
+  if (!n && !t && !o) {
+    return 'Need a name, tag number, or official ID';
   }
   return null;
 }

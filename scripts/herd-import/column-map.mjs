@@ -5,6 +5,7 @@
 export const HERD_IMPORT_FIELDS = [
   'name',
   'tag',
+  'official_id',
   'sex',
   'dob',
   'breed',
@@ -15,6 +16,12 @@ export const HERD_IMPORT_FIELDS = [
   'reg_body',
   'tattoo',
   'notes',
+];
+
+/** More specific headers (scrapie / official ID) claim a column before "tag". */
+const GUESS_FIELD_ORDER = [
+  'official_id',
+  ...HERD_IMPORT_FIELDS.filter((field) => field !== 'official_id'),
 ];
 
 const FIELD_PATTERNS = {
@@ -29,6 +36,14 @@ const FIELD_PATTERNS = {
     /ear\s*tag/i,
     /^id$/i,
     /tag\s*#?/i,
+    /tag[_\s-]*number/i,
+  ],
+  official_id: [
+    /^official[_\s-]*id$/i,
+    /official\s*id/i,
+    /scrapie/i,
+    /\busda\b/i,
+    /\beid\b/i,
   ],
   sex: [/^sex$/i, /^gender$/i, /^m\s*\/\s*f$/i],
   dob: [
@@ -66,7 +81,7 @@ export function guessColumnMapping(headers) {
   const mapping = {};
   const used = new Set();
 
-  for (const field of HERD_IMPORT_FIELDS) {
+  for (const field of GUESS_FIELD_ORDER) {
     const patterns = FIELD_PATTERNS[field] ?? [];
     let best = null;
     let bestScore = 0;

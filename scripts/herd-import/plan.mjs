@@ -13,6 +13,7 @@ import {
 } from './pedigree.mjs';
 import {
   appendNote,
+  asTagText,
   cleanText,
   inferLifecycleStage,
   normalizeDateOfBirth,
@@ -31,6 +32,7 @@ export { formatMappingForPrint, guessColumnMapping, mergeColumnMapping };
  * @property {string} id
  * @property {string | null} name
  * @property {string | null} tag_number
+ * @property {string | null} [official_id]
  */
 
 /**
@@ -48,6 +50,7 @@ export { formatMappingForPrint, guessColumnMapping, mergeColumnMapping };
  *   existingAnimals: ExistingAnimal[],
  *   breeds: BreedRow[],
  *   referenceIso: string,
+ *   defaultSex?: 'female' | 'male' | null,
  * }} input
  */
 export function buildImportPlan(input) {
@@ -57,11 +60,16 @@ export function buildImportPlan(input) {
   const newBreeds = new Map();
 
   const existingByTag = new Map();
+  const existingByOfficial = new Map();
   const existingByName = new Map();
   for (const animal of input.existingAnimals) {
     const tagKey = normalizeLookupKey(animal.tag_number);
     if (tagKey) {
       existingByTag.set(tagKey, animal);
+    }
+    const officialKey = normalizeLookupKey(animal.official_id);
+    if (officialKey) {
+      existingByOfficial.set(officialKey, animal);
     }
     const nameKey = normalizeLookupKey(animal.name);
     if (nameKey) {
@@ -70,6 +78,7 @@ export function buildImportPlan(input) {
   }
 
   const fileTagSeen = new Map();
+  const fileOfficialSeen = new Map();
   const fileNameSeen = new Map();
   const staged = [];
 
@@ -77,31 +86,31 @@ export function buildImportPlan(input) {
     const sourceRow = input.rows[index];
     const rowNum = index + 2;
     const mapped = pickMappedRow(input.mapping, sourceRow);
-    const label =
-      cleanText(mapped.tag) ??
-      cleanText(mapped.name) ??
-      `row ${rowNum}`;
-
     const name = cleanText(mapped.name);
-    const tag = cleanText(mapped.tag);
-    const nameTagProblem = validateNameOrTag(name, tag);
+    const tag = asTagText(mapped.tag);
+    const officialId = asTagText(mapped.official_id);
+    const label = tag ?? officialId ?? name ?? `row ${rowNum}`;
+
+    const nameTagProblem = validateNameOrTag(name, tag, officialId);
     if (nameTagProblem) {
       problems.push({ row: rowNum, label, reason: nameTagProblem });
       continue;
     }
 
     const tagKey = normalizeLookupKey(tag);
+    const officialKey = normalizeLookupKey(officialId);
     const nameKey = normalizeLookupKey(name);
 
     const existing =
       (tagKey && existingByTag.get(tagKey)) ||
+      (officialKey && existingByOfficial.get(officialKey)) ||
       (nameKey && existingByName.get(nameKey)) ||
       null;
     if (existing) {
       skipped.push({
         row: rowNum,
         label,
-        reason: `Already in farm (${existing.tag_number ?? existing.name})`,
+        reason: `Already in farm (${existing.tag_number ?? existing.official_id ?? existing.name})`,
       });
       continue;
     }
@@ -117,6 +126,17 @@ export function buildImportPlan(input) {
       }
       fileTagSeen.set(tagKey, rowNum);
     }
+    if (officialKey) {
+      if (fileOfficialSeen.has(officialKey)) {
+        problems.push({
+          row: rowNum,
+          label,
+          reason: `Duplicate official ID in file (first at row ${fileOfficialSeen.get(officialKey)})`,
+        });
+        continue;
+      }
+      fileOfficialSeen.set(officialKey, rowNum);
+    }
     if (nameKey) {
       if (fileNameSeen.has(nameKey)) {
         problems.push({
@@ -129,7 +149,11 @@ export function buildImportPlan(input) {
       fileNameSeen.set(nameKey, rowNum);
     }
 
-    const sexBits = normalizeSex(mapped.sex);
+    const sexSource =
+      mapped.sex == null || String(mapped.sex).trim() === ''
+        ? input.defaultSex
+        : mapped.sex;
+    const sexBits = normalizeSex(sexSource);
     if (!sexBits.sex) {
       problems.push({
         row: rowNum,
@@ -191,6 +215,7 @@ export function buildImportPlan(input) {
       id,
       name,
       tag_number: tag,
+      official_id: officialId,
       sex: sexBits.sex,
       date_of_birth: dobBits.iso,
       lifecycle_stage: lifecycleStage,
@@ -253,6 +278,7 @@ export function buildImportPlan(input) {
         id: row.id,
         name: row.name,
         tag_number: row.tag_number,
+        official_id: row.official_id,
         sex: row.sex,
         date_of_birth: row.date_of_birth,
         status: 'active',

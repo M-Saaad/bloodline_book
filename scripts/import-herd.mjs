@@ -6,9 +6,17 @@
  * Do not load .env. Never store the service role key in .env, git, or EXPO_PUBLIC_*.
  *
  * Usage:
- *   node scripts/import-herd.mjs "<farm name or id>" <file.xlsx|file.csv> [--map mapping.json] [--sheet NAME] [--apply]
+ *   node scripts/import-herd.mjs "<farm name or id>" <file.xlsx|file.csv> [--map mapping.json] [--sheet NAME] [--sex female|male] [--offline] [--apply]
  *
  * Default is dry run (no writes). Pass --apply to insert in one batch (safe to re-run).
+ * --sex fills a blank sex cell (use it when the whole sheet is does or bucks).
+ * --offline checks the file only. It does not connect to Supabase and assumes the
+ * farm has no animals yet. It cannot be combined with --apply.
+ *
+ * Tag numbers and official_id (scrapie / USDA tag) are stored as text, so leading
+ * zeros stay. A row needs a name, a tag, or an official ID. The same tag number
+ * or the same official ID twice in the file is refused. An animal already on the
+ * farm with that tag, official ID, or name is skipped, not inserted again.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -32,18 +40,25 @@ const UUID_RE =
 export function parseImportArgv(argv) {
   const args = argv.slice(2);
   let apply = false;
+  let offline = false;
   let mapPath = null;
   let sheet = undefined;
+  let sex = null;
   const positional = [];
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (arg === '--apply') {
       apply = true;
+    } else if (arg === '--offline') {
+      offline = true;
     } else if (arg === '--map') {
       mapPath = args[i + 1] ?? '';
       i += 1;
     } else if (arg === '--sheet') {
       sheet = args[i + 1] ?? '';
+      i += 1;
+    } else if (arg === '--sex') {
+      sex = args[i + 1] ?? '';
       i += 1;
     } else if (arg.startsWith('-')) {
       throw new Error(`Unknown option: ${arg}`);
@@ -54,12 +69,12 @@ export function parseImportArgv(argv) {
   const farmQuery = positional[0]?.trim() ?? '';
   const filePath = positional[1] ?? '';
   const extras = positional.slice(2);
-  return { farmQuery, filePath, mapPath, sheet, apply, extras };
+  return { farmQuery, filePath, mapPath, sheet, sex, offline, apply, extras };
 }
 
 function usage() {
   console.error(
-    'Usage: node scripts/import-herd.mjs "<farm name or id>" <file.xlsx|file.csv> [--map mapping.json] [--sheet NAME] [--apply]',
+    'Usage: node scripts/import-herd.mjs "<farm name or id>" <file.xlsx|file.csv> [--map mapping.json] [--sheet NAME] [--sex female|male] [--offline] [--apply]',
   );
   console.error('');
   console.error(
@@ -103,7 +118,7 @@ async function fetchExistingAnimals(client, farmId) {
   for (;;) {
     const { data, error } = await client
       .from('animals')
-      .select('id, name, tag_number')
+      .select('id, name, tag_number, official_id')
       .eq('farm_id', farmId)
       .range(from, from + pageSize - 1);
     if (error) {
@@ -148,10 +163,23 @@ function printPlanSummary(plan, { dryRun }) {
     ]
       .filter(Boolean)
       .join(', ');
+    const idBits = [
+      r.tag_number ? `tag ${r.tag_number}` : null,
+      r.official_id ? `official_id ${r.official_id}` : null,
+      r.name ? `name ${r.name}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
     console.log(
-      `  row ${item.row} ${item.label}: ${r.sex}${r.date_of_birth ? ` dob ${r.date_of_birth}` : ''}${parents ? ` (${parents})` : ''}`,
+      `  row ${item.row} ${item.label}: ${r.sex} status=${r.status} stage=${r.lifecycle_stage} breed=${r.breed_primary_id ?? 'unknown'} dob=${r.date_of_birth ?? 'unknown'}${idBits ? ` [${idBits}]` : ''}${parents ? ` (${parents})` : ''}`,
     );
   }
+  const officialCount = plan.toInsert.filter((item) => item.record.official_id).length;
+  const nameOnlyCount = plan.toInsert.filter(
+    (item) => item.record.name && !item.record.tag_number && !item.record.official_id,
+  ).length;
+  console.log(`With official_id: ${officialCount}`);
+  console.log(`Name only (no tag, no official_id): ${nameOnlyCount}`);
   console.log('');
   console.log(`Skipped (already in farm): ${plan.skipped.length}`);
   for (const item of plan.skipped) {
@@ -215,6 +243,8 @@ export async function runImport(options) {
     mapPath,
     sheet,
     apply,
+    offline = false,
+    defaultSex = null,
     referenceIso = new Date().toISOString().slice(0, 10),
   } = options;
 
@@ -235,8 +265,14 @@ export async function runImport(options) {
   console.log('Column mapping used:');
   console.log(formatMappingForPrint(mapping));
 
-  const existingAnimals = await fetchExistingAnimals(admin, farmId);
-  const breeds = await fetchBreeds(admin, farmId);
+  const existingAnimals = offline ? [] : await fetchExistingAnimals(admin, farmId);
+  const breeds = offline ? [] : await fetchBreeds(admin, farmId);
+  if (defaultSex) {
+    console.log(`Default sex for blank cells: ${defaultSex}`);
+  }
+  if (offline) {
+    console.log('Offline check: farm was not looked up. Existing herd is treated as empty.');
+  }
 
   const plan = buildImportPlan({
     rows,
@@ -245,6 +281,7 @@ export async function runImport(options) {
     existingAnimals,
     breeds,
     referenceIso,
+    defaultSex,
   });
 
   printPlanSummary(plan, { dryRun: !apply });
@@ -261,6 +298,20 @@ export async function runImport(options) {
   return { plan, applied: true };
 }
 
+function parseDefaultSex(raw) {
+  if (raw == null || String(raw).trim() === '') {
+    return null;
+  }
+  const folded = String(raw).trim().toLowerCase();
+  if (folded === 'female' || folded === 'doe' || folded === 'f') {
+    return 'female';
+  }
+  if (folded === 'male' || folded === 'buck' || folded === 'm') {
+    return 'male';
+  }
+  throw new Error('--sex must be female or male');
+}
+
 async function main() {
   let parsed;
   try {
@@ -271,10 +322,44 @@ async function main() {
     process.exit(1);
   }
 
-  const { farmQuery, filePath, mapPath, sheet, apply, extras } = parsed;
+  const { farmQuery, filePath, mapPath, sheet, sex, offline, apply, extras } = parsed;
   if (!farmQuery || !filePath || extras.length > 0) {
     usage();
     process.exit(1);
+  }
+
+  let defaultSex;
+  try {
+    defaultSex = parseDefaultSex(sex);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+
+  if (offline && apply) {
+    console.error('--offline cannot be combined with --apply.');
+    process.exit(1);
+  }
+
+  if (offline) {
+    console.log(`Farm (not looked up): ${farmQuery}`);
+    console.log('Dry run only. --offline does not connect and does not write.');
+    try {
+      await runImport({
+        admin: null,
+        farmId: null,
+        filePath: resolve(filePath),
+        mapPath,
+        sheet,
+        apply: false,
+        offline: true,
+        defaultSex,
+      });
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+    return;
   }
 
   const supabaseUrl = process.env.SUPABASE_URL?.trim();
@@ -343,6 +428,7 @@ async function main() {
       mapPath,
       sheet,
       apply,
+      defaultSex,
     });
     if (result.applied) {
       console.log('');
