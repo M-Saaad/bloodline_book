@@ -61,6 +61,98 @@ function rowsFromCsv(text) {
 }
 
 /**
+ * Keep text cells as text so tags like "0007" keep their leading zeros.
+ * If Excel stored a number but displays leading zeros ("0042"), keep that text.
+ * Dates and plain numbers stay as Date / number so date parsing is unchanged.
+ * @param {import('xlsx').WorkSheet} sheet
+ * @param {number} r
+ * @param {number} c
+ */
+function sheetCellValue(sheet, r, c) {
+  const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+  if (!cell) {
+    return '';
+  }
+  if (cell.t === 's' || cell.t === 'str') {
+    return cell.v == null ? '' : String(cell.v);
+  }
+  if (cell.t === 'd' || cell.v instanceof Date) {
+    return cell.v ?? '';
+  }
+  if (cell.t === 'n') {
+    const shown = cell.w == null ? '' : String(cell.w).trim();
+    // Excel number formats can display leading zeros ("0042") even though
+    // the stored value is a number. Keep that text. Plain numbers and dates
+    // do not look like this, so date parsing stays on the raw value.
+    if (/^0\d+$/.test(shown)) {
+      return shown;
+    }
+    return cell.v ?? '';
+  }
+  if (cell.t === 'b') {
+    return cell.v ?? '';
+  }
+  return cell.w ?? cell.v ?? '';
+}
+
+/**
+ * @param {import('xlsx').WorkSheet} sheet
+ */
+function rowsFromSheet(sheet) {
+  const ref = sheet['!ref'];
+  if (!ref) {
+    return { headers: [], rows: [] };
+  }
+  const range = XLSX.utils.decode_range(ref);
+  let headerRow = -1;
+  for (let r = range.s.r; r <= range.e.r; r += 1) {
+    let any = false;
+    for (let c = range.s.c; c <= range.e.c; c += 1) {
+      if (String(sheetCellValue(sheet, r, c) ?? '').trim() !== '') {
+        any = true;
+        break;
+      }
+    }
+    if (any) {
+      headerRow = r;
+      break;
+    }
+  }
+  if (headerRow < 0) {
+    return { headers: [], rows: [] };
+  }
+  const headers = [];
+  for (let c = range.s.c; c <= range.e.c; c += 1) {
+    headers.push(String(sheetCellValue(sheet, headerRow, c) ?? '').trim());
+  }
+  const rows = [];
+  for (let r = headerRow + 1; r <= range.e.r; r += 1) {
+    const line = [];
+    let any = false;
+    for (let c = range.s.c; c <= range.e.c; c += 1) {
+      const value = sheetCellValue(sheet, r, c);
+      line.push(value);
+      if (String(value ?? '').trim() !== '') {
+        any = true;
+      }
+    }
+    if (!any) {
+      continue;
+    }
+    const row = {};
+    for (let c = 0; c < headers.length; c += 1) {
+      const header = headers[c];
+      if (!header) {
+        continue;
+      }
+      row[header] = line[c] ?? '';
+    }
+    rows.push(row);
+  }
+  return { headers: headers.filter((header) => header !== ''), rows };
+}
+
+/**
  * @param {string} filePath
  * @param {{ sheet?: string }} [options]
  */
@@ -83,36 +175,7 @@ export async function readSpreadsheet(filePath, options = {}) {
       );
     }
     const sheet = workbook.Sheets[sheetName];
-    const matrix = XLSX.utils.sheet_to_json(sheet, {
-      header: 1,
-      defval: '',
-      raw: true,
-    });
-    const headerRow = matrix.find((row) =>
-      row.some((cell) => String(cell ?? '').trim() !== ''),
-    );
-    if (!headerRow) {
-      return { headers: [], rows: [], sheetName };
-    }
-    const headers = headerRow.map((h) => String(h ?? '').trim());
-    const start = matrix.indexOf(headerRow);
-    const rows = [];
-    for (let i = start + 1; i < matrix.length; i += 1) {
-      const line = matrix[i];
-      if (!line || line.every((cell) => String(cell ?? '').trim() === '')) {
-        continue;
-      }
-      const row = {};
-      for (let c = 0; c < headers.length; c += 1) {
-        const header = headers[c];
-        if (!header) {
-          continue;
-        }
-        row[header] = line[c] ?? '';
-      }
-      rows.push(row);
-    }
-    return { headers, rows, sheetName };
+    return { ...rowsFromSheet(sheet), sheetName };
   }
   throw new Error(`Unsupported file type: ${ext} (use .csv or .xlsx)`);
 }

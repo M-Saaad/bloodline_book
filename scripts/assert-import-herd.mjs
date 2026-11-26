@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as XLSX from 'xlsx';
 
 import {
   guessColumnMapping,
@@ -10,13 +13,14 @@ import {
 } from './herd-import/column-map.mjs';
 import { buildImportPlan } from './herd-import/plan.mjs';
 import {
+  asTagText,
   excelSerialToIso,
   normalizeDateOfBirth,
   normalizeSex,
   parseRegistrationBody,
 } from './herd-import/normalize.mjs';
 import { resolveParentReference, buildAnimalLookup } from './herd-import/pedigree.mjs';
-import { parseImportArgv } from './import-herd.mjs';
+import { parseImportArgv, runImport as runImportPlan } from './import-herd.mjs';
 import { readSpreadsheet } from './herd-import/read-spreadsheet.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -150,5 +154,209 @@ assert.equal(argv.filePath, 'sheet.xlsx');
 assert.equal(argv.mapPath, 'map.json');
 assert.equal(argv.sheet, 'Herd');
 assert.equal(argv.apply, true);
+assert.equal(argv.offline, false);
+assert.equal(argv.sex, null);
+
+// Tags stay text, including leading zeros. Official ID is the scrapie tag.
+assert.equal(asTagText('0001'), '0001');
+assert.equal(asTagText('0042'), '0042');
+assert.equal(asTagText(58), '58');
+assert.equal(asTagText('  244A  '), '244A');
+assert.equal(asTagText(''), null);
+
+const idHeaders = ['name', 'tag_number', 'official_id', 'sex'];
+const idMapping = guessColumnMapping(idHeaders);
+assert.equal(idMapping.name, 'name');
+assert.equal(idMapping.tag, 'tag_number');
+assert.equal(idMapping.official_id, 'official_id');
+assert.equal(idMapping.sex, 'sex');
+
+const scrapieHeaders = guessColumnMapping(['Scrapie tag', 'Ear Tag', 'Sex']);
+assert.equal(scrapieHeaders.official_id, 'Scrapie tag');
+assert.equal(scrapieHeaders.tag, 'Ear Tag');
+
+const identityRows = [
+  { name: '', tag_number: 'T100', official_id: '', sex: 'doe' },
+  { name: '', tag_number: '', official_id: '0001', sex: 'female' },
+  { name: 'Nanny', tag_number: '', official_id: '', sex: 'f' },
+  { name: 'Clover', tag_number: '', official_id: '', sex: 'Doe' },
+  { name: '', tag_number: 'T10A', official_id: '0042', sex: 'female' },
+  { name: '', tag_number: '', official_id: '0001', sex: 'female' },
+  { name: '', tag_number: 'T100', official_id: '', sex: 'female' },
+  { name: '', tag_number: '', official_id: '', sex: 'female' },
+];
+const identityPlan = buildImportPlan({
+  rows: identityRows,
+  headers: idHeaders,
+  mapping: idMapping,
+  existingAnimals: [],
+  breeds: [],
+  referenceIso: '2026-11-26',
+});
+assert.equal(identityPlan.toInsert.length, 5);
+assert.equal(identityPlan.problems.length, 3);
+const scrapie = identityPlan.toInsert.find((row) => row.record.official_id === '0001');
+assert.ok(scrapie);
+assert.equal(scrapie.record.tag_number, null);
+assert.equal(scrapie.record.name, null);
+assert.equal(scrapie.record.sex, 'female');
+assert.equal(scrapie.record.status, 'active');
+assert.equal(scrapie.record.lifecycle_stage, 'breeding');
+assert.equal(scrapie.record.date_of_birth, null);
+assert.equal(scrapie.record.breed_primary_id, null);
+const nanny = identityPlan.toInsert.find((row) => row.record.name === 'Nanny');
+assert.ok(nanny);
+assert.equal(nanny.record.tag_number, null);
+assert.equal(nanny.record.official_id, null);
+assert.equal(nanny.record.lifecycle_stage, 'breeding');
+const tagged = identityPlan.toInsert.find((row) => row.record.tag_number === 'T10A');
+assert.equal(tagged.record.official_id, '0042');
+assert.ok(
+  identityPlan.problems.some((problem) => problem.reason.includes('Duplicate official ID')),
+);
+assert.ok(
+  identityPlan.problems.some((problem) => problem.reason.includes('Duplicate tag')),
+);
+assert.ok(
+  identityPlan.problems.some((problem) => problem.reason.includes('Need a name, tag number, or official ID')),
+);
+
+const alreadyThere = buildImportPlan({
+  rows: [
+    { name: '', tag_number: 'T100', official_id: '', sex: 'doe' },
+    { name: '', tag_number: 'T4', official_id: '0001', sex: 'doe' },
+  ],
+  headers: idHeaders,
+  mapping: idMapping,
+  existingAnimals: [
+    { id: 'have-tag', name: null, tag_number: 'T100', official_id: null },
+    { id: 'have-official', name: null, tag_number: null, official_id: '0001' },
+  ],
+  breeds: [],
+  referenceIso: '2026-11-26',
+});
+assert.equal(alreadyThere.toInsert.length, 0);
+assert.equal(alreadyThere.skipped.length, 2);
+assert.equal(alreadyThere.problems.length, 0);
+
+const blankSex = buildImportPlan({
+  rows: [{ name: '', tag_number: '6', official_id: '' }],
+  headers: ['name', 'tag_number', 'official_id'],
+  mapping: guessColumnMapping(['name', 'tag_number', 'official_id']),
+  existingAnimals: [],
+  breeds: [],
+  referenceIso: '2026-11-26',
+  defaultSex: 'female',
+});
+assert.equal(blankSex.problems.length, 0);
+assert.equal(blankSex.toInsert.length, 1);
+assert.equal(blankSex.toInsert[0].record.sex, 'female');
+assert.equal(blankSex.toInsert[0].record.tag_number, '6');
+assert.equal(blankSex.toInsert[0].record.lifecycle_stage, 'breeding');
+
+const distinctZeros = buildImportPlan({
+  rows: [
+    { name: '', tag_number: '58', official_id: '', sex: 'doe' },
+    { name: '', tag_number: '', official_id: '0001', sex: 'doe' },
+  ],
+  headers: idHeaders,
+  mapping: idMapping,
+  existingAnimals: [],
+  breeds: [],
+  referenceIso: '2026-11-26',
+});
+assert.equal(distinctZeros.problems.length, 0);
+assert.equal(distinctZeros.toInsert.length, 2);
+assert.equal(distinctZeros.toInsert[1].record.official_id, '0001');
+
+const tempDir = await mkdtemp(join(tmpdir(), 'herd-import-'));
+try {
+  const csvPath = join(tempDir, 'leading.csv');
+  await writeFile(
+    csvPath,
+    'name,tag_number,official_id\n,,0001\nNanny,,\n',
+    'utf8',
+  );
+  const csvRead = await readSpreadsheet(csvPath);
+  assert.equal(csvRead.rows[0].official_id, '0001');
+  assert.equal(csvRead.rows[1].name, 'Nanny');
+
+  const xlsxPath = join(tempDir, 'leading.xlsx');
+  const workbook = XLSX.utils.book_new();
+  const sheet = {};
+  sheet.A1 = { t: 's', v: 'tag_number' };
+  sheet.B1 = { t: 's', v: 'official_id' };
+  sheet.C1 = { t: 's', v: 'sex' };
+  sheet.A2 = { t: 's', v: '007' };
+  sheet.B2 = { t: 'n', v: 42, z: '0000' };
+  sheet.C2 = { t: 's', v: 'doe' };
+  sheet['!ref'] = 'A1:C2';
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Herd');
+  XLSX.writeFile(workbook, xlsxPath);
+  const xlsxRead = await readSpreadsheet(xlsxPath);
+  assert.equal(xlsxRead.rows[0].tag_number, '007');
+  assert.equal(xlsxRead.rows[0].official_id, '0042');
+
+  const dupPath = join(tempDir, 'dup.csv');
+  await writeFile(dupPath, 'name,tag_number,sex\n,1,doe\n,1,doe\n', 'utf8');
+  let inserted = false;
+  const admin = {
+    from() {
+      const builder = {
+        select() {
+          return builder;
+        },
+        eq() {
+          return builder;
+        },
+        is() {
+          return builder;
+        },
+        range() {
+          return builder;
+        },
+        insert() {
+          inserted = true;
+          return Promise.resolve({ error: null });
+        },
+        then(resolve, reject) {
+          return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+        },
+      };
+      return builder;
+    },
+  };
+  await assert.rejects(
+    () =>
+      runImportPlan({
+        admin,
+        farmId: '00000000-0000-4000-8000-000000000001',
+        filePath: dupPath,
+        apply: true,
+        referenceIso: '2026-11-26',
+      }),
+    /Refusing --apply while problem rows exist/,
+  );
+  assert.equal(inserted, false);
+
+  const offline = runImport(['Example Farm', csvPath, '--offline', '--sex', 'female']);
+  assert.equal(offline.status, 0, offline.stderr);
+  assert.match(offline.stdout, /DRY RUN \(no writes\)/);
+  assert.match(offline.stdout, /official_id 0001/);
+  assert.match(offline.stdout, /To insert: 2/);
+  assert.match(offline.stdout, /Problems: 0/);
+  assert.match(offline.stdout, /stage=breeding/);
+  assert.doesNotMatch(`${offline.stdout}${offline.stderr}`, /supabase/i);
+
+  const refused = runImport(['Farm', csvPath, '--offline', '--apply', '--sex', 'female']);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /--offline cannot be combined with --apply/);
+
+  const badSex = runImport(['Farm', csvPath, '--offline', '--sex', 'goat']);
+  assert.equal(badSex.status, 1);
+  assert.match(badSex.stderr, /--sex must be female or male/);
+} finally {
+  await rm(tempDir, { recursive: true, force: true });
+}
 
 console.log('assert-import-herd: ok');

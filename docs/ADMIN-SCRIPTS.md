@@ -94,9 +94,15 @@ You can pass a farm id instead of a name. The script prints the project URL and 
 
 **When to use it:** A pilot farmer emails a homemade Excel or CSV herd list (every layout is different) and you need those goats in their farm without building an in-app importer yet.
 
-The script reads `.xlsx` (first sheet, or `--sheet NAME`) and `.csv`, guesses columns from header names (name, tag, sex, DOB, breed, dam, sire, registration, tattoo, notes, and similar), and accepts overrides in a small JSON map file. It normalizes US dates, sex (`Doe` / `Buck` / `Wether`), breed names (global breeds plus new farm breeds), and registration bodies (ADGA, ABGA, USBGA). Dam and sire cells that match another row’s tag or name, or an animal already on the farm, become `dam_id` / `sire_id`; otherwise they are stored as `dam_external_name` / `sire_external_name`.
+The script reads `.xlsx` (first sheet, or `--sheet NAME`) and `.csv`, guesses columns from header names (name, tag, official ID / scrapie tag, sex, DOB, breed, dam, sire, registration, tattoo, notes, and similar), and accepts overrides in a small JSON map file. It normalizes US dates, sex (`Doe` / `Buck` / `Wether`), breed names (global breeds plus new farm breeds), and registration bodies (ADGA, ABGA, USBGA). Dam and sire cells that match another row’s tag or name, or an animal already on the farm, become `dam_id` / `sire_id`; otherwise they are stored as `dam_external_name` / `sire_external_name`.
 
-**Default is a dry run:** it prints the column mapping, rows it would insert, rows skipped because the tag or name already exists on the farm, and any row it cannot import (with a reason). Nothing is written unless you pass `--apply`. With `--apply`, new goats are inserted in one batch (all new animals in a single insert, so the herd load is all-or-nothing). Re-running `--apply` is safe: it never duplicates an animal that is already on the farm.
+Tag numbers and `official_id` are stored as text, so a scrapie tag like `0007` keeps its leading zeros. A row can be name-only. It needs a name, a tag number, or an official ID. The same tag number or the same official ID twice in the file stops the import (`--apply` refuses the whole batch). A tag or official ID already on that farm is skipped, not inserted again. Two farms can use the same tag.
+
+`--sex female` or `--sex male` fills blank sex cells when a sheet is all does or all bucks. A doe with no birth date is stored as `active` / `breeding`. Blank breed and birth date stay empty.
+
+**Default is a dry run:** it prints the column mapping, rows it would insert, rows skipped because the tag, official ID, or name already exists on the farm, and any row it cannot import (with a reason). Nothing is written unless you pass `--apply`. With `--apply`, new goats are inserted in one batch (all new animals in a single insert, so the herd load is all-or-nothing). Re-running `--apply` is safe: it never duplicates an animal that is already on the farm.
+
+`--offline` checks the file without connecting to Supabase. It assumes the farm has no animals yet, so it cannot see tags that are already on a farm. It cannot be combined with `--apply`. The farm still has to exist before a real `--apply`.
 
 A messy sample sheet for testing lives at `scripts/fixtures/messy-herd-import.xlsx` (~40 meat-goat rows). Regenerate it with `node scripts/generate-messy-herd-fixture.mjs`.
 
@@ -108,6 +114,9 @@ export SUPABASE_SERVICE_ROLE_KEY='your-service-role-key'
 
 # Dry run (recommended first)
 node scripts/import-herd.mjs "Willow Creek" ~/Downloads/farmer-herd.xlsx
+
+# Check a sheet before the farm exists (no database connection)
+node scripts/import-herd.mjs "Willow Creek" ~/Downloads/farmer-herd.csv --offline --sex female
 
 # Optional column overrides (field name → spreadsheet header)
 node scripts/import-herd.mjs "Willow Creek" farmer.csv --map ./herd-map.json
