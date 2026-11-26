@@ -2,6 +2,10 @@ import * as Crypto from 'expo-crypto';
 
 import type { Transaction } from '@powersync/common';
 
+import {
+  assertFarmWriteAllowed,
+  assertFarmWriteAllowedByRecord,
+} from '@/lib/db/farm-write-guard';
 import { dbNow } from '@/lib/db/now';
 import {
   closeOlderFamachaRechecks,
@@ -66,6 +70,7 @@ export async function createHealthRecord(
   farmId: string,
   input: HealthRecordWrite,
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
   const animalLabel = input.animalLabel ?? 'Animal';
@@ -132,6 +137,7 @@ export async function createDewormFollowUpTask(
     dueDate: string;
   },
 ): Promise<void> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
   const goat = await powersync.getOptional<{
@@ -242,6 +248,7 @@ export async function updateHealthRecord(
   farmId: string,
   input: HealthRecordWrite,
 ): Promise<void> {
+  await assertFarmWriteAllowed(farmId);
   const now = dbNow();
   const animalLabel = input.animalLabel ?? 'Animal';
 
@@ -296,6 +303,7 @@ export async function updateHealthRecord(
 }
 
 export async function deleteHealthRecord(recordId: string): Promise<void> {
+  await assertFarmWriteAllowedByRecord('health_records', recordId);
   await powersync.writeTransaction(async (tx: Transaction) => {
     await deleteOpenTasksForHealthRecord(tx, recordId);
     await tx.execute('DELETE FROM health_records WHERE id = ?', [recordId]);

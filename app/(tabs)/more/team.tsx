@@ -3,6 +3,7 @@ import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
+import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -102,6 +103,7 @@ export default function TeamScreen() {
   }
 
   return (
+    <HandWriteBlocked>
     <ScrollView className="flex-1 bg-paper" contentContainerClassName="px-5 pt-2 pb-10 gap-4">
       <Card>
         <Text className="text-xl font-extrabold text-ink mb-3">Members</Text>
@@ -183,5 +185,6 @@ export default function TeamScreen() {
         />
       </Card>
     </ScrollView>
+    </HandWriteBlocked>
   );
 }

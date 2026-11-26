@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 
+import { assertFarmWriteAllowed, assertFarmWriteAllowedByRecord } from '@/lib/db/farm-write-guard';
 import { mapFarmInvite, mapFarmMember } from '@/lib/db/mappers';
 import { powersync } from '@/lib/powersync/system';
 import type { FarmInvite } from '@/lib/types/team';
@@ -27,6 +28,7 @@ export async function createFarmInvite(
   farmId: string,
   input: { email: string; role: FarmInvite['role'] },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = new Date().toISOString();
 
@@ -40,6 +42,7 @@ export async function createFarmInvite(
 }
 
 export async function revokeFarmInvite(inviteId: string): Promise<void> {
+  await assertFarmWriteAllowedByRecord('farm_invites', inviteId);
   await powersync.execute(
     `UPDATE farm_invites SET status = 'revoked' WHERE id = ?`,
     [inviteId],
