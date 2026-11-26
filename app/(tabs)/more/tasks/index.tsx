@@ -27,7 +27,8 @@ export default function TasksScreen() {
 
   const { data: healthNameRows } = useQuery(
     activeFarm
-      ? `SELECT h.id as id, a.name as name, a.tag_number as tag_number, a.id as animal_id
+      ? `SELECT h.id as id, a.name as name, a.tag_number as tag_number,
+           a.official_id as official_id, a.id as animal_id
          FROM health_records h
          JOIN animals a ON a.id = h.animal_id
          WHERE h.farm_id = ?`
@@ -42,6 +43,7 @@ export default function TasksScreen() {
         id: string;
         name: string | null;
         tag_number: string | null;
+        official_id: string | null;
         animal_id: string;
       };
       map.set(
@@ -50,6 +52,7 @@ export default function TasksScreen() {
           id: String(record.animal_id),
           name: record.name,
           tagNumber: record.tag_number,
+          officialId: record.official_id,
         }),
       );
     }

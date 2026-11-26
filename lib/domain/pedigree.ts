@@ -6,6 +6,7 @@ export type PedigreeAnimal = Pick<
   | 'id'
   | 'name'
   | 'tagNumber'
+  | 'officialId'
   | 'registrationNumber'
   | 'sex'
   | 'damId'
@@ -26,6 +27,7 @@ export type PedigreeNode =
       id: string;
       name: string | null;
       tagNumber: string | null;
+      officialId: string | null;
       registrationNumber: string | null;
     }
   | { kind: 'outside'; name: string }
@@ -101,6 +103,7 @@ export function buildPedigree(
           id: parent.id,
           name: clean(parent.name),
           tagNumber: clean(parent.tagNumber),
+          officialId: clean(parent.officialId),
           registrationNumber: clean(parent.registrationNumber),
         },
         sire: canGrow ? branch(parent, 'sire', `${path}S`, depth + 1, next) : null,
@@ -139,6 +142,7 @@ export function pedigreeAnimalFromRow(row: Record<string, unknown>): PedigreeAni
     id: String(row.id),
     name: text(row.name),
     tagNumber: text(row.tag_number),
+    officialId: text(row.official_id),
     registrationNumber: text(row.registration_number),
     sex: row.sex === 'male' ? 'male' : 'female',
     damId: text(row.dam_id),
@@ -148,6 +152,6 @@ export function pedigreeAnimalFromRow(row: Record<string, unknown>): PedigreeAni
   };
 }
 
-export const PEDIGREE_HERD_SQL = `SELECT id, name, tag_number, registration_number, sex,
+export const PEDIGREE_HERD_SQL = `SELECT id, name, tag_number, official_id, registration_number, sex,
        dam_id, sire_id, dam_external_name, sire_external_name
   FROM animals WHERE farm_id = ?`;

@@ -36,7 +36,7 @@ export function AnimalSearchField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Name or tag number"
+        placeholder="Name, tag, or official ID"
         autoCapitalize="none"
         autoCorrect={false}
         clearButtonMode="while-editing"

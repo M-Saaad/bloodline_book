@@ -15,6 +15,7 @@ import {
   PEDIGREE_HERD_SQL,
   pedigreeAnimalFromRow,
 } from '@/lib/domain/pedigree';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm } from '@/providers/FarmProvider';
 
 const BOX_WIDTH = 156;
@@ -59,7 +60,7 @@ export default function PedigreeScreen() {
     );
   }
 
-  const title = subject.name ?? (subject.tagNumber ? `#${subject.tagNumber}` : 'Pedigree');
+  const title = animalDisplayLabel(subject);
 
   return (
     <View className="flex-1 bg-paper">
@@ -79,6 +80,7 @@ export default function PedigreeScreen() {
             subject={{
               name: subject.name,
               tagNumber: subject.tagNumber,
+              officialId: subject.officialId,
               registrationNumber: subject.registrationNumber,
             }}
           />

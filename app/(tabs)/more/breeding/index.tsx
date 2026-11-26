@@ -60,7 +60,7 @@ export default function BreedingScreen() {
 
   const { data: animalRows } = useQuery(
     activeFarm
-      ? `SELECT id, name, tag_number, sex FROM animals WHERE farm_id = ?`
+      ? `SELECT id, name, tag_number, official_id, sex FROM animals WHERE farm_id = ?`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );

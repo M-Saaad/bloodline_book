@@ -27,7 +27,7 @@ export default function HealthLogScreen() {
 
   const { data: animalRows } = useQuery(
     activeFarm
-      ? `SELECT id, name, tag_number FROM animals WHERE farm_id = ?`
+      ? `SELECT id, name, tag_number, official_id FROM animals WHERE farm_id = ?`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
   );

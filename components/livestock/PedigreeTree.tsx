@@ -8,6 +8,7 @@ import {
   type Pedigree,
   type PedigreeBranch,
 } from '@/lib/domain/pedigree';
+import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
 /** Width taken by the lines between one column and the next. */
 export const PEDIGREE_CONNECTOR_WIDTH = 24;
@@ -20,6 +21,7 @@ const BRANCH_WIDTH = PEDIGREE_CONNECTOR_WIDTH - STUB_WIDTH;
 export interface PedigreeSubject {
   name: string | null;
   tagNumber: string | null;
+  officialId: string | null;
   registrationNumber: string | null;
 }
 
@@ -127,7 +129,7 @@ function SubjectBox({ subject, width }: { subject: PedigreeSubject; width: numbe
       style={{ width }}
       className="min-h-[68px] rounded-2xl bg-bloodline-900 px-3 py-2 justify-center">
       <Text className="text-[16px] font-extrabold text-white" numberOfLines={2}>
-        {subject.name ?? (subject.tagNumber ? `#${subject.tagNumber}` : 'This goat')}
+        {animalDisplayLabel(subject)}
       </Text>
       {detail ? (
         <Text className="text-[13px] text-white/85 mt-0.5" numberOfLines={1}>
@@ -172,7 +174,7 @@ function PedigreeBox({ branch, width }: { branch: PedigreeBranch; width: number 
     );
   }
 
-  const name = node.name ?? (node.tagNumber ? `#${node.tagNumber}` : 'Unnamed goat');
+  const name = animalDisplayLabel(node);
   const detail = detailLine(node.name ? node.tagNumber : null, node.registrationNumber);
   return (
     <Pressable

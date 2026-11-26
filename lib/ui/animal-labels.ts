@@ -1,15 +1,48 @@
 import type { Animal } from '@/lib/types/animals';
 
-export function animalDisplayLabel(
-  animal: Pick<Animal, 'name' | 'tagNumber' | 'id'>,
-): string {
-  if (animal.name?.trim()) {
-    return animal.name.trim();
+export const UNNAMED_ANIMAL_LABEL = 'Unnamed animal';
+
+type AnimalLabelSource = {
+  name?: string | null;
+  tagNumber?: string | null;
+  officialId?: string | null;
+  id?: string | null;
+};
+
+/**
+ * Name, then farm tag (`#tag`), then official ID as stored (scrapie or USDA),
+ * then "Unnamed animal".
+ */
+export function animalDisplayLabel(animal: AnimalLabelSource): string {
+  const name = animal.name?.trim();
+  if (name) {
+    return name;
   }
-  if (animal.tagNumber?.trim()) {
-    return `#${animal.tagNumber.trim()}`;
+  const tag = animal.tagNumber?.trim();
+  if (tag) {
+    return `#${tag}`;
   }
-  return `Animal ${animal.id.slice(0, 8)}`;
+  const officialId = animal.officialId?.trim();
+  if (officialId) {
+    return officialId;
+  }
+  return UNNAMED_ANIMAL_LABEL;
+}
+
+/** Split a title so the farm tag can be painted separately from the name. */
+export function animalTitleParts(animal: AnimalLabelSource): {
+  primary: string;
+  tag: string | null;
+} {
+  const name = animal.name?.trim() ?? '';
+  const tag = animal.tagNumber?.trim() ?? '';
+  if (name) {
+    return { primary: name, tag: tag ? `#${tag}` : null };
+  }
+  if (tag) {
+    return { primary: '', tag: `#${tag}` };
+  }
+  return { primary: animalDisplayLabel(animal), tag: null };
 }
 
 export function formatSex(sex: Animal['sex']): string {

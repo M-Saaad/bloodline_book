@@ -1,23 +1,17 @@
 import { View } from 'react-native';
 import { Text } from '@/components/ui/Text';
+import { animalTitleParts } from '@/lib/ui/animal-labels';
 
 type NameSource = {
-  id: string;
   name?: string | null;
   tagNumber?: string | null;
+  officialId?: string | null;
 };
 
 /** Splits a goat into a name and a tag so the tag can be shown in brand red. */
 export function goatParts(animal: NameSource): { name: string; tag: string | null } {
-  const name = animal.name?.trim();
-  const tag = animal.tagNumber?.trim();
-  if (name) {
-    return { name, tag: tag ? `#${tag}` : null };
-  }
-  if (tag) {
-    return { name: '', tag: `#${tag}` };
-  }
-  return { name: `Animal ${animal.id.slice(0, 8)}`, tag: null };
+  const parts = animalTitleParts(animal);
+  return { name: parts.primary, tag: parts.tag };
 }
 
 /** Section heading, 20px extra bold. */

@@ -37,7 +37,8 @@ async function labelForAnimal(
   const row = await tx.getOptional<{
     name: string | null;
     tag_number: string | null;
-  }>('SELECT name, tag_number FROM animals WHERE id = ?', [animalId]);
+    official_id: string | null;
+  }>('SELECT name, tag_number, official_id FROM animals WHERE id = ?', [animalId]);
   if (!row) {
     const trimmed = fallback.trim();
     return trimmed && trimmed !== 'Animal' ? trimmed : 'Animal';
@@ -46,6 +47,7 @@ async function labelForAnimal(
     id: animalId,
     name: row.name,
     tagNumber: row.tag_number,
+    officialId: row.official_id,
   });
 }
 
