@@ -27,6 +27,7 @@ import {
   PASSWORD_RESET_REDIRECT_URL,
   SIGNUP_EMAIL_REDIRECT_URL,
 } from '@/lib/config/app';
+import { useUiStore } from '@/lib/store/ui';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase/client';
 
 interface AuthContextValue {
@@ -259,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error;
     }
     await clearRecoveryPending();
+    await useUiStore.getState().clearRememberedFarmId();
   }, [clearRecoveryPending]);
 
   const value = useMemo(

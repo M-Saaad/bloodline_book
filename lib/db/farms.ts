@@ -5,7 +5,8 @@ import { powersync } from '@/lib/powersync/system';
 import { supabase } from '@/lib/supabase/client';
 import type { Farm } from '@/lib/types/tenancy';
 
-export const FARMS_FOR_USER_SQL = `SELECT f.* FROM farms f
+export const FARMS_FOR_USER_SQL = `SELECT f.*, fm.user_id AS member_user_id
+     FROM farms f
      INNER JOIN farm_members fm ON fm.farm_id = f.id
      WHERE fm.user_id = ?
      ORDER BY f.name`;

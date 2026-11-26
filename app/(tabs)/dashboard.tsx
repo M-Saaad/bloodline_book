@@ -35,10 +35,10 @@ import {
 } from '@/lib/domain/health';
 import { partitionOpenTasks } from '@/lib/domain/today';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
-import { useFarm } from '@/providers/FarmProvider';
+import { useFarm, useFarmScopeKey } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
-export default function DashboardScreen() {
+function DashboardScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();
   const { isHand, canWrite } = useFarmRole();
   const [weekOpen, setWeekOpen] = useState(false);
@@ -647,4 +647,9 @@ function TaskRow({
       </Pressable>
     </View>
   );
+}
+
+export default function DashboardRoute() {
+  const farmScopeKey = useFarmScopeKey();
+  return <DashboardScreen key={farmScopeKey} />;
 }

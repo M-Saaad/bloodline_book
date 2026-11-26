@@ -3,6 +3,7 @@ import { type Href, router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
+import { FarmSwitcherSheet } from '@/components/FarmSwitcherSheet';
 import { SyncBadge } from '@/components/SyncBadge';
 
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chevron } from '@/components/ui/ListRow';
 import { FormMessage } from '@/components/ui/FormMessage';
+import { canSwitchFarm } from '@/lib/domain/active-farm';
 import { TEAM_INVITES_ENABLED } from '@/lib/config/features';
 import { countUploadFailures } from '@/lib/powersync/upload-failures';
 import {
@@ -56,7 +58,9 @@ function sleep(ms: number): Promise<void> {
 
 export default function MoreScreen() {
   const { signOut } = useAuth();
-  const { activeFarm } = useFarm();
+  const { activeFarm, farms, setActiveFarmId } = useFarm();
+  const canSwitch = canSwitchFarm(farms.length);
+  const [farmPickerOpen, setFarmPickerOpen] = useState(false);
   const { isHand } = useFarmRole();
   const syncStatus = useStatus();
   const [signOutBusy, setSignOutBusy] = useState(false);
@@ -151,7 +155,7 @@ export default function MoreScreen() {
 
       {isHand ? <ReadOnlyFarmBanner /> : null}
 
-      {activeFarm && (
+      {activeFarm && !canSwitch ? (
         <Card className="px-[18px] py-4">
           <Text className="text-[22px] font-extrabold text-ink">
             {activeFarm.name}
@@ -161,7 +165,45 @@ export default function MoreScreen() {
             {activeFarm.weightUnit}
           </Text>
         </Card>
-      )}
+      ) : null}
+
+      {activeFarm && canSwitch ? (
+        <Pressable
+          onPress={() => setFarmPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Switch farm. ${activeFarm.name}`}>
+          <Card className="px-[18px] py-4">
+            <View className="flex-row items-center gap-3">
+              <View className="flex-1">
+                <Text className="text-[22px] font-extrabold text-ink">
+                  {activeFarm.name}
+                </Text>
+                <Text className="text-base text-gray-500 mt-0.5 capitalize">
+                  {activeFarm.segment} · {activeFarm.currency} ·{' '}
+                  {activeFarm.weightUnit}
+                </Text>
+              </View>
+              <Chevron />
+            </View>
+          </Card>
+        </Pressable>
+      ) : null}
+
+      {canSwitch ? (
+        <FarmSwitcherSheet
+          visible={farmPickerOpen}
+          farms={farms}
+          activeFarmId={activeFarm?.id ?? null}
+          onClose={() => setFarmPickerOpen(false)}
+          onSelect={(farmId) => {
+            if (farmId === activeFarm?.id) {
+              setFarmPickerOpen(false);
+              return;
+            }
+            setActiveFarmId(farmId);
+          }}
+        />
+      ) : null}
 
       <View className="bg-white border border-gray-200 rounded-[22px] overflow-hidden">
         {menuItems.map((item, index) => {

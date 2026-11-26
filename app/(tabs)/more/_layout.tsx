@@ -1,11 +1,13 @@
 import { Stack } from 'expo-router';
 
 import { useStackWithSyncBadge } from '@/lib/navigation/stack-with-sync-badge';
+import { useFarmScopeKey } from '@/providers/FarmProvider';
 
 export default function MoreLayout() {
+  const farmScopeKey = useFarmScopeKey();
   const stackOptions = useStackWithSyncBadge();
   return (
-    <Stack screenOptions={stackOptions}>
+    <Stack key={farmScopeKey} screenOptions={stackOptions}>
       <Stack.Screen name="index" options={{ title: 'More', headerShown: false }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       <Stack.Screen name="help" options={{ title: 'Help' }} />

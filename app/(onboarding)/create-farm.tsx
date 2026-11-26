@@ -12,6 +12,7 @@ import { Segmented } from '@/components/ui/Segmented';
 import { createFarm } from '@/lib/db/farms';
 import type { Farm } from '@/lib/types/tenancy';
 import { useUiStore } from '@/lib/store/ui';
+import { useAuth } from '@/providers/AuthProvider';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
@@ -24,6 +25,8 @@ const SEGMENTS: { value: Farm['segment']; label: string }[] = [
 const WEIGHT_UNITS: Farm['weightUnit'][] = ['lb', 'kg'];
 
 export default function CreateFarmScreen() {
+  const { user } = useAuth();
+  const rememberActiveFarmId = useUiStore((s) => s.rememberActiveFarmId);
   const setActiveFarmId = useUiStore((s) => s.setActiveFarmId);
   const { farms, activeFarm, isLoading: farmsLoading, refreshFarms } =
     useFarm();
@@ -70,7 +73,11 @@ export default function CreateFarmScreen() {
         weightUnit,
         currency: currency.trim().toUpperCase() || 'USD',
       });
-      setActiveFarmId(farmId);
+      if (user) {
+        rememberActiveFarmId(user.id, farmId);
+      } else {
+        setActiveFarmId(farmId);
+      }
       await refreshFarms();
       router.replace('/(tabs)/dashboard');
     } catch (error) {
