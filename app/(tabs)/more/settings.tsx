@@ -9,7 +9,10 @@ import { Banner } from '@/components/ui/Banner';
 import { FieldLabel } from '@/components/ui/FieldLabel';
 import { Input } from '@/components/ui/Input';
 import { Segmented } from '@/components/ui/Segmented';
+import { DateField } from '@/components/ui/DateField';
+import { formatDisplayDate, parseIsoDate, todayIso } from '@/lib/dates';
 import { updateFarmSettings } from '@/lib/db/farms';
+import { resolveKiddingSeasonStart } from '@/lib/domain/fast-kidding';
 import type { Farm } from '@/lib/types/tenancy';
 import { confirmAction } from '@/lib/ui/confirm';
 import { formatFarmOperationType } from '@/lib/ui/farm-labels';
@@ -34,6 +37,9 @@ export default function SettingsScreen() {
   const [famachaRecheckDays, setFamachaRecheckDays] = useState(
     String(activeFarm?.famachaRecheckDays ?? 14),
   );
+  const [kiddingSeasonStart, setKiddingSeasonStart] = useState(
+    activeFarm?.kiddingSeasonStart ?? '',
+  );
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -52,6 +58,7 @@ export default function SettingsScreen() {
       activeFarm.weaningDays != null ? String(activeFarm.weaningDays) : '',
     );
     setFamachaRecheckDays(String(activeFarm.famachaRecheckDays ?? 14));
+    setKiddingSeasonStart(activeFarm.kiddingSeasonStart ?? '');
   }, [activeFarm]);
 
   async function handleSave() {
@@ -86,6 +93,11 @@ export default function SettingsScreen() {
       }
     }
 
+    if (kiddingSeasonStart.trim() && !parseIsoDate(kiddingSeasonStart.trim())) {
+      setErrorMessage('Enter a kidding season start, or clear it to use 1 December.');
+      return;
+    }
+
     if (weightUnit !== activeFarm.weightUnit) {
       const proceed = await confirmAction(
         'Change weight unit?',
@@ -106,6 +118,7 @@ export default function SettingsScreen() {
         gestationDays: gestation,
         weaningDays: weaning,
         famachaRecheckDays: recheck,
+        kiddingSeasonStart: kiddingSeasonStart.trim() || null,
       });
       await refreshFarms();
       setSuccessMessage('Settings saved.');
@@ -194,6 +207,19 @@ export default function SettingsScreen() {
         onChangeText={setFamachaRecheckDays}
         keyboardType="numeric"
       />
+      <DateField
+        label="Kidding season start"
+        value={kiddingSeasonStart}
+        onChange={setKiddingSeasonStart}
+        optional
+      />
+      <Text className="text-base text-gray-500 -mt-2 mb-4">
+        Does with no kidding on or after{' '}
+        {formatDisplayDate(
+          resolveKiddingSeasonStart(kiddingSeasonStart.trim() || null, todayIso()),
+        )}{' '}
+        stay on Not kidded yet. Clear the date to use 1 December.
+      </Text>
 
       <Text className="text-base text-gray-500">
         Operation type:{' '}

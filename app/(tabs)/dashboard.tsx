@@ -34,6 +34,12 @@ import {
   withdrawalBadgeLabel,
 } from '@/lib/domain/health';
 import { partitionOpenTasks } from '@/lib/domain/today';
+import {
+  KIDDING_SEASON_MARKS_READY_SQL,
+  notKiddedYet,
+  notKiddedYetLabel,
+  resolveKiddingSeasonStart,
+} from '@/lib/domain/fast-kidding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { useFarm, useFarmScopeKey } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
@@ -75,9 +81,24 @@ function DashboardScreen() {
 
   const { data: kiddingRows } = useQuery(
     activeFarm
-      ? `SELECT kids_born, kid_date FROM kidding_events WHERE farm_id = ?`
+      ? `SELECT kids_born, kid_date, dam_id FROM kidding_events WHERE farm_id = ?`
       : 'SELECT 1 WHERE 0',
     activeFarm ? [activeFarm.id] : [],
+  );
+
+  const { data: seasonMarkReadyRows } = useQuery(KIDDING_SEASON_MARKS_READY_SQL);
+  const seasonMarksReady =
+    (seasonMarkReadyRows?.[0] as { name?: string } | undefined)?.name ===
+    'kidding_season_marks';
+  const seasonStart = activeFarm
+    ? resolveKiddingSeasonStart(activeFarm.kiddingSeasonStart, today)
+    : today;
+  const { data: seasonMarkRows } = useQuery(
+    activeFarm && seasonMarksReady
+      ? `SELECT animal_id, season_start FROM kidding_season_marks
+         WHERE farm_id = ? AND season_start = ?`
+      : 'SELECT 1 WHERE 0',
+    activeFarm && seasonMarksReady ? [activeFarm.id, seasonStart] : [],
   );
 
   const { data: recentSessions } = useQuery(
@@ -211,6 +232,26 @@ function DashboardScreen() {
   const doesBred = new Set(
     (breedingRows ?? []).map((row) => String((row as { dam_id: string }).dam_id)),
   ).size;
+  const notKidded = notKiddedYet(
+    animals,
+    (kiddingRows ?? []).map((row) => {
+      const record = row as { dam_id?: string; kid_date?: string };
+      return {
+        damId: String(record.dam_id ?? ''),
+        kidDate: String(record.kid_date ?? ''),
+      };
+    }),
+    seasonMarksReady
+      ? (seasonMarkRows ?? []).map((row) => {
+          const record = row as { animal_id?: string; season_start?: string };
+          return {
+            animalId: String(record.animal_id ?? ''),
+            seasonStart: String(record.season_start ?? '').slice(0, 10),
+          };
+        })
+      : [],
+    seasonStart,
+  );
   const year = today.slice(0, 4);
   const kidsBornThisYear = (kiddingRows ?? []).reduce((sum, row) => {
     const kidDate = String((row as { kid_date: string }).kid_date ?? '');
@@ -351,6 +392,20 @@ function DashboardScreen() {
             </View>
           </FarmWriteGate>
         </Card>
+      ) : null}
+
+      {!herdStillReading ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/(tabs)/more/breeding/not-kidded')}
+          className="min-h-[72px] justify-center rounded-[22px] bg-white border border-gray-200 px-4 py-3 active:bg-gray-50">
+          <Text className="text-xl font-extrabold text-ink">
+            {notKiddedYetLabel(notKidded.length)}
+          </Text>
+          <Text className="text-base text-gray-500 mt-0.5">
+            Since {formatDisplayDate(seasonStart)}
+          </Text>
+        </Pressable>
       ) : null}
 
       {herdFlag ? (

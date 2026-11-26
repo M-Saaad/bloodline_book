@@ -123,6 +123,9 @@ const READABLE_AFTER = {
   tag_history: {
     animal_id: ['animal_name', 'animal_tag'],
   },
+  kidding_season_marks: {
+    animal_id: ['animal_name', 'animal_tag'],
+  },
 };
 
 function usage() {
@@ -191,6 +194,7 @@ function readableValues(table, column, row, maps) {
     case 'health_records.animal_id':
     case 'documents.animal_id':
     case 'grazing_records.animal_id':
+    case 'kidding_season_marks.animal_id':
     case 'tag_history.animal_id': {
       const bits = animalBits(maps, row.animal_id);
       return { animal_name: bits.name, animal_tag: bits.tag };

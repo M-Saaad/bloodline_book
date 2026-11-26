@@ -9,6 +9,7 @@ const farms = new Table(
     gestation_days: column.integer,
     weaning_days: column.integer,
     famacha_recheck_days: column.integer,
+    kidding_season_start: column.text,
     created_at: column.text,
     updated_at: column.text,
   },
@@ -306,6 +307,23 @@ const feedLogs = new Table(
   { indexes: { feed_farm: ['farm_id'], feed_date: ['date'] } },
 );
 
+const kiddingSeasonMarks = new Table(
+  {
+    farm_id: column.text,
+    animal_id: column.text,
+    season_start: column.text,
+    kind: column.text,
+    created_at: column.text,
+    created_by: column.text,
+  },
+  {
+    indexes: {
+      season_mark_farm: ['farm_id', 'season_start'],
+      season_mark_animal: ['animal_id'],
+    },
+  },
+);
+
 const uploadFailures = new Table(
   {
     table_name: column.text,
@@ -338,6 +356,7 @@ export const AppSchema = new Schema({
   pastures,
   grazing_records: grazingRecords,
   feed_logs: feedLogs,
+  kidding_season_marks: kiddingSeasonMarks,
   upload_failures: uploadFailures,
 });
 

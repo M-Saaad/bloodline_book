@@ -28,19 +28,21 @@ export default function KiddingSummaryScreen() {
       ? `SELECT a.*,
            (SELECT wl.weight_value
             FROM weight_logs wl
-            JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
-            WHERE wl.animal_id = a.id AND ws.weigh_point = 'birth'
-            ORDER BY ws.date ASC
+            LEFT JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+            WHERE wl.animal_id = a.id
+              AND COALESCE(ws.weigh_point, 'birth') = 'birth'
+            ORDER BY COALESCE(ws.date, a.date_of_birth) ASC
             LIMIT 1) AS weight_value,
            (SELECT wl.weight_unit
             FROM weight_logs wl
-            JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
-            WHERE wl.animal_id = a.id AND ws.weigh_point = 'birth'
-            ORDER BY ws.date ASC
+            LEFT JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
+            WHERE wl.animal_id = a.id
+              AND COALESCE(ws.weigh_point, 'birth') = 'birth'
+            ORDER BY COALESCE(ws.date, a.date_of_birth) ASC
             LIMIT 1) AS weight_unit
          FROM animals a
          WHERE a.litter_id = ?
-         ORDER BY a.created_at ASC`
+         ORDER BY COALESCE(a.birth_order, 999), a.created_at ASC`
       : 'SELECT 1 WHERE 0',
     id ? [id] : [],
   );
