@@ -34,6 +34,8 @@ export interface Animal {
   registrationBody: 'adga' | 'abga' | 'usbga' | 'other' | null;
   registrationNumber: string | null;
   tattoo: string | null;
+  color: string | null;
+  birthOrder: number | null;
   purchasePrice: number | null;
   soldPrice: number | null;
   purchasedFromId: string | null;

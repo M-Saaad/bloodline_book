@@ -6,6 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FarmWriteGate } from '@/components/FarmWriteGate';
 import {
+  TagHistoryCard,
+  type TagHistoryRow,
+} from '@/components/livestock/TagHistoryCard';
+import {
   PEDIGREE_CONNECTOR_WIDTH,
   PedigreeTree,
 } from '@/components/livestock/PedigreeTree';
@@ -22,7 +26,9 @@ import {
   formatWindowCompact,
   resolveBreedingWindow,
 } from '@/lib/domain/breeding';
+import { formatBirthOrder } from '@/lib/domain/animals';
 import { litterSummaryLabel } from '@/lib/domain/kidding';
+import { type TagKind } from '@/lib/domain/tag-history';
 import {
   buildPedigree,
   CARD_PEDIGREE_GENERATIONS,
@@ -53,6 +59,14 @@ export default function AnimalDetailScreen() {
 
   const { data: animalRows, isLoading: animalLoading } = useQuery(
     id ? 'SELECT * FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
+    id ? [id] : [],
+  );
+
+  const { data: tagHistoryData, error: tagHistoryError } = useQuery(
+    id
+      ? `SELECT id, kind, value, started_on, ended_on, note, created_at
+         FROM tag_history WHERE animal_id = ?`
+      : 'SELECT 1 WHERE 0',
     id ? [id] : [],
   );
 
@@ -203,6 +217,27 @@ export default function AnimalDetailScreen() {
   }
 
   const animal = mapAnimal(animalRow as Record<string, unknown>);
+  const birthOrderLabel = formatBirthOrder(animal.birthOrder);
+  const tagRows: TagHistoryRow[] = tagHistoryError
+    ? []
+    : (tagHistoryData ?? []).flatMap((row) => {
+        const record = row as Record<string, unknown>;
+        const kind = tagKindFromUnknown(record.kind);
+        if (!kind || record.value == null || String(record.value).trim() === '') {
+          return [];
+        }
+        return [
+          {
+            id: String(record.id),
+            kind,
+            value: String(record.value),
+            startedOn: record.started_on != null ? String(record.started_on) : null,
+            endedOn: record.ended_on != null ? String(record.ended_on) : null,
+            note: record.note != null ? String(record.note) : null,
+            createdAt: record.created_at != null ? String(record.created_at) : '',
+          },
+        ];
+      });
   const breedName =
     breedRows?.[0]?.name != null ? String(breedRows[0].name) : null;
   const title = animalTitleParts(animal);
@@ -486,6 +521,12 @@ export default function AnimalDetailScreen() {
           {animal.dateOfBirth ? (
             <DetailRow label="Date of birth" value={animal.dateOfBirth} />
           ) : null}
+          {animal.color?.trim() ? (
+            <DetailRow label="Colour" value={animal.color.trim()} />
+          ) : null}
+          {birthOrderLabel ? (
+            <DetailRow label="Birth order" value={birthOrderLabel} />
+          ) : null}
           {animal.outDate ? (
             <DetailRow label="Out date" value={animal.outDate} />
           ) : null}
@@ -542,6 +583,8 @@ export default function AnimalDetailScreen() {
           ) : null}
         </View>
       </Card>
+
+      <TagHistoryCard animal={animal} rows={tagRows} />
 
       <Card>
         <Text className="text-xl font-extrabold text-ink mb-3">Pedigree</Text>
@@ -852,6 +895,17 @@ export default function AnimalDetailScreen() {
     </FarmWriteGate>
     </View>
   );
+}
+
+function tagKindFromUnknown(value: unknown): TagKind | null {
+  switch (value) {
+    case 'farm_tag':
+    case 'official_id':
+    case 'tattoo':
+      return value;
+    default:
+      return null;
+  }
 }
 
 function onFarmSireLabel(record: Record<string, unknown>, emptyLabel: string): string {

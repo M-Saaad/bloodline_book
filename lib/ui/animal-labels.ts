@@ -45,6 +45,16 @@ export function animalTitleParts(animal: AnimalLabelSource): {
   return { primary: animalDisplayLabel(animal), tag: null };
 }
 
+export function kidColorLabel(
+  animal: Pick<Animal, 'lifecycleStage'> & { color?: string | null },
+): string | null {
+  if (animal.lifecycleStage !== 'kid') {
+    return null;
+  }
+  const color = animal.color?.trim();
+  return color ? color : null;
+}
+
 export function formatSex(sex: Animal['sex']): string {
   switch (sex) {
     case 'female':

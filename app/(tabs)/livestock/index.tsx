@@ -17,6 +17,8 @@ import {
   type HerdSexFilter,
   type HerdStatusFilter,
 } from '@/lib/domain/animals';
+import { pastTagSearchHint } from '@/lib/domain/tag-history';
+import { usePastTagValues } from '@/hooks/usePastTagValues';
 import { pushNewAddAnimalSession } from '@/lib/navigation/add-animal';
 import { compareHerdOrder, herdRowSubtitle } from '@/lib/ui/animal-picker';
 import { todayIso } from '@/lib/dates';
@@ -28,6 +30,7 @@ import {
 import {
   animalTitleParts,
   formatAnimalStatus,
+  kidColorLabel,
   statusBadgeTone,
 } from '@/lib/ui/animal-labels';
 import { useFarmRole } from '@/hooks/useFarmRole';
@@ -87,6 +90,7 @@ export default function LivestockListScreen() {
   const [withdrawalOnly, setWithdrawalOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const pastTags = usePastTagValues(activeFarm?.id);
 
   useEffect(() => {
     setStatusFilter(parseHerdStatusFilter(params.status));
@@ -251,11 +255,12 @@ export default function LivestockListScreen() {
       if (withdrawalOnly && !withdrawalLabels.has(animal.id)) {
         return false;
       }
-      return animalMatchesSearch(animal, searchQuery);
+      return animalMatchesSearch(animal, searchQuery, pastTags[animal.id] ?? []);
     }).sort(compareHerdOrder);
   }, [
     herdSource,
     lifecycleFilter,
+    pastTags,
     pastureByAnimal.pastureIds,
     pastureFilter,
     searchQuery,
@@ -340,7 +345,7 @@ export default function LivestockListScreen() {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Name, tag, or official ID"
+          placeholder="Name, tag, old tag, or official ID"
           accessibilityLabel="Search by name, tag, or official ID"
           autoCapitalize="none"
           autoCorrect={false}
@@ -449,6 +454,7 @@ export default function LivestockListScreen() {
             }
             pastureName={pastureByAnimal.names[item.id] ?? null}
             withdrawalLines={withdrawalLabels.get(item.id) ?? []}
+            pastHint={pastTagSearchHint(item, searchQuery, pastTags[item.id] ?? [])}
           />
         )}
       />
@@ -489,6 +495,7 @@ function LivestockRow({
   breedName,
   pastureName,
   withdrawalLines,
+  pastHint,
   first,
   last,
 }: {
@@ -496,10 +503,12 @@ function LivestockRow({
   breedName?: string | null;
   pastureName?: string | null;
   withdrawalLines: string[];
+  pastHint: string | null;
   first: boolean;
   last: boolean;
 }) {
   const title = animalTitleParts(animal);
+  const colorLabel = kidColorLabel(animal);
   return (
     <Pressable
       onPress={() => router.push(`/(tabs)/livestock/${animal.id}`)}
@@ -520,6 +529,9 @@ function LivestockRow({
                 {title.tag}
               </Text>
             ) : null}
+            {colorLabel ? (
+              <Text className="text-[13px] font-semibold text-gray-500"> {colorLabel}</Text>
+            ) : null}
           </Text>
           <Text className="text-[15px] text-gray-500" numberOfLines={1}>
             {herdRowSubtitle(animal, {
@@ -527,6 +539,9 @@ function LivestockRow({
               pasture: pastureName,
             })}
           </Text>
+          {pastHint ? (
+            <Text className="text-[13px] text-gray-500">{pastHint}</Text>
+          ) : null}
           {withdrawalLines.map((line) => (
             <Text key={line} className="text-[15px] font-semibold text-ink mt-0.5">
               {line}

@@ -46,6 +46,9 @@ export function toUploadError(error: unknown): Error {
 }
 
 export function isFatalUploadError(error: unknown): boolean {
+  if (isDuplicateKeyError(error)) {
+    return true;
+  }
   if (typeof error === 'object' && error !== null) {
     const code = (error as { code?: unknown }).code;
     if (typeof code === 'string') {
@@ -56,10 +59,16 @@ export function isFatalUploadError(error: unknown): boolean {
 }
 
 export function isDuplicateKeyError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const record = error as { code?: unknown; message?: unknown };
+  if (record.code === '23505') {
+    return true;
+  }
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: unknown }).code === '23505'
+    typeof record.message === 'string' &&
+    /duplicate key value violates unique constraint/i.test(record.message)
   );
 }
 

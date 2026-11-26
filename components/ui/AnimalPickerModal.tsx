@@ -13,6 +13,8 @@ import {
   formatLivestockRowTitle,
   REGISTRATION_BODY_OPTIONS,
 } from '@/lib/domain/animals';
+import { pastTagSearchHint } from '@/lib/domain/tag-history';
+import { usePastTagValues } from '@/hooks/usePastTagValues';
 import { saveOutsideAnimal } from '@/lib/storage/barn-memory';
 import type { Animal } from '@/lib/types/animals';
 import {
@@ -97,6 +99,7 @@ export function AnimalPickerModal({
   const [query, setQuery] = useState('');
   const [chipId, setChipId] = useState<string | null>(null);
   const [addingOutside, setAddingOutside] = useState(false);
+  const pastTags = usePastTagValues(farmId);
 
   const chip = quickChips.find((item) => item.id === chipId)?.match ?? null;
   const rows = useMemo(
@@ -113,6 +116,7 @@ export function AnimalPickerModal({
         exclude,
         disabled,
         includeOutside: allowOutside,
+        pastTagsByAnimalId: pastTags,
       }),
     [
       allowOutside,
@@ -122,6 +126,7 @@ export function AnimalPickerModal({
       exclude,
       outsideAnimals,
       outsideSex,
+      pastTags,
       query,
       recentIds,
       suggestedIds,
@@ -146,6 +151,10 @@ export function AnimalPickerModal({
     ];
     if (animal.status !== 'active') {
       parts.push(animal.status.replace(/_/g, ' '));
+    }
+    const pastHint = pastTagSearchHint(animal, query, pastTags[animal.id] ?? []);
+    if (pastHint) {
+      parts.push(pastHint);
     }
     return parts.filter(Boolean).join(' · ');
   }
@@ -206,7 +215,7 @@ export function AnimalPickerModal({
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
-                  placeholder="Search name, tag, official ID, or registration"
+                  placeholder="Search name, tag, old tag, official ID, or registration"
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"

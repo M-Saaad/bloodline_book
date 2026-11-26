@@ -6,11 +6,17 @@ import type { Animal } from '@/lib/types/animals';
 import { Text } from '@/components/ui/Text';
 import { TextInput } from '@/components/ui/TextInput';
 
-export function useAnimalSearch(animals: Animal[]) {
+export function useAnimalSearch(
+  animals: Animal[],
+  pastTagsByAnimalId: Readonly<Record<string, readonly string[]>> = {},
+) {
   const [query, setQuery] = useState('');
   const filtered = useMemo(
-    () => animals.filter((animal) => animalMatchesSearch(animal, query)),
-    [animals, query],
+    () =>
+      animals.filter((animal) =>
+        animalMatchesSearch(animal, query, pastTagsByAnimalId[animal.id] ?? []),
+      ),
+    [animals, pastTagsByAnimalId, query],
   );
   return { query, setQuery, filtered };
 }
@@ -36,7 +42,7 @@ export function AnimalSearchField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder="Name, tag, or official ID"
+        placeholder="Name, tag, old tag, or official ID"
         autoCapitalize="none"
         autoCorrect={false}
         clearButtonMode="while-editing"

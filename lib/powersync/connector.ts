@@ -117,6 +117,9 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
         // Use INSERT, not UPSERT: PostgREST upsert also evaluates UPDATE RLS, which
         // blocks new farm rows before on_farm_created adds farm_members membership.
         const { error } = await supabase.from(table).insert(record);
+        // Two phones can each insert a current tag_history row for the same goat
+        // and kind. Skip 23505 so that upload is not retried and the rest of the
+        // transaction (including the animal's current tag) still goes up.
         if (error && isDuplicateKeyError(error)) {
           return;
         }
@@ -132,6 +135,9 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
           .update(patch)
           .eq('id', id)
           .select('id');
+        if (error && isDuplicateKeyError(error)) {
+          return;
+        }
         if (error) {
           throw error;
         }

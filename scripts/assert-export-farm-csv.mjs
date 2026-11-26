@@ -41,6 +41,7 @@ assert.deepEqual(tables, [
   'pastures',
   'grazing_records',
   'feed_logs',
+  'tag_history',
 ]);
 assert.ok(!tables.includes('farm_members'));
 assert.ok(!tables.includes('farm_invites'));

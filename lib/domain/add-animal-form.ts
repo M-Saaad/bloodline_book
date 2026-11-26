@@ -9,6 +9,8 @@ export type AddAnimalDraft = {
   registrationBody: Animal['registrationBody'];
   registrationNumber: string;
   tattoo: string;
+  color: string;
+  birthOrder: string;
   sex: Animal['sex'];
   breedId: string | null;
   breedPercentage: string;
@@ -27,6 +29,8 @@ export function createEmptyAddAnimalDraft(): AddAnimalDraft {
     registrationBody: null,
     registrationNumber: '',
     tattoo: '',
+    color: '',
+    birthOrder: '',
     sex: 'female',
     breedId: null,
     breedPercentage: '',
@@ -45,6 +49,8 @@ export function addAnimalDraftFromDuplicateSource(animal: Animal): AddAnimalDraf
     registrationBody: animal.registrationBody,
     registrationNumber: animal.registrationNumber ?? '',
     tattoo: animal.tattoo ?? '',
+    color: animal.color?.trim() ?? '',
+    birthOrder: '',
     sex: animal.sex,
     breedId: animal.breedPrimaryId,
     breedPercentage:
@@ -98,6 +104,8 @@ export function areAddAnimalDraftsEqual(
     a.registrationBody === b.registrationBody &&
     a.registrationNumber === b.registrationNumber &&
     a.tattoo === b.tattoo &&
+    a.color === b.color &&
+    a.birthOrder === b.birthOrder &&
     a.sex === b.sex &&
     a.breedId === b.breedId &&
     a.breedPercentage === b.breedPercentage &&

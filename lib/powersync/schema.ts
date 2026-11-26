@@ -58,6 +58,8 @@ const animals = new Table(
     registration_body: column.text,
     registration_number: column.text,
     tattoo: column.text,
+    color: column.text,
+    birth_order: column.integer,
     purchase_price: column.real,
     sold_price: column.real,
     purchased_from_id: column.text,
@@ -71,6 +73,26 @@ const animals = new Table(
       animal_farm: ['farm_id'],
       animal_status: ['farm_id', 'status'],
       animal_farm_tag: ['farm_id', 'tag_number'],
+    },
+  },
+);
+
+const tagHistory = new Table(
+  {
+    farm_id: column.text,
+    animal_id: column.text,
+    kind: column.text,
+    value: column.text,
+    started_on: column.text,
+    ended_on: column.text,
+    note: column.text,
+    created_at: column.text,
+    created_by: column.text,
+  },
+  {
+    indexes: {
+      tag_history_animal: ['animal_id'],
+      tag_history_farm: ['farm_id'],
     },
   },
 );
@@ -303,6 +325,7 @@ export const AppSchema = new Schema({
   farm_members: farmMembers,
   breeds,
   animals,
+  tag_history: tagHistory,
   weigh_sessions: weighSessions,
   weight_logs: weightLogs,
   transactions,

@@ -27,6 +27,7 @@ const FARM_SCOPED_TABLES = [
   'feed_logs',
   'documents',
   'breeds',
+  'tag_history',
 ];
 
 const results = [];
@@ -297,6 +298,19 @@ async function seedFarmA(client, tag) {
   if (docErr) throw docErr;
   ids.documents = docId;
 
+  const tagHistoryId = randomUUID();
+  const { error: tagHistoryErr } = await client.from('tag_history').insert({
+    id: tagHistoryId,
+    farm_id: farmId,
+    animal_id: damId,
+    kind: 'farm_tag',
+    value: `${marker}-tag`,
+    note: marker,
+    created_at: now,
+  });
+  if (tagHistoryErr) throw tagHistoryErr;
+  ids.tag_history = tagHistoryId;
+
   const inviteId = randomUUID();
   const { error: inviteErr } = await client.from('farm_invites').insert({
     id: inviteId,
@@ -323,6 +337,7 @@ async function seedFarmA(client, tag) {
     grazing_records: marker,
     feed_logs: marker,
     documents: marker,
+    tag_history: marker,
   };
 
   return { farmId, ids, marker, expected };
@@ -360,6 +375,8 @@ function markerFieldForTable(table) {
       return 'feed_type';
     case 'documents':
       return 'title';
+    case 'tag_history':
+      return 'note';
     default:
       return 'notes';
   }
@@ -395,6 +412,9 @@ async function attackUpdateRow(clientB, table, id) {
       break;
     case 'feed_logs':
       patch = { feed_type: 'ISOLATION-HACK' };
+      break;
+    case 'tag_history':
+      patch = { note: 'ISOLATION-HACK' };
       break;
     case 'weight_logs':
       patch = { weight_value: 999 };
@@ -603,6 +623,16 @@ function buildInsertPayload(table, farmId, ids, tag) {
         type: 'other',
         title: marker,
         notes: marker,
+        created_at: now,
+      };
+    case 'tag_history':
+      return {
+        id,
+        farm_id: farmId,
+        animal_id: ids.animals,
+        kind: 'official_id',
+        value: `ISOLATION-B-${tag}`,
+        note: marker,
         created_at: now,
       };
     default:
@@ -888,6 +918,7 @@ async function cleanupUser(client, farmId, ids, label, failures) {
   await del('breeding_events', ids.breeding_events);
   await del('kidding_events', ids.kidding_events);
   await del('documents', ids.documents);
+  await del('tag_history', ids.tag_history);
   await del('tasks', ids.tasks);
   await del('feed_logs', ids.feed_logs);
   await del('transactions', ids.transactions);

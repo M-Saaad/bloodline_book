@@ -4,9 +4,11 @@ import {
   animalMatchesSearch,
   formatLivestockRowTitle,
 } from '../lib/domain/animals.ts';
+import { pastTagSearchHint } from '../lib/domain/tag-history.ts';
 import {
   animalDisplayLabel,
   animalTitleParts,
+  kidColorLabel,
   UNNAMED_ANIMAL_LABEL,
 } from '../lib/ui/animal-labels.ts';
 import { searchRank } from '../lib/ui/animal-picker.ts';
@@ -84,5 +86,16 @@ assert.equal(
 assert.equal(searchRank({ tagNumber: null, officialId: '0027' }, '0027'), 0);
 assert.equal(searchRank({ tagNumber: '14', officialId: '0027' }, '002'), 1);
 assert.equal(searchRank({ tagNumber: '14', officialId: null }, '0027'), 2);
+
+const daisy = { name: 'Daisy', tagNumber: '24B', officialId: null };
+assert.equal(animalDisplayLabel(daisy), 'Daisy');
+assert.equal(animalTitleParts(daisy).tag, '#24B');
+assert.equal(pastTagSearchHint(daisy, '24A', ['24A']), 'was 24A');
+assert.equal(animalDisplayLabel(daisy), 'Daisy');
+assert.equal(formatLivestockRowTitle(daisy), '#24B · Daisy');
+assert.equal(pastTagSearchHint(daisy, '24B', ['24A']), null);
+assert.equal(kidColorLabel({ lifecycleStage: 'kid', color: ' red ' }), 'red');
+assert.equal(kidColorLabel({ lifecycleStage: 'adult', color: 'red' }), null);
+assert.equal(kidColorLabel({ lifecycleStage: 'kid', color: '  ' }), null);
 
 console.log('assert-animal-labels: ok');

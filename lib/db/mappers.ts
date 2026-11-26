@@ -84,6 +84,11 @@ export function mapAnimal(row: Record<string, unknown>): Animal {
         ? String(row.registration_number)
         : null,
     tattoo: row.tattoo != null ? String(row.tattoo) : null,
+    color: row.color != null ? String(row.color) : null,
+    birthOrder:
+      row.birth_order != null && row.birth_order !== ''
+        ? Number(row.birth_order)
+        : null,
     purchasePrice:
       row.purchase_price != null ? Number(row.purchase_price) : null,
     soldPrice: row.sold_price != null ? Number(row.sold_price) : null,
