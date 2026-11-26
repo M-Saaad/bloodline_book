@@ -18,7 +18,7 @@ Run SQL files in numeric order:
 14. `0015_health_withdrawal_split.sql`
 15. `0016_dam_external_name.sql`
 16. `0017_waitlist_signups.sql`
-17. `0018_tag_history.sql`
+17. `0018_tag_history.sql` (tag history, colour, and birth order; current tag text is not unique in the database — the app warns and names the other goat)
 
 ## PowerSync replication setup
 

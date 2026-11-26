@@ -1,7 +1,8 @@
 -- Tag history, kid colour, and birth order.
 -- Additive only. Current tag_number / official_id / tattoo stay the live values.
 -- Safe to re-run: existing columns, table, policies, indexes, and backfill rows are skipped.
--- Stop and change nothing if two goats on one farm already share a current tag.
+-- Current tag values are not unique in the database. Several farms already share a tag.
+-- The app warns on save and names the other goat. Uploads are not rejected for that.
 
 alter table animals add column if not exists color text;
 
@@ -115,58 +116,7 @@ where nullif(btrim(a.tattoo), '') is not null
       and h.ended_on is null
   );
 
-do $$
-declare
-  dupes text;
-begin
-  select string_agg(
-    farm_id::text || ' ' || kind || ' "' || value || '" x' || n::text,
-    '; '
-  )
-  into dupes
-  from (
-    select farm_id, 'farm tag' as kind, lower(btrim(tag_number)) as value, count(*) as n
-    from animals
-    where nullif(btrim(tag_number), '') is not null
-    group by farm_id, lower(btrim(tag_number))
-    having count(*) > 1
-    union all
-    select farm_id, 'official id', lower(btrim(official_id)), count(*)
-    from animals
-    where nullif(btrim(official_id), '') is not null
-    group by farm_id, lower(btrim(official_id))
-    having count(*) > 1
-    union all
-    select farm_id, 'tattoo', lower(btrim(tattoo)), count(*)
-    from animals
-    where nullif(btrim(tattoo), '') is not null
-    group by farm_id, lower(btrim(tattoo))
-    having count(*) > 1
-  ) d;
-
-  if dupes is not null then
-    raise exception
-      'Current tags are not unique within a farm, so this migration stopped and changed nothing. Fix these, then run it again: %',
-      dupes;
-  end if;
-end $$;
-
-create unique index if not exists animals_current_farm_tag_unique
-  on animals (farm_id, lower(btrim(tag_number)))
-  where nullif(btrim(tag_number), '') is not null;
-
-create unique index if not exists animals_current_official_id_unique
-  on animals (farm_id, lower(btrim(official_id)))
-  where nullif(btrim(official_id), '') is not null;
-
-create unique index if not exists animals_current_tattoo_unique
-  on animals (farm_id, lower(btrim(tattoo)))
-  where nullif(btrim(tattoo), '') is not null;
-
+-- One open history row per goat and kind. The same tag text may be current on more than one goat.
 create unique index if not exists tag_history_one_current_per_kind
   on tag_history (animal_id, kind)
-  where ended_on is null;
-
-create unique index if not exists tag_history_current_value_per_farm
-  on tag_history (farm_id, kind, lower(btrim(value)))
   where ended_on is null;

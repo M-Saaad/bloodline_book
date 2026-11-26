@@ -15,21 +15,34 @@ import {
   planTagChange,
   sortTagHistory,
 } from '../lib/domain/tag-history.ts';
+import {
+  isDuplicateKeyError,
+  isFatalUploadError,
+} from '../lib/powersync/errors.ts';
 import { buildPickerRows } from '../lib/ui/animal-picker.ts';
 import {
   animalDisplayLabel,
   UNNAMED_ANIMAL_LABEL,
 } from '../lib/ui/animal-labels.ts';
 
-const sql = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), '../supabase/migrations/0018_tag_history.sql'),
-  'utf8',
-);
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const sql = readFileSync(join(root, 'supabase/migrations/0018_tag_history.sql'), 'utf8');
+const connector = readFileSync(join(root, 'lib/powersync/connector.ts'), 'utf8');
 assert.equal((sql.match(/insert into tag_history/gi) ?? []).length, 3);
 assert.equal((sql.match(/ended_on is null/gi) ?? []).length >= 3, true);
 assert.match(sql, /not exists/i);
 assert.doesNotMatch(sql, /\bdrop\b/i);
 assert.doesNotMatch(sql, /\brename\b/i);
+assert.doesNotMatch(sql, /raise exception/i);
+assert.match(sql, /tag_history_one_current_per_kind/);
+for (const removed of [
+  'animals_current_farm_tag_unique',
+  'animals_current_official_id_unique',
+  'animals_current_tattoo_unique',
+  'tag_history_current_value_per_farm',
+]) {
+  assert.equal(sql.includes(removed), false, removed);
+}
 assert.match(sql, /animals add column if not exists color/i);
 assert.match(sql, /animals add column if not exists birth_order/i);
 
@@ -327,5 +340,32 @@ assert.equal(parseBirthOrder('0').error?.includes('starts at 1'), true);
 assert.equal(formatBirthOrder(1), '1 · first born');
 assert.equal(formatBirthOrder(2), '2');
 assert.equal(formatBirthOrder(null), null);
+
+const uniqueViolation = {
+  code: '23505',
+  message:
+    'duplicate key value violates unique constraint "tag_history_one_current_per_kind"',
+};
+assert.equal(isDuplicateKeyError(uniqueViolation), true);
+assert.equal(
+  isFatalUploadError(uniqueViolation),
+  true,
+  'a unique violation must not be retried forever',
+);
+assert.equal(
+  isDuplicateKeyError({
+    message: 'duplicate key value violates unique constraint "tag_history_one_current_per_kind"',
+  }),
+  true,
+);
+const uploadOps = connector.slice(
+  connector.indexOf('case UpdateType.PUT'),
+  connector.indexOf('case UpdateType.DELETE'),
+);
+assert.equal(
+  (uploadOps.match(/isDuplicateKeyError/g) ?? []).length,
+  2,
+  'insert and update both skip a unique violation instead of retrying it',
+);
 
 console.log('assert-tag-history: ok');
