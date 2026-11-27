@@ -10,6 +10,7 @@ import {
   currentNestedRouteName,
   tabPressShouldOpenRoot,
 } from '@/lib/navigation/more-tab';
+import { tabLayoutBackBehavior } from '@/lib/navigation/tab-back';
 import { Text } from '@/components/ui/Text';
 
 function TabIcon({ label }: { label: string }) {
@@ -28,6 +29,7 @@ export default function TabLayout() {
   return (
     <RequireAuth>
     <Tabs
+      backBehavior={tabLayoutBackBehavior()}
       tabBar={() => <BottomNav />}
       screenOptions={{
         tabBarActiveTintColor: '#a52f1a',
