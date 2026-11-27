@@ -9,6 +9,10 @@ import {
 } from '@/lib/db/farm-write-guard';
 import { mapWeighSession, mapWeightLog } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
+import {
+  assertAnimalsOnFarm,
+  assertRecordOnFarm,
+} from '@/lib/domain/same-farm';
 import { powersync } from '@/lib/powersync/system';
 import type { WeighSession, WeightLog } from '@/lib/types/weight';
 
@@ -109,6 +113,12 @@ async function writeWeighEntries(
     now: string;
   },
 ) {
+  await assertRecordOnFarm(tx, 'weigh_sessions', input.sessionId, input.farmId);
+  await assertAnimalsOnFarm(
+    tx,
+    input.farmId,
+    input.entries.map((entry) => entry.animalId),
+  );
   for (const entry of input.entries) {
     const existing = await tx.getOptional<{ id: string }>(
       `SELECT id FROM weight_logs
@@ -186,14 +196,23 @@ export async function getWeightLogById(
 }
 
 export async function updateWeightLog(
+  farmId: string,
   logId: string,
   weightValue: number,
 ): Promise<void> {
   await assertFarmWriteAllowedForWeightLog(logId);
   const now = dbNow();
+  const row = await powersync.getOptional<{ animal_id: string }>(
+    'SELECT animal_id FROM weight_logs WHERE id = ? AND farm_id = ?',
+    [logId, farmId],
+  );
+  if (!row) {
+    throw new Error('That record is not on this farm.');
+  }
+  await assertAnimalsOnFarm(powersync, farmId, [String(row.animal_id)]);
   await powersync.execute(
-    'UPDATE weight_logs SET weight_value = ?, updated_at = ? WHERE id = ?',
-    [weightValue, now, logId],
+    'UPDATE weight_logs SET weight_value = ?, updated_at = ? WHERE id = ? AND farm_id = ?',
+    [weightValue, now, logId, farmId],
   );
 }
 

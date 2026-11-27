@@ -12,6 +12,10 @@ import {
   assertFarmWriteAllowedByRecord,
 } from '@/lib/db/farm-write-guard';
 import { dbNow } from '@/lib/db/now';
+import {
+  assertAnimalsOnFarm,
+  assertRecordOnFarm,
+} from '@/lib/domain/same-farm';
 import { powersync } from '@/lib/powersync/system';
 import type {
   FeedLog,
@@ -95,6 +99,8 @@ export async function moveAnimalsToPasture(
   const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertRecordOnFarm(tx, 'pastures', input.pastureId, farmId);
+    await assertAnimalsOnFarm(tx, farmId, input.animalIds);
     const previousPastureIds = new Set<string>();
 
     for (const animalId of input.animalIds) {

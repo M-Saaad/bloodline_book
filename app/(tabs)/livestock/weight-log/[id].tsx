@@ -17,10 +17,12 @@ import {
 } from '@/lib/db/weights';
 import { getAnimalById } from '@/lib/db/animals';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
 export default function EditWeightLogScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { activeFarm } = useFarm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -31,9 +33,10 @@ export default function EditWeightLogScreen() {
   const [animalTag, setAnimalTag] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) {
+    if (!id || !activeFarm) {
       return;
     }
+    const farmId = activeFarm.id;
     let cancelled = false;
 
     async function load() {
@@ -46,9 +49,17 @@ export default function EditWeightLogScreen() {
           }
           return;
         }
+        if (log.farmId !== farmId) {
+          setErrorMessage('That weight is not on this farm.');
+          return;
+        }
+        const animal = await getAnimalById(log.animalId);
+        if (animal && animal.farmId !== farmId) {
+          setErrorMessage('That goat is not on this farm.');
+          return;
+        }
         setWeightValue(String(log.weightValue));
         setUnit(log.weightUnit);
-        const animal = await getAnimalById(log.animalId);
         setAnimalLabel(animal ? animalDisplayLabel(animal) : 'Animal');
         setAnimalName(animal?.name?.trim() || null);
         setAnimalTag(animal?.tagNumber?.trim() || null);
@@ -69,10 +80,10 @@ export default function EditWeightLogScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [activeFarm, id]);
 
   async function handleSave() {
-    if (!id) {
+    if (!activeFarm || !id) {
       return;
     }
     const parsed = Number.parseFloat(weightValue);
@@ -84,7 +95,7 @@ export default function EditWeightLogScreen() {
     setSaving(true);
     setErrorMessage('');
     try {
-      await updateWeightLog(id, parsed);
+      await updateWeightLog(activeFarm.id, id, parsed);
       router.back();
     } catch (error) {
       setErrorMessage(

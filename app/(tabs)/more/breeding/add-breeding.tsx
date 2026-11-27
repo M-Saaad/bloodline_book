@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -27,6 +27,7 @@ import {
 } from '@/lib/domain/breeding';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { confirmAction } from '@/lib/ui/confirm';
+import { idsOnHerd } from '@/lib/domain/same-farm';
 import { useFarm } from '@/providers/FarmProvider';
 
 type BreedingMode = 'hand' | 'exposure';
@@ -45,7 +46,7 @@ export default function AddBreedingScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { data: animalRows } = useQuery(
+  const { data: animalRows, isLoading: animalsLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM animals
          WHERE farm_id = ? AND status = 'active'
@@ -55,8 +56,11 @@ export default function AddBreedingScreen() {
   );
 
   const animals = useMemo(
-    () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
-    [animalRows],
+    () =>
+      (animalRows ?? [])
+        .map((row) => mapAnimal(row as Record<string, unknown>))
+        .filter((animal) => animal.farmId === activeFarm?.id),
+    [activeFarm?.id, animalRows],
   );
   const females = useMemo(
     () => animals.filter((animal) => animal.sex === 'female'),
@@ -66,6 +70,15 @@ export default function AddBreedingScreen() {
     () => animals.filter((animal) => animal.sex === 'male'),
     [animals],
   );
+
+  useEffect(() => {
+    if (!activeFarm || animalsLoading) {
+      return;
+    }
+    setDamId((current) => idsOnHerd([current], animals)[0] ?? null);
+    setSireId((current) => idsOnHerd([current], animals)[0] ?? null);
+    setDamIds((current) => idsOnHerd(current, animals));
+  }, [activeFarm, animals, animalsLoading]);
 
   const gestationDays = activeFarm?.gestationDays ?? 150;
   const window =

@@ -101,9 +101,10 @@ export default function EditBreedingScreen() {
     isBreedingOpenForKidding(status as 'bred') && !linkedKidding;
 
   useEffect(() => {
-    if (!id) {
+    if (!id || !activeFarm) {
       return;
     }
+    const farmId = activeFarm.id;
     let cancelled = false;
 
     async function load() {
@@ -112,6 +113,10 @@ export default function EditBreedingScreen() {
         const event = await getBreedingEventById(id);
         if (cancelled || !event) {
           setErrorMessage('Breeding record not found.');
+          return;
+        }
+        if (event.farmId !== farmId) {
+          setErrorMessage('That breeding is not on this farm.');
           return;
         }
         setDamId(event.damId);
@@ -124,7 +129,7 @@ export default function EditBreedingScreen() {
         setLinkedKidding(event.kiddingEventId != null);
         setConfirmedDate(event.confirmedDate ?? todayIso());
         setConfirmMethod(event.confirmMethod);
-        await ensureBreedingDueTask(id);
+        await ensureBreedingDueTask(farmId, id);
       } catch (error) {
         if (!cancelled) {
           setErrorMessage(
@@ -142,10 +147,10 @@ export default function EditBreedingScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [activeFarm, id]);
 
   async function handleSave() {
-    if (!id || !damId) {
+    if (!activeFarm || !id || !damId) {
       setErrorMessage('Select a dam.');
       return;
     }
@@ -153,7 +158,7 @@ export default function EditBreedingScreen() {
     setSaving(true);
     setErrorMessage('');
     try {
-      await updateBreedingEvent(id, {
+      await updateBreedingEvent(activeFarm.id, id, {
         damId,
         sireId: sireExternalName.trim() ? undefined : sireId ?? undefined,
         sireExternalName: sireExternalName.trim() || undefined,
@@ -174,14 +179,14 @@ export default function EditBreedingScreen() {
   }
 
   async function handleConfirm() {
-    if (!id || !confirmMethod) {
+    if (!activeFarm || !id || !confirmMethod) {
       setErrorMessage('Pick how pregnancy was confirmed.');
       return;
     }
     setSaving(true);
     setErrorMessage('');
     try {
-      await confirmBreeding(id, {
+      await confirmBreeding(activeFarm.id, id, {
         confirmedDate,
         method: confirmMethod,
       });
@@ -197,7 +202,7 @@ export default function EditBreedingScreen() {
   }
 
   async function handleOpen() {
-    if (!id) {
+    if (!activeFarm || !id) {
       return;
     }
     const confirmed = await confirmAction(
@@ -210,7 +215,7 @@ export default function EditBreedingScreen() {
     }
     setSaving(true);
     try {
-      await markBreedingOpen(id);
+      await markBreedingOpen(activeFarm.id, id);
       setStatus('open');
     } catch (error) {
       setErrorMessage(
@@ -222,7 +227,7 @@ export default function EditBreedingScreen() {
   }
 
   async function handleLost() {
-    if (!id) {
+    if (!activeFarm || !id) {
       return;
     }
     if (!lostNote.trim()) {
@@ -232,7 +237,7 @@ export default function EditBreedingScreen() {
     setSaving(true);
     setErrorMessage('');
     try {
-      await markBreedingLost(id, lostNote.trim());
+      await markBreedingLost(activeFarm.id, id, lostNote.trim());
       setStatus('lost');
       setNotes((current) =>
         [current.trim(), lostNote.trim()].filter(Boolean).join('\n'),
@@ -396,7 +401,7 @@ export default function EditBreedingScreen() {
           }
           onDelete={async () => {
             try {
-              await deleteBreedingEvent(id);
+              await deleteBreedingEvent(activeFarm.id, id);
               router.back();
             } catch (error) {
               if (error instanceof BreedingLinkedToKiddingError) {

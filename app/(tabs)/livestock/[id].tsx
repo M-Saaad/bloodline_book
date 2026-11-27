@@ -60,16 +60,18 @@ export default function AnimalDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { data: animalRows, isLoading: animalLoading } = useQuery(
-    id ? 'SELECT * FROM animals WHERE id = ?' : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm
+      ? 'SELECT * FROM animals WHERE id = ? AND farm_id = ?'
+      : 'SELECT 1 WHERE 0',
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: tagHistoryData, error: tagHistoryError } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT id, kind, value, started_on, ended_on, note, created_at
-         FROM tag_history WHERE animal_id = ?`
+         FROM tag_history WHERE animal_id = ? AND farm_id = ?`
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: breedRows } = useQuery(
@@ -82,28 +84,28 @@ export default function AnimalDetailScreen() {
   );
 
   const { data: pastureRows } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT p.id, p.name, g.start_date
          FROM grazing_records g
          JOIN pastures p ON p.id = g.pasture_id
-         WHERE g.animal_id = ? AND g.end_date IS NULL
+         WHERE g.animal_id = ? AND g.farm_id = ? AND g.end_date IS NULL
          LIMIT 1`
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: healthRows, isLoading: healthLoading } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT * FROM health_records
-         WHERE animal_id = ?
+         WHERE animal_id = ? AND farm_id = ?
          ORDER BY date DESC, created_at DESC
          LIMIT 10`
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: weightRows, isLoading: weightsLoading } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT wl.id,
            COALESCE(ws.date, a.date_of_birth) AS date,
            COALESCE(ws.weigh_point, 'birth') AS weigh_point,
@@ -112,19 +114,19 @@ export default function AnimalDetailScreen() {
          FROM weight_logs wl
          LEFT JOIN weigh_sessions ws ON ws.id = wl.weigh_session_id
          JOIN animals a ON a.id = wl.animal_id
-         WHERE wl.animal_id = ?
+         WHERE wl.animal_id = ? AND wl.farm_id = ?
          ORDER BY COALESCE(ws.date, a.date_of_birth) DESC, wl.created_at DESC`
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: offspringRows } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT * FROM animals
-         WHERE dam_id = ? OR sire_id = ?
+         WHERE farm_id = ? AND (dam_id = ? OR sire_id = ?)
          ORDER BY COALESCE(date_of_birth, created_at) DESC, created_at DESC`
       : 'SELECT 1 WHERE 0',
-    id ? [id, id] : [],
+    id && activeFarm ? [activeFarm.id, id, id] : [],
   );
 
   const { data: herdRows } = useQuery(
@@ -154,51 +156,55 @@ export default function AnimalDetailScreen() {
       : 0;
 
   const { data: breedingRows } = useQuery(
-    id && animalRows?.[0]?.sex === 'female'
+    id && activeFarm && animalRows?.[0]?.sex === 'female'
       ? `SELECT b.*, s.name AS sire_name, s.tag_number AS sire_tag,
            s.official_id AS sire_official_id
          FROM breeding_events b
-         LEFT JOIN animals s ON s.id = b.sire_id
-         WHERE b.dam_id = ?
+         LEFT JOIN animals s ON s.id = b.sire_id AND s.farm_id = b.farm_id
+         WHERE b.farm_id = ? AND b.dam_id = ?
          ORDER BY b.bred_date DESC`
       : 'SELECT 1 WHERE 0',
-    id && animalRows?.[0]?.sex === 'female' ? [id] : [],
+    id && activeFarm && animalRows?.[0]?.sex === 'female'
+      ? [activeFarm.id, id]
+      : [],
   );
 
   const litterId = animalRows?.[0]?.litter_id as string | undefined;
 
   const { data: litterKiddingRows } = useQuery(
-    litterId
-      ? 'SELECT * FROM kidding_events WHERE id = ?'
+    litterId && activeFarm
+      ? 'SELECT * FROM kidding_events WHERE id = ? AND farm_id = ?'
       : 'SELECT 1 WHERE 0',
-    litterId ? [litterId] : [],
+    litterId && activeFarm ? [litterId, activeFarm.id] : [],
   );
 
   const { data: siblingRows } = useQuery(
-    litterId
+    litterId && id && activeFarm
       ? `SELECT id, name, tag_number, official_id FROM animals
-         WHERE litter_id = ? AND id != ?
+         WHERE farm_id = ? AND litter_id = ? AND id != ?
          ORDER BY created_at ASC`
       : 'SELECT 1 WHERE 0',
-    litterId && id ? [litterId, id] : [],
+    litterId && id && activeFarm ? [activeFarm.id, litterId, id] : [],
   );
 
   const { data: withdrawalRows } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT animal_id, date, product_name, meat_withdrawal_days,
                 milk_withdrawal_days, withdrawal_days
-         FROM health_records WHERE animal_id = ?`
+         FROM health_records WHERE animal_id = ? AND farm_id = ?`
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: kiddingRows } = useQuery(
-    id && animalRows?.[0]?.sex === 'female'
+    id && activeFarm && animalRows?.[0]?.sex === 'female'
       ? `SELECT * FROM kidding_events
-         WHERE dam_id = ?
+         WHERE farm_id = ? AND dam_id = ?
          ORDER BY kid_date DESC`
       : 'SELECT 1 WHERE 0',
-    id && animalRows?.[0]?.sex === 'female' ? [id] : [],
+    id && activeFarm && animalRows?.[0]?.sex === 'female'
+      ? [activeFarm.id, id]
+      : [],
   );
 
   if (!activeFarm || !id) {
