@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import { HandWriteBlocked } from '@/components/HandWriteBlocked';
 import { TextSizeSetting } from '@/components/TextSizeSetting';
 import { FormKeyboardScreen } from '@/components/ui/FormKeyboardScreen';
 import { Button } from '@/components/ui/Button';
@@ -137,7 +136,6 @@ export default function SettingsScreen() {
   }
 
   return (
-    <HandWriteBlocked>
     <FormKeyboardScreen
       contentContainerClassName="px-5 pt-2 pb-8"
       footer={
@@ -231,6 +229,5 @@ export default function SettingsScreen() {
         (read-only)
       </Text>
     </FormKeyboardScreen>
-    </HandWriteBlocked>
   );
 }

@@ -1,9 +1,5 @@
 import * as Crypto from 'expo-crypto';
 
-import {
-  assertFarmWriteAllowed,
-  assertFarmWriteAllowedForTask,
-} from '@/lib/db/farm-write-guard';
 import { mapDocument, mapTask } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
 import { ORDER_TASKS_BY_DUE } from '@/lib/sql/portableOrder';
@@ -31,7 +27,6 @@ export async function createDocument(
     animalId?: string;
   },
 ): Promise<string> {
-  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
 
@@ -75,7 +70,6 @@ export async function createTask(
     sourceId?: string;
   },
 ): Promise<string> {
-  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
 
@@ -115,7 +109,6 @@ export async function updateTask(
     priority?: FarmTask['priority'];
   },
 ): Promise<void> {
-  await assertFarmWriteAllowedForTask(taskId);
   const now = dbNow();
   await powersync.execute(
     `UPDATE tasks SET title = ?, due_date = ?, priority = ?, updated_at = ? WHERE id = ?`,
@@ -130,7 +123,6 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
-  await assertFarmWriteAllowedForTask(taskId);
   await powersync.execute('DELETE FROM tasks WHERE id = ?', [taskId]);
 }
 
@@ -138,7 +130,6 @@ export async function setTaskCompleted(
   taskId: string,
   completed: boolean,
 ): Promise<void> {
-  await assertFarmWriteAllowedForTask(taskId);
   const now = dbNow();
   await powersync.execute(
     'UPDATE tasks SET completed = ?, updated_at = ? WHERE id = ?',

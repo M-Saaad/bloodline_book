@@ -6,10 +6,6 @@ import {
   animalDeleteBlockedMessage,
   type AnimalDeleteBlocker,
 } from '@/lib/domain/animal-delete';
-import {
-  assertFarmWriteAllowed,
-  assertFarmWriteAllowedForAnimal,
-} from '@/lib/db/farm-write-guard';
 import { mapAnimal, mapBreed } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
 import {
@@ -160,7 +156,6 @@ export async function createAnimal(
   farmId: string,
   input: AnimalWriteInput & { sex: Animal['sex'] },
 ): Promise<string> {
-  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
   const createdBy = await currentUserId();
@@ -236,7 +231,6 @@ export async function updateAnimal(
   animalId: string,
   input: AnimalWriteInput,
 ): Promise<void> {
-  await assertFarmWriteAllowedForAnimal(animalId);
   const now = dbNow();
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -437,7 +431,6 @@ export class AnimalDeleteBlockedError extends Error {
 }
 
 export async function deleteAnimal(animalId: string): Promise<void> {
-  await assertFarmWriteAllowedForAnimal(animalId);
   const info = await getAnimalDeleteInfo(animalId);
   if (info.blockers.length > 0) {
     throw new AnimalDeleteBlockedError(info.blockers);

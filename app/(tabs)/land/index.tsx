@@ -4,8 +4,6 @@ import { ScrollView, View } from 'react-native';
 
 import { PageHeading, SectionTitle } from '@/components/land/PageHeading';
 import { PastureStatusBadge } from '@/components/land/PastureStatusBadge';
-import { FarmWriteGate } from '@/components/FarmWriteGate';
-import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ListCard, ListRow } from '@/components/ui/ListRow';
@@ -14,13 +12,11 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import { mapFeedLog, mapPasture } from '@/lib/db/mappers';
 import { formatForageType } from '@/lib/ui/pasture-labels';
-import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
 export default function LandScreen() {
   const { activeFarm } = useFarm();
-  const { canWrite } = useFarmRole();
 
   const { data: pastureRows, isLoading: pasturesLoading } = useQuery(
     activeFarm
@@ -86,33 +82,27 @@ export default function LandScreen() {
         subtitle={`${pastures.length} ${pastures.length === 1 ? 'pasture' : 'pastures'} · ${grazingCount} goats out`}
       />
 
-      <FarmRoleStatusBanner />
-
-      <FarmWriteGate>
-        <View className="flex-row gap-2.5">
-          <Button
-            className="flex-1"
-            title="Move goats"
-            onPress={() => router.push('/(tabs)/land/add-grazing')}
-          />
-          <Button
-            className="flex-1"
-            title="Log feed"
-            variant="outline"
-            onPress={() => router.push('/(tabs)/land/add-feed')}
-          />
-        </View>
-      </FarmWriteGate>
+      <View className="flex-row gap-2.5">
+        <Button
+          className="flex-1"
+          title="Move goats"
+          onPress={() => router.push('/(tabs)/land/add-grazing')}
+        />
+        <Button
+          className="flex-1"
+          title="Log feed"
+          variant="outline"
+          onPress={() => router.push('/(tabs)/land/add-feed')}
+        />
+      </View>
 
       {pastures.length === 0 ? (
         <Card>
           <EmptyState
             title="No pastures yet"
             description="Add paddocks and move animals onto grass as you rotate grazing."
-            actionLabel={canWrite ? 'Add pasture' : undefined}
-            onAction={
-              canWrite ? () => router.push('/(tabs)/land/add-pasture') : undefined
-            }
+            actionLabel="Add pasture"
+            onAction={() => router.push('/(tabs)/land/add-pasture')}
           />
         </Card>
       ) : (
@@ -133,13 +123,11 @@ export default function LandScreen() {
       )}
 
       {pastures.length > 0 ? (
-        <FarmWriteGate>
-          <Button
-            title="＋ Add pasture"
-            variant="secondary"
-            onPress={() => router.push('/(tabs)/land/add-pasture')}
-          />
-        </FarmWriteGate>
+        <Button
+          title="＋ Add pasture"
+          variant="secondary"
+          onPress={() => router.push('/(tabs)/land/add-pasture')}
+        />
       ) : null}
 
       <SectionTitle>Recent feed</SectionTitle>
@@ -149,13 +137,11 @@ export default function LandScreen() {
             <Text className="text-[17px] text-gray-500 mb-3">
               No feed logs yet. Record hay, grain, or mineral offered.
             </Text>
-            {canWrite ? (
-              <Button
-                title="Log feed"
-                variant="outline"
-                onPress={() => router.push('/(tabs)/land/add-feed')}
-              />
-            ) : null}
+            <Button
+              title="Log feed"
+              variant="outline"
+              onPress={() => router.push('/(tabs)/land/add-feed')}
+            />
           </View>
         ) : (
           feedLogs.map((item) => (
