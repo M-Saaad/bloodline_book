@@ -8,6 +8,7 @@ import {
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Text';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 
 type Tile = { label: string; symbol: string; href: string };
 
@@ -24,6 +25,7 @@ const TILES: Tile[] = [
 export function QuickAddSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
+  useCloseOnBack(visible, onClose);
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/55 justify-end" onPress={onClose}>

@@ -15,6 +15,7 @@ import {
 } from '@/lib/domain/animals';
 import { pastTagSearchHint } from '@/lib/domain/tag-history';
 import { usePastTagValues } from '@/hooks/usePastTagValues';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { saveOutsideAnimal } from '@/lib/storage/barn-memory';
 import type { Animal } from '@/lib/types/animals';
 import {
@@ -139,6 +140,8 @@ export function AnimalPickerModal({
     setAddingOutside(false);
     onClose();
   }
+
+  useCloseOnBack(visible, close);
 
   function subtitleFor(animal: Animal): string {
     const parts = [

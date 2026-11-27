@@ -9,6 +9,7 @@ import type {
   HerdSexFilter,
   HerdStatusFilter,
 } from '@/lib/domain/animals';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { Text } from '@/components/ui/Text';
 
 type FilterOption<T extends string> = { value: T; label: string };
@@ -55,6 +56,7 @@ export function HerdFilterSheet({
   matchCount,
 }: HerdFilterSheetProps) {
   const insets = useSafeAreaInsets();
+  useCloseOnBack(visible, onClose);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
