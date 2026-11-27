@@ -5,16 +5,20 @@ import { FlatList, View } from 'react-native';
 
 import { CardRowShell, goatParts } from '@/components/breeding/parts';
 import { Badge } from '@/components/ui/Badge';
+import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { formatDisplayDate } from '@/lib/dates';
 import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function HealthLogScreen() {
   const { activeFarm } = useFarm();
+  const { canWrite } = useFarmRole();
 
   const { data: recordRows, isLoading: recordsLoading } = useQuery(
     activeFarm
@@ -55,12 +59,17 @@ export default function HealthLogScreen() {
 
   return (
     <View className="flex-1 bg-paper">
+      <View className="px-5 pt-2">
+        <FarmRoleStatusBanner />
+      </View>
       <View className="px-5 pt-2 pb-3 items-end">
-        <Button
-          title="＋ Add"
-          className="w-[104px] min-h-[48px] py-0"
-          onPress={() => router.push('/(tabs)/more/health/add')}
-        />
+        <FarmWriteGate>
+          <Button
+            title="＋ Add"
+            className="w-[104px] min-h-[48px] py-0"
+            onPress={() => router.push('/(tabs)/more/health/add')}
+          />
+        </FarmWriteGate>
       </View>
 
       <FlatList
@@ -73,8 +82,10 @@ export default function HealthLogScreen() {
           <EmptyState
             title="No health records yet"
             description="Log vaccinations, FAMACHA scores, treatments, and other herd health events."
-            actionLabel="Add Health Record"
-            onAction={() => router.push('/(tabs)/more/health/add')}
+            actionLabel={canWrite ? 'Add Health Record' : undefined}
+            onAction={
+              canWrite ? () => router.push('/(tabs)/more/health/add') : undefined
+            }
           />
         }
         renderItem={({ item, index }) => {
@@ -104,7 +115,11 @@ export default function HealthLogScreen() {
                 tag={goat?.tag}
                 subtitle={details.join(' · ')}
                 last={index === records.length - 1}
-                onPress={() => router.push(`/(tabs)/more/health/edit/${item.id}`)}
+                onPress={() => {
+                  if (canWrite) {
+                    router.push(`/(tabs)/more/health/edit/${item.id}`);
+                  }
+                }}
                 right={
                   <Badge
                     label={formatDisplayDate(item.date)}

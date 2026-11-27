@@ -38,7 +38,7 @@ export function FarmSwitcherSheet({
   const insets = useSafeAreaInsets();
   const { data: membershipRows } = useQuery<{ farm_id: string; role: string }>(
     user
-      ? 'SELECT farm_id, role FROM farm_members WHERE user_id = ?'
+      ? 'SELECT farm_id, role FROM farm_members WHERE lower(user_id) = lower(?)'
       : 'SELECT 1 WHERE 0',
     user ? [user.id] : [],
   );

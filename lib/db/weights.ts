@@ -2,6 +2,11 @@ import * as Crypto from 'expo-crypto';
 
 import type { Transaction } from '@powersync/common';
 
+import {
+  assertFarmWriteAllowed,
+  assertFarmWriteAllowedForWeighSession,
+  assertFarmWriteAllowedForWeightLog,
+} from '@/lib/db/farm-write-guard';
 import { mapWeighSession, mapWeightLog } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
 import { powersync } from '@/lib/powersync/system';
@@ -23,6 +28,7 @@ export async function createWeighSessionWithLogs(
     markWeaned?: boolean;
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const sessionId = Crypto.randomUUID();
   const now = dbNow();
 
@@ -66,6 +72,7 @@ export async function startOrAppendWeighSession(
     markWeaned?: boolean;
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   if (!input.sessionId) {
     return createWeighSessionWithLogs(farmId, input);
   }
@@ -182,6 +189,7 @@ export async function updateWeightLog(
   logId: string,
   weightValue: number,
 ): Promise<void> {
+  await assertFarmWriteAllowedForWeightLog(logId);
   const now = dbNow();
   await powersync.execute(
     'UPDATE weight_logs SET weight_value = ?, updated_at = ? WHERE id = ?',
@@ -190,6 +198,7 @@ export async function updateWeightLog(
 }
 
 export async function deleteWeightLog(logId: string): Promise<void> {
+  await assertFarmWriteAllowedForWeightLog(logId);
   await powersync.writeTransaction(async (tx: Transaction) => {
     const row = await tx.getOptional<Record<string, unknown>>(
       'SELECT weigh_session_id FROM weight_logs WHERE id = ?',
@@ -216,6 +225,7 @@ export async function deleteWeightLog(logId: string): Promise<void> {
 }
 
 export async function deleteWeighSession(sessionId: string): Promise<void> {
+  await assertFarmWriteAllowedForWeighSession(sessionId);
   await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
       'DELETE FROM weight_logs WHERE weigh_session_id = ?',

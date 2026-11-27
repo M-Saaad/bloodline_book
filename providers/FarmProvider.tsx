@@ -124,7 +124,10 @@ export function FarmProvider({ children }: { children: React.ReactNode }) {
       return [];
     }
     return (farmRows ?? [])
-      .filter((row) => String(row.member_user_id ?? '') === user.id)
+      .filter(
+        (row) =>
+          String(row.member_user_id ?? '').toLowerCase() === user.id.toLowerCase(),
+      )
       .map(mapFarm);
   }, [farmRows, listsBelongToUser, user]);
   const localFarms = useMemo(() => {

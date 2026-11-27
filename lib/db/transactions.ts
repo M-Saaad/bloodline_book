@@ -1,5 +1,9 @@
 import * as Crypto from 'expo-crypto';
 
+import {
+  assertFarmWriteAllowed,
+  assertFarmWriteAllowedByRecord,
+} from '@/lib/db/farm-write-guard';
 import { mapTransaction } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
 import { powersync } from '@/lib/powersync/system';
@@ -15,6 +19,7 @@ export async function createTransaction(
     notes?: string;
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
 
@@ -58,6 +63,7 @@ export async function updateTransaction(
     notes?: string;
   },
 ): Promise<void> {
+  await assertFarmWriteAllowedByRecord('transactions', transactionId);
   const now = dbNow();
   await powersync.execute(
     `UPDATE transactions SET
@@ -76,6 +82,7 @@ export async function updateTransaction(
 }
 
 export async function deleteTransaction(transactionId: string): Promise<void> {
+  await assertFarmWriteAllowedByRecord('transactions', transactionId);
   await powersync.execute('DELETE FROM transactions WHERE id = ?', [
     transactionId,
   ]);
