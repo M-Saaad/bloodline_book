@@ -19,6 +19,11 @@ import {
   healthKindSupportsWithdrawal,
   type WithdrawalBadge,
 } from '@/lib/domain/health';
+import {
+  ANIMAL_NOT_ON_FARM,
+  assertAnimalsOnFarm,
+  assertRecordOnFarm,
+} from '@/lib/domain/same-farm';
 import { powersync } from '@/lib/powersync/system';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import type {
@@ -82,6 +87,7 @@ export async function createHealthRecord(
   const lotNumber = input.lotNumber?.trim() ? input.lotNumber.trim() : null;
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertAnimalsOnFarm(tx, farmId, [input.animalId]);
     await tx.execute(
       `INSERT INTO health_records (
         id, farm_id, animal_id, date, kind, famacha_score,
@@ -142,16 +148,25 @@ export async function createDewormFollowUpTask(
   const now = dbNow();
   const goat = await powersync.getOptional<{
     id: string;
+    farm_id: string;
+    animal_farm_id: string;
     name: string | null;
     tag_number: string | null;
     official_id: string | null;
   }>(
-    `SELECT a.id, a.name, a.tag_number, a.official_id
+    `SELECT a.id, h.farm_id, a.farm_id AS animal_farm_id, a.name, a.tag_number, a.official_id
      FROM health_records h
      JOIN animals a ON a.id = h.animal_id
      WHERE h.id = ?`,
     [input.healthRecordId],
   );
+  if (
+    !goat ||
+    String(goat.farm_id) !== farmId ||
+    String(goat.animal_farm_id) !== farmId
+  ) {
+    throw new Error(ANIMAL_NOT_ON_FARM);
+  }
   const animalLabel = goat
     ? animalDisplayLabel({
         id: String(goat.id),
@@ -259,13 +274,15 @@ export async function updateHealthRecord(
   const lotNumber = input.lotNumber?.trim() ? input.lotNumber.trim() : null;
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertRecordOnFarm(tx, 'health_records', recordId, farmId);
+    await assertAnimalsOnFarm(tx, farmId, [input.animalId]);
     await tx.execute(
       `UPDATE health_records SET
         animal_id = ?, date = ?, kind = ?, famacha_score = ?,
         product_name = ?, dosage = ?, withdrawal_days = ?,
         meat_withdrawal_days = ?, milk_withdrawal_days = ?,
         route = ?, lot_number = ?, notes = ?, updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND farm_id = ?`,
       [
         input.animalId,
         input.date,
@@ -281,6 +298,7 @@ export async function updateHealthRecord(
         input.notes ?? null,
         now,
         recordId,
+        farmId,
       ],
     );
 

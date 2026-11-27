@@ -96,7 +96,7 @@ export default function AddKiddingScreen() {
     return () => clearTimeout(timer);
   }, [saved, undoOpen]);
 
-  const { data: animalRows } = useQuery(
+  const { data: animalRows, isLoading: animalsLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM animals WHERE farm_id = ? AND status = 'active'`
       : 'SELECT 1 WHERE 0',
@@ -116,8 +116,11 @@ export default function AddKiddingScreen() {
     () =>
       (animalRows ?? [])
         .map((row) => mapAnimal(row as Record<string, unknown>))
-        .filter(doeMatchesKiddingSearch),
-    [animalRows],
+        .filter(
+          (animal) =>
+            animal.farmId === activeFarm?.id && doeMatchesKiddingSearch(animal),
+        ),
+    [activeFarm?.id, animalRows],
   );
   const does = useMemo(() => {
     const normalized = query.trim();
@@ -153,8 +156,12 @@ export default function AddKiddingScreen() {
     if (!activeFarm || saving || saved) {
       return;
     }
+    if (!dam) {
+      setErrorMessage('Choose a doe on this farm.');
+      return;
+    }
     setErrorMessage('');
-    const prepared = prepareFastKidding({ damId, kidDate, kids });
+    const prepared = prepareFastKidding({ damId: dam.id, kidDate, kids });
     if (!prepared.ok) {
       setErrorMessage(prepared.message);
       return;
@@ -162,10 +169,10 @@ export default function AddKiddingScreen() {
     setSaving(true);
     try {
       const result = await saveFastKidding(activeFarm.id, {
-        damId: damId!,
+        damId: dam.id,
         kidDate,
         kids,
-        breedingEventId: breedingId,
+        breedingEventId: prefilledDamId === dam.id ? breedingId : null,
         weaningDays: activeFarm.weaningDays,
         weightUnit: activeFarm.weightUnit,
         damLabel,
@@ -224,7 +231,7 @@ export default function AddKiddingScreen() {
             <Button
               title={saving ? 'Saving…' : 'Save kidding'}
               onPress={() => void handleSave()}
-              disabled={saving || !damId}
+              disabled={saving || !dam}
               className="min-h-[64px]"
             />
           )
@@ -246,7 +253,7 @@ export default function AddKiddingScreen() {
           </View>
         ) : null}
 
-        {damId && !saved ? (
+        {dam && !saved ? (
           <View className="mb-4 rounded-[22px] border border-gray-200 bg-white px-4 py-3">
             <Text className="text-2xl font-extrabold text-ink">{damLabel}</Text>
             {!prefilledDamId ? (
@@ -260,9 +267,12 @@ export default function AddKiddingScreen() {
           </View>
         ) : null}
 
-        {!damId && !saved ? (
+        {!dam && !saved ? (
           <View className="mb-4">
             <Text className="text-xl font-extrabold text-ink mb-2">Which doe?</Text>
+            {animalsLoading && prefilledDamId ? (
+              <Text className="text-lg text-gray-500">Loading doe…</Text>
+            ) : null}
             <TextInput
               value={query}
               onChangeText={setQuery}
@@ -303,7 +313,7 @@ export default function AddKiddingScreen() {
           </View>
         ) : null}
 
-        {damId && !saved ? (
+        {dam && !saved ? (
           <View>
             <Text className="text-xl font-extrabold text-ink mb-2">Date</Text>
             <View className="flex-row gap-2 mb-2">

@@ -35,6 +35,11 @@ import type {
   KiddingEase,
   KiddingEvent,
 } from '@/lib/types/breeding';
+import {
+  assertAnimalsOnFarm,
+  assertRecordOnFarm,
+  RECORD_NOT_ON_FARM,
+} from '@/lib/domain/same-farm';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
 async function syncOpenBreedingDueTask(
@@ -59,9 +64,9 @@ async function syncOpenBreedingDueTask(
   );
   const openTask = await tx.getOptional<{ id: string }>(
     `SELECT id FROM tasks
-     WHERE source_id = ? AND source = 'breeding' AND completed = 0
+     WHERE farm_id = ? AND source_id = ? AND source = 'breeding' AND completed = 0
      LIMIT 1`,
-    [breedingId],
+    [farmId, breedingId],
   );
 
   if (openTask) {
@@ -83,21 +88,23 @@ async function syncOpenBreedingDueTask(
 
 async function markBreedingsOpenInTx(
   tx: Transaction,
+  farmId: string,
   breedingIds: string[],
 ): Promise<void> {
   const now = dbNow();
   for (const breedingId of breedingIds) {
+    await assertRecordOnFarm(tx, 'breeding_events', breedingId, farmId);
     await tx.execute(
       `UPDATE breeding_events
        SET status = 'open', updated_at = ?
-       WHERE id = ? AND status IN ('bred', 'confirmed')`,
-      [now, breedingId],
+       WHERE id = ? AND farm_id = ? AND status IN ('bred', 'confirmed')`,
+      [now, breedingId, farmId],
     );
     await tx.execute(
       `UPDATE tasks
        SET completed = 1, updated_at = ?
-       WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
-      [now, breedingId],
+       WHERE farm_id = ? AND source = 'breeding' AND source_id = ? AND completed = 0`,
+      [now, farmId, breedingId],
     );
   }
 }
@@ -121,6 +128,7 @@ async function insertBreedingRow(
 ): Promise<void> {
   const now = dbNow();
   const status = input.status ?? 'bred';
+  await assertAnimalsOnFarm(tx, farmId, [input.damId, input.sireId]);
   await tx.execute(
     `INSERT INTO breeding_events (
       id, farm_id, dam_id, sire_id, sire_external_name,
@@ -182,7 +190,7 @@ export async function createBreedingEvent(
   }
 
   await powersync.writeTransaction(async (tx: Transaction) => {
-    await markBreedingsOpenInTx(tx, input.closeBreedingIds ?? []);
+    await markBreedingsOpenInTx(tx, farmId, input.closeBreedingIds ?? []);
     await insertBreedingRow(tx, farmId, id, {
       ...input,
       window,
@@ -218,7 +226,7 @@ export async function createExposureBreedings(
 
   const ids = input.damIds.map(() => Crypto.randomUUID());
   await powersync.writeTransaction(async (tx: Transaction) => {
-    await markBreedingsOpenInTx(tx, input.closeBreedingIds ?? []);
+    await markBreedingsOpenInTx(tx, farmId, input.closeBreedingIds ?? []);
     for (let i = 0; i < input.damIds.length; i++) {
       const damId = input.damIds[i];
       await insertBreedingRow(tx, farmId, ids[i], {
@@ -272,6 +280,10 @@ export async function createKiddingEvent(
   const aliveDrafts = drafts.filter((kid) => kid.outcome !== 'dead');
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertAnimalsOnFarm(tx, farmId, [input.damId, input.sireId]);
+    if (input.breedingEventId) {
+      await assertRecordOnFarm(tx, 'breeding_events', input.breedingEventId, farmId);
+    }
     await tx.execute(
       `INSERT INTO kidding_events (
         id, farm_id, dam_id, sire_id, sire_external_name,
@@ -295,8 +307,8 @@ export async function createKiddingEvent(
 
     if (input.breedingEventId) {
       const breeding = await tx.getOptional<Record<string, unknown>>(
-        `SELECT id, status, dam_id FROM breeding_events WHERE id = ?`,
-        [input.breedingEventId],
+        `SELECT id, status, dam_id FROM breeding_events WHERE id = ? AND farm_id = ?`,
+        [input.breedingEventId, farmId],
       );
       if (
         breeding &&
@@ -312,8 +324,8 @@ export async function createKiddingEvent(
         await tx.execute(
           `UPDATE tasks
            SET completed = 1, updated_at = ?
-           WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
-          [now, String(breeding.id)],
+           WHERE farm_id = ? AND source = 'breeding' AND source_id = ? AND completed = 0`,
+          [now, farmId, String(breeding.id)],
         );
       }
     }
@@ -449,46 +461,58 @@ export async function getOpenBreedingsForDam(
 }
 
 export async function confirmBreeding(
+  farmId: string,
   breedingId: string,
   input: { confirmedDate: string; method: ConfirmMethod },
 ): Promise<void> {
   await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const now = dbNow();
-  await powersync.execute(
-    `UPDATE breeding_events
-     SET status = 'confirmed', confirmed_date = ?, confirm_method = ?, updated_at = ?
-     WHERE id = ?`,
-    [input.confirmedDate, input.method, now, breedingId],
-  );
+  await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertRecordOnFarm(tx, 'breeding_events', breedingId, farmId);
+    await tx.execute(
+      `UPDATE breeding_events
+       SET status = 'confirmed', confirmed_date = ?, confirm_method = ?, updated_at = ?
+       WHERE id = ? AND farm_id = ?`,
+      [input.confirmedDate, input.method, now, breedingId, farmId],
+    );
+  });
 }
 
-export async function markBreedingOpen(breedingId: string): Promise<void> {
+export async function markBreedingOpen(
+  farmId: string,
+  breedingId: string,
+): Promise<void> {
   await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   await powersync.writeTransaction(async (tx: Transaction) => {
-    await markBreedingsOpenInTx(tx, [breedingId]);
+    await markBreedingsOpenInTx(tx, farmId, [breedingId]);
   });
 }
 
 export async function markBreedingLost(
+  farmId: string,
   breedingId: string,
   note: string,
 ): Promise<void> {
   await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const existing = await getBreedingEventById(breedingId);
-  const notes = [existing?.notes?.trim(), note.trim()].filter(Boolean).join('\n');
+  if (!existing || existing.farmId !== farmId) {
+    throw new Error(RECORD_NOT_ON_FARM);
+  }
+  const notes = [existing.notes?.trim(), note.trim()].filter(Boolean).join('\n');
   const now = dbNow();
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertRecordOnFarm(tx, 'breeding_events', breedingId, farmId);
     await tx.execute(
       `UPDATE breeding_events
        SET status = 'lost', notes = ?, updated_at = ?
-       WHERE id = ?`,
-      [notes || null, now, breedingId],
+       WHERE id = ? AND farm_id = ?`,
+      [notes || null, now, breedingId, farmId],
     );
     await tx.execute(
       `UPDATE tasks
        SET completed = 1, updated_at = ?
-       WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
-      [now, breedingId],
+       WHERE farm_id = ? AND source = 'breeding' AND source_id = ? AND completed = 0`,
+      [now, farmId, breedingId],
     );
   });
 }
@@ -565,6 +589,7 @@ export class BreedingLinkedToKiddingError extends Error {
 }
 
 export async function updateBreedingEvent(
+  farmId: string,
   breedingId: string,
   input: {
     damId: string;
@@ -595,15 +620,18 @@ export async function updateBreedingEvent(
     throw new Error('Enter a valid breeding date.');
   }
   const damLabel = input.damLabel ?? 'Dam';
-  const farmId = existing?.farmId;
+  if (!existing || existing.farmId !== farmId) {
+    throw new Error(RECORD_NOT_ON_FARM);
+  }
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertAnimalsOnFarm(tx, farmId, [input.damId, input.sireId]);
     await tx.execute(
       `UPDATE breeding_events SET
         dam_id = ?, sire_id = ?, sire_external_name = ?,
         bred_date = ?, exposure_end_date = ?, due_date = ?,
         due_window_start = ?, due_window_end = ?, notes = ?, updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND farm_id = ?`,
       [
         input.damId,
         input.sireId ?? null,
@@ -616,6 +644,7 @@ export async function updateBreedingEvent(
         input.notes ?? null,
         now,
         breedingId,
+        farmId,
       ],
     );
 
@@ -630,9 +659,12 @@ export async function updateBreedingEvent(
 }
 
 /** Creates or updates the open expected-kidding task when breeding is still active. */
-export async function ensureBreedingDueTask(breedingId: string): Promise<void> {
+export async function ensureBreedingDueTask(
+  farmId: string,
+  breedingId: string,
+): Promise<void> {
   const breeding = await getBreedingEventById(breedingId);
-  if (!breeding) {
+  if (!breeding || breeding.farmId !== farmId) {
     return;
   }
 
@@ -657,23 +689,30 @@ export async function ensureBreedingDueTask(breedingId: string): Promise<void> {
   });
 }
 
-export async function deleteBreedingEvent(breedingId: string): Promise<void> {
+export async function deleteBreedingEvent(
+  farmId: string,
+  breedingId: string,
+): Promise<void> {
   await assertFarmWriteAllowedByRecord('breeding_events', breedingId);
   const breeding = await getBreedingEventById(breedingId);
-  if (!breeding) {
-    return;
+  if (!breeding || breeding.farmId !== farmId) {
+    throw new Error(RECORD_NOT_ON_FARM);
   }
   if (breeding.kiddingEventId) {
     throw new BreedingLinkedToKiddingError();
   }
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertRecordOnFarm(tx, 'breeding_events', breedingId, farmId);
     await tx.execute(
       `DELETE FROM tasks
-       WHERE source_id = ? AND source = 'breeding' AND completed = 0`,
-      [breedingId],
+       WHERE farm_id = ? AND source_id = ? AND source = 'breeding' AND completed = 0`,
+      [farmId, breedingId],
     );
-    await tx.execute('DELETE FROM breeding_events WHERE id = ?', [breedingId]);
+    await tx.execute(
+      'DELETE FROM breeding_events WHERE id = ? AND farm_id = ?',
+      [breedingId, farmId],
+    );
   });
 }
 
@@ -803,6 +842,7 @@ async function syncKiddingLitterAnimals(
 }
 
 export async function updateKiddingEvent(
+  farmId: string,
   kiddingId: string,
   input: {
     kidDate: string;
@@ -816,8 +856,8 @@ export async function updateKiddingEvent(
 ): Promise<void> {
   await assertFarmWriteAllowedByRecord('kidding_events', kiddingId);
   const kidding = await getKiddingEventById(kiddingId);
-  if (!kidding) {
-    throw new Error('Kidding record not found.');
+  if (!kidding || kidding.farmId !== farmId) {
+    throw new Error(RECORD_NOT_ON_FARM);
   }
 
   const dam = await getAnimalById(kidding.damId);
@@ -825,11 +865,12 @@ export async function updateKiddingEvent(
   const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertAnimalsOnFarm(tx, farmId, [kidding.damId, input.sireId]);
     await tx.execute(
       `UPDATE kidding_events SET
         kid_date = ?, kids_born = ?, kids_surviving = ?,
         sire_id = ?, sire_external_name = ?, kidding_ease = ?, notes = ?, updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND farm_id = ?`,
       [
         input.kidDate,
         input.kidsBorn,
@@ -842,6 +883,7 @@ export async function updateKiddingEvent(
         input.notes ?? null,
         now,
         kiddingId,
+        farmId,
       ],
     );
 
@@ -881,6 +923,7 @@ export async function getKidsForKidding(
 }
 
 export async function deleteKiddingEvent(
+  farmId: string,
   kiddingId: string,
   options: { deleteRegisteredKids: boolean },
 ): Promise<void> {
@@ -888,15 +931,16 @@ export async function deleteKiddingEvent(
   const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertRecordOnFarm(tx, 'kidding_events', kiddingId, farmId);
     const breeding = await tx.getOptional<Record<string, unknown>>(
-      'SELECT id FROM breeding_events WHERE kidding_event_id = ?',
-      [kiddingId],
+      'SELECT id FROM breeding_events WHERE farm_id = ? AND kidding_event_id = ?',
+      [farmId, kiddingId],
     );
 
     if (options.deleteRegisteredKids) {
       const kids = await tx.getAll<{ id: string }>(
-        'SELECT id FROM animals WHERE litter_id = ?',
-        [kiddingId],
+        'SELECT id FROM animals WHERE farm_id = ? AND litter_id = ?',
+        [farmId, kiddingId],
       );
       for (const kid of kids) {
         await tx.execute('DELETE FROM animals WHERE id = ?', [kid.id]);
@@ -905,17 +949,20 @@ export async function deleteKiddingEvent(
 
     await tx.execute(
       `DELETE FROM tasks
-       WHERE source = 'weaning' AND source_id = ? AND completed = 0`,
-      [kiddingId],
+       WHERE farm_id = ? AND source = 'weaning' AND source_id = ? AND completed = 0`,
+      [farmId, kiddingId],
     );
-    await tx.execute('DELETE FROM kidding_events WHERE id = ?', [kiddingId]);
+    await tx.execute(
+      'DELETE FROM kidding_events WHERE id = ? AND farm_id = ?',
+      [kiddingId, farmId],
+    );
 
     if (breeding) {
       await tx.execute(
         `UPDATE breeding_events
          SET status = 'bred', kidding_event_id = NULL, updated_at = ?
-         WHERE id = ?`,
-        [now, String(breeding.id)],
+         WHERE id = ? AND farm_id = ?`,
+        [now, String(breeding.id), farmId],
       );
     }
   });

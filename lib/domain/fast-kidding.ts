@@ -11,6 +11,7 @@ import {
 } from '@/lib/domain/tag-history';
 import type { Animal } from '@/lib/types/animals';
 import type { BreedingStatus } from '@/lib/types/breeding';
+import { assertAnimalsOnFarm } from '@/lib/domain/same-farm';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
 /** How long the kidding confirmation keeps Undo. */
@@ -315,8 +316,8 @@ async function resolveBreeding(
   if (breedingEventId) {
     const row = await tx.getOptional<Record<string, unknown>>(
       `SELECT id, status, dam_id, sire_id, sire_external_name
-       FROM breeding_events WHERE id = ?`,
-      [breedingEventId],
+       FROM breeding_events WHERE id = ? AND farm_id = ?`,
+      [breedingEventId, farmId],
     );
     if (
       row &&
@@ -378,6 +379,8 @@ export async function applyFastKidding(
     throw new Error('Add at least one kid.');
   }
 
+  await assertAnimalsOnFarm(tx, input.farmId, [input.damId]);
+
   const needsTagHistory = input.kids.some((kid) => kid.tagNumber);
   if (needsTagHistory && !(await tagHistoryTableReady(tx))) {
     throw new Error(FAST_KIDDING_TAG_HISTORY_UNAVAILABLE);
@@ -391,6 +394,7 @@ export async function applyFastKidding(
     input.damId,
     input.breedingEventId ?? null,
   );
+  await assertAnimalsOnFarm(tx, input.farmId, [breeding?.sireId]);
 
   await tx.execute(
     `INSERT INTO kidding_events (
@@ -421,8 +425,8 @@ export async function applyFastKidding(
     await tx.execute(
       `UPDATE tasks
        SET completed = 1, updated_at = ?
-       WHERE source = 'breeding' AND source_id = ? AND completed = 0`,
-      [input.now, breeding.id],
+       WHERE farm_id = ? AND source = 'breeding' AND source_id = ? AND completed = 0`,
+      [input.now, input.farmId, breeding.id],
     );
   }
 
@@ -600,6 +604,7 @@ export async function markDoeOpenThisSeason(
   if (!(await kiddingSeasonMarksReady(tx))) {
     throw new Error(KIDDING_SEASON_MARKS_UNAVAILABLE);
   }
+  await assertAnimalsOnFarm(tx, input.farmId, [input.animalId]);
   const existing = await tx.getOptional<{ id: string }>(
     `SELECT id FROM kidding_season_marks
      WHERE animal_id = ? AND season_start = ?

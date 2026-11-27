@@ -149,8 +149,10 @@ export default function EditAnimalScreen() {
           return;
         }
 
-        if (!animal) {
-          setErrorMessage('Animal not found.');
+        if (!animal || animal.farmId !== farm.id) {
+          setErrorMessage(
+            animal ? 'That goat is not on this farm.' : 'Animal not found.',
+          );
           return;
         }
 

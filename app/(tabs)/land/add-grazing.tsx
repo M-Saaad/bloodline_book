@@ -1,6 +1,6 @@
 import { useQuery } from '@powersync/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { HandWriteBlocked } from '@/components/HandWriteBlocked';
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/Input';
 import { todayIso } from '@/lib/dates';
 import { mapAnimal, mapPasture } from '@/lib/db/mappers';
 import { moveAnimalsToPasture } from '@/lib/db/land';
+import { idsOnHerd } from '@/lib/domain/same-farm';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
@@ -36,7 +37,7 @@ export default function AddGrazingScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const { data: pastureRows } = useQuery(
+  const { data: pastureRows, isLoading: pasturesLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM pastures
          WHERE farm_id = ?
@@ -55,7 +56,7 @@ export default function AddGrazingScreen() {
     activeFarm ? [activeFarm.id] : [],
   );
 
-  const { data: animalRows } = useQuery(
+  const { data: animalRows, isLoading: animalsLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM animals
          WHERE farm_id = ? AND status = 'active'
@@ -69,9 +70,22 @@ export default function AddGrazingScreen() {
     [pastureRows],
   );
   const animals = useMemo(
-    () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
-    [animalRows],
+    () =>
+      (animalRows ?? [])
+        .map((row) => mapAnimal(row as Record<string, unknown>))
+        .filter((animal) => animal.farmId === activeFarm?.id),
+    [activeFarm?.id, animalRows],
   );
+
+  useEffect(() => {
+    if (!activeFarm || animalsLoading || pasturesLoading) {
+      return;
+    }
+    setSelectedIds((current) => idsOnHerd(current, animals));
+    setPastureId((current) =>
+      current && pastures.some((pasture) => pasture.id === current) ? current : null,
+    );
+  }, [activeFarm, animals, animalsLoading, pastures, pasturesLoading]);
   const openGrazing = useMemo(
     () =>
       (grazingRows ?? []).map((row) => {

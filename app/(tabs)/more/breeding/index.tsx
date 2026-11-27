@@ -88,8 +88,12 @@ export default function BreedingScreen() {
   const ensuredBreedingTasks = useRef(new Set<string>());
 
   useEffect(() => {
+    if (!activeFarm) {
+      return;
+    }
     for (const event of breedingEvents) {
       if (
+        event.farmId !== activeFarm.id ||
         !event.dueDate ||
         !isBreedingOpenForKidding(event.status) ||
         ensuredBreedingTasks.current.has(event.id)
@@ -97,9 +101,9 @@ export default function BreedingScreen() {
         continue;
       }
       ensuredBreedingTasks.current.add(event.id);
-      void ensureBreedingDueTask(event.id);
+      void ensureBreedingDueTask(activeFarm.id, event.id);
     }
-  }, [breedingEvents]);
+  }, [activeFarm, breedingEvents]);
 
   if (!activeFarm) {
     return null;
