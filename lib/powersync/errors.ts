@@ -45,8 +45,23 @@ export function toUploadError(error: unknown): Error {
   return new Error(formatUploadError(error));
 }
 
+/**
+ * Postgres check_violation (23514), including the same-farm dam/sire trigger.
+ * Retrying the same row will never succeed.
+ */
+export function isCheckViolationError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const record = error as { code?: unknown; message?: unknown };
+  if (record.code === '23514') {
+    return true;
+  }
+  return typeof record.message === 'string' && /\b23514\b/.test(record.message);
+}
+
 export function isFatalUploadError(error: unknown): boolean {
-  if (isDuplicateKeyError(error)) {
+  if (isDuplicateKeyError(error) || isCheckViolationError(error)) {
     return true;
   }
   if (typeof error === 'object' && error !== null) {

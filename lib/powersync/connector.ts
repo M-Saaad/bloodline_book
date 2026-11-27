@@ -8,12 +8,14 @@ import {
 import { getPowerSyncUrl, isPowerSyncConfigured } from '@/lib/powersync/config';
 import {
   formatUploadError,
+  isCheckViolationError,
   isDuplicateKeyError,
   isFatalUploadError,
   SERVER_MANAGED_UPLOAD_TABLES,
   toUploadError,
   uploadRowRejectedError,
 } from '@/lib/powersync/errors';
+import { applyUploadBatch, UploadOpError } from '@/lib/powersync/upload-batch';
 import { recordUploadTransactionFailures } from '@/lib/powersync/upload-failures';
 import { supabase } from '@/lib/supabase/client';
 
@@ -52,24 +54,32 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
     }
 
     const ops = transaction.crud;
-    let failedOpIndex = 0;
 
     try {
-      for (let index = 0; index < ops.length; index += 1) {
-        failedOpIndex = index;
-        await this.applyCrud(ops[index]);
-      }
+      await applyUploadBatch({
+        ops,
+        apply: (op) => this.applyCrud(op),
+        // 23514 (same-farm dam/sire, or any other check) will never succeed on
+        // retry. Skip that row, keep uploading the rest of this batch, and let
+        // the next queued transaction run.
+        isPermanentSkip: isCheckViolationError,
+        onPermanentSkip: async (op, error) => {
+          await recordUploadTransactionFailures(database, [op], 0, error);
+        },
+      });
       await transaction.complete();
     } catch (error) {
-      const uploadError = toUploadError(error);
+      const cause = error instanceof UploadOpError ? error.original : error;
+      const failedOpIndex = error instanceof UploadOpError ? error.opIndex : 0;
+      const uploadError = toUploadError(cause);
       const failedOp = ops[failedOpIndex] ?? null;
-      const fatal = isFatalUploadError(error);
+      const fatal = isFatalUploadError(cause);
       const logDetail = {
         table: failedOp?.table,
         op: failedOp?.op,
         id: failedOp?.id,
       };
-      const logMessage = `PowerSync upload ${fatal ? 'error' : 'retry'}: ${formatUploadError(error)}`;
+      const logMessage = `PowerSync upload ${fatal ? 'error' : 'retry'}: ${formatUploadError(cause)}`;
       if (fatal) {
         console.error(logMessage, logDetail);
       } else {
@@ -87,7 +97,7 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
             database,
             ops,
             failedOpIndex,
-            error,
+            cause,
           );
         } catch (recordError) {
           console.error('Failed to record upload failures:', recordError);
