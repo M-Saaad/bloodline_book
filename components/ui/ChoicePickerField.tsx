@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HerdRow } from '@/components/ui/HerdRow';
 import { Text } from '@/components/ui/Text';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 
 type ChoiceOption = {
   id: string;
@@ -29,6 +30,7 @@ export function ChoicePickerField({
   placeholder = 'Not set',
 }: ChoicePickerFieldProps) {
   const [open, setOpen] = useState(false);
+  useCloseOnBack(open, () => setOpen(false));
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const wide = width >= 900;

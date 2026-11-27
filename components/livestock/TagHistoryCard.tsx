@@ -10,6 +10,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { formatDisplayDate } from '@/lib/dates';
 import { changeAnimalTag } from '@/lib/db/tag-history';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { useFarm } from '@/providers/FarmProvider';
 import {
   normalizeTagValue,
@@ -158,6 +159,8 @@ function TagActionSheet({
     setError('');
     setSaving(false);
   }, [action]);
+
+  useCloseOnBack(action != null, onClose);
 
   async function save() {
     if (!action || !selected) {

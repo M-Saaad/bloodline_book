@@ -17,6 +17,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { useLocalHerd } from '@/hooks/useLocalHerd';
 import { pushNewAddAnimalSession } from '@/lib/navigation/add-animal';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { formatDisplayDate, todayIso } from '@/lib/dates';
 import { mapAnimal } from '@/lib/db/mappers';
 import {
@@ -769,6 +770,7 @@ function SetupSheet({
   const [draftWeaned, setDraftWeaned] = useState(markWeaned);
   const [draftGroup, setDraftGroup] = useState(group);
   const insets = useSafeAreaInsets();
+  useCloseOnBack(true, onClose);
 
   return (
     <View className="absolute inset-0 bg-black/55 justify-end">

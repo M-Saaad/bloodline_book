@@ -10,6 +10,7 @@ import {
   parseIsoDate,
   todayIso,
 } from '@/lib/dates';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { Text } from '@/components/ui/Text';
 import { TextInput } from '@/components/ui/TextInput';
 
@@ -60,6 +61,7 @@ export function DateField({
 
   const displayValue = value ? formatDisplayDate(value) : '';
   const useModalPicker = Platform.OS === 'ios' || Platform.OS === 'web';
+  useCloseOnBack(useModalPicker && showPicker, closePicker);
 
   return (
     <View className="mb-4">

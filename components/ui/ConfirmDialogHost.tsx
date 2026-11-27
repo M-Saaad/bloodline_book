@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { registerConfirmOpener } from '@/lib/ui/confirm';
 import { Text } from '@/components/ui/Text';
 
@@ -27,6 +28,8 @@ export function ConfirmDialogHost() {
     setActive(null);
     current?.resolve(confirmed);
   }
+
+  useCloseOnBack(active != null, () => finish(false));
 
   return (
     <Modal

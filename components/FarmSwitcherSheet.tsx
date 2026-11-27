@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HerdRow } from '@/components/ui/HerdRow';
 import { Text } from '@/components/ui/Text';
+import { useCloseOnBack } from '@/lib/navigation/use-close-on-back';
 import { formatFarmRole } from '@/lib/ui/farm-labels';
 import type { Farm, FarmMember } from '@/lib/types/tenancy';
 import { useAuth } from '@/providers/AuthProvider';
@@ -36,6 +37,7 @@ export function FarmSwitcherSheet({
 }: FarmSwitcherSheetProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  useCloseOnBack(visible, onClose);
   const { data: membershipRows } = useQuery<{ farm_id: string; role: string }>(
     user
       ? 'SELECT farm_id, role FROM farm_members WHERE lower(user_id) = lower(?)'
