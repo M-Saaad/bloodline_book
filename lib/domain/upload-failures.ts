@@ -20,12 +20,24 @@ export function uploadFailureTableLabel(tableName: string): string {
   return TABLE_LABELS[tableName] ?? tableName.replace(/_/g, ' ');
 }
 
-export function uploadFailurePlainReason(errorCode: string | null): string {
+export function uploadFailurePlainReason(
+  errorCode: string | null,
+  errorMessage?: string | null,
+): string {
+  if (
+    errorCode === '23514' &&
+    typeof errorMessage === 'string' &&
+    /same farm/i.test(errorMessage)
+  ) {
+    return 'The dam or sire is a goat on another farm.';
+  }
   switch (errorCode) {
     case '42501':
-      return "Your role on this farm can't make this change.";
+      return 'View only: ask the farm owner for manager access.';
     case '23503':
       return 'This record is linked to other records.';
+    case '23514':
+      return 'The server rejected this change.';
     default:
       return 'This change could not be saved to the server.';
   }
@@ -35,8 +47,9 @@ export function uploadFailurePlainReason(errorCode: string | null): string {
 export function uploadFailureSummary(input: {
   tableName: string;
   errorCode: string | null;
+  errorMessage?: string | null;
 }): string {
   const record = uploadFailureTableLabel(input.tableName);
-  const reason = uploadFailurePlainReason(input.errorCode);
+  const reason = uploadFailurePlainReason(input.errorCode, input.errorMessage);
   return `${record}: ${reason}`;
 }

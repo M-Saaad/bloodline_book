@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import {
@@ -63,8 +63,15 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
   const [outsideAnimals, setOutsideAnimals] = useState<OutsideAnimal[]>([]);
   const mode = props.mode;
   const farmId = activeFarm?.id ?? null;
+  const herd = useMemo(
+    () =>
+      farmId ? props.animals.filter((animal) => animal.farmId === farmId) : [],
+    [farmId, props.animals],
+  );
 
   useEffect(() => {
+    setRecentIds([]);
+    setOutsideAnimals([]);
     if (!farmId) {
       return;
     }
@@ -92,12 +99,12 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
   }
 
   const selectedIds = mode === 'multi' ? props.selectedIds : props.value ? [props.value] : [];
-  const summary = summaryLabel(props);
+  const summary = summaryLabel(props, herd);
   const selectedAnimal =
     props.mode === 'single' && props.value
-      ? props.animals.find((item) => item.id === props.value)
+      ? herd.find((item) => item.id === props.value)
       : props.mode === 'multi' && props.selectedIds.length === 1
-        ? props.animals.find((item) => item.id === props.selectedIds[0])
+        ? herd.find((item) => item.id === props.selectedIds[0])
         : undefined;
   const hasValue =
     props.mode === 'multi'
@@ -134,7 +141,7 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
       <AnimalPickerModal
         visible={open}
         title={props.label}
-        animals={props.animals}
+        animals={herd}
         mode={mode}
         selectedIds={selectedIds}
         onClose={() => setOpen(false)}
@@ -201,20 +208,20 @@ export function AnimalPickerField(props: AnimalPickerFieldProps) {
   );
 }
 
-function summaryLabel(props: AnimalPickerFieldProps): string {
+function summaryLabel(props: AnimalPickerFieldProps, herd: Animal[]): string {
   if (props.mode === 'multi') {
     if (props.selectedIds.length === 0) {
       return 'None selected';
     }
     if (props.selectedIds.length === 1) {
-      const animal = props.animals.find((item) => item.id === props.selectedIds[0]);
+      const animal = herd.find((item) => item.id === props.selectedIds[0]);
       return animal ? formatLivestockRowTitle(animal) : '1 goat';
     }
     return `${props.selectedIds.length} goats`;
   }
 
   if (props.value) {
-    const animal = props.animals.find((item) => item.id === props.value);
+    const animal = herd.find((item) => item.id === props.value);
     return animal ? formatLivestockRowTitle(animal) : 'Selected goat';
   }
   const external = props.externalLabel?.trim();

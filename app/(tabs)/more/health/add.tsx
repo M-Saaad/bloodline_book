@@ -20,6 +20,7 @@ import { todayIso } from '@/lib/dates';
 import { getAnimalById } from '@/lib/db/animals';
 import { createDewormFollowUpTask, createHealthRecord } from '@/lib/db/health';
 import { mapAnimal, mapHealthRecord } from '@/lib/db/mappers';
+import { idsOnHerd } from '@/lib/domain/same-farm';
 import {
   healthKindSupportsWithdrawal,
   needsFamachaFollowUp,
@@ -70,7 +71,7 @@ export default function AddHealthRecordScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const appliedPrefill = useRef<string | null>(null);
 
-  const { data: animalRows } = useQuery(
+  const { data: animalRows, isLoading: animalsLoading } = useQuery(
     activeFarm
       ? `SELECT * FROM animals
          WHERE farm_id = ? AND status = 'active'
@@ -89,9 +90,19 @@ export default function AddHealthRecordScreen() {
   );
 
   const animals = useMemo(
-    () => (animalRows ?? []).map((row) => mapAnimal(row as Record<string, unknown>)),
-    [animalRows],
+    () =>
+      (animalRows ?? [])
+        .map((row) => mapAnimal(row as Record<string, unknown>))
+        .filter((animal) => animal.farmId === activeFarm?.id),
+    [activeFarm?.id, animalRows],
   );
+
+  useEffect(() => {
+    if (!activeFarm || animalsLoading) {
+      return;
+    }
+    setAnimalId((current) => idsOnHerd([current], animals)[0] ?? null);
+  }, [activeFarm, animals, animalsLoading]);
 
   const remembered = useMemo(
     () =>
@@ -120,7 +131,7 @@ export default function AddHealthRecordScreen() {
       return;
     }
     appliedPrefill.current = params.prefill;
-    if (params.animalId) {
+    if (params.animalId && idsOnHerd([params.animalId], animals).length === 1) {
       setAnimalId(params.animalId);
     }
     if (params.kind === 'deworming') {
@@ -143,7 +154,7 @@ export default function AddHealthRecordScreen() {
         setMilkDays(match.milkDays != null ? String(match.milkDays) : '');
       }
     }
-  }, [params, productsLoading, remembered]);
+  }, [animals, params, productsLoading, remembered]);
 
   function applyProduct(product: (typeof remembered)[number]) {
     setProductName(product.productName);

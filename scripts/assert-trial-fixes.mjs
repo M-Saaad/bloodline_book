@@ -153,7 +153,7 @@ assert.match(
   uploadFailureSummary({ tableName: 'animals', errorCode: '42501' }),
   /Animal/,
 );
-assert.equal(uploadFailurePlainReason('42501').includes('role'), true);
+assert.match(uploadFailurePlainReason('42501'), /manager access/);
 
 const fromHash = recoveryParamsFromUrl(
   'bloodlinebook://reset-password#access_token=aaa&refresh_token=bbb&type=recovery',

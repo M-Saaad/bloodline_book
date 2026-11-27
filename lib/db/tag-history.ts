@@ -16,10 +16,12 @@ import {
   type TagChangePlan,
   type TagKind,
 } from '@/lib/domain/tag-history';
+import { ANIMAL_NOT_ON_FARM } from '@/lib/domain/same-farm';
 import { powersync } from '@/lib/powersync/system';
 import { supabase } from '@/lib/supabase/client';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 
+import { assertFarmWriteAllowed } from '@/lib/db/farm-write-guard';
 import { dbNow } from '@/lib/db/now';
 
 type Sql = Pick<Transaction, 'execute' | 'getOptional' | 'getAll'>;
@@ -346,6 +348,7 @@ export async function deleteAnimalTagHistoryInTx(
 }
 
 export async function changeAnimalTag(
+  farmId: string,
   animalId: string,
   input: {
     action: TagChangeAction;
@@ -356,6 +359,14 @@ export async function changeAnimalTag(
 ): Promise<void> {
   const createdBy = await currentUserId();
   const today = todayIso();
+  const animalFarm = await powersync.getOptional<{ farm_id: string }>(
+    'SELECT farm_id FROM animals WHERE id = ?',
+    [animalId],
+  );
+  if (!animalFarm?.farm_id) {
+    throw new Error('Animal not found.');
+  }
+  await assertFarmWriteAllowed(String(animalFarm.farm_id));
   await powersync.writeTransaction(async (tx) => {
     if (!(await tagHistoryTableReady(tx))) {
       throw new Error(TAG_HISTORY_UNAVAILABLE);
@@ -366,6 +377,9 @@ export async function changeAnimalTag(
     );
     if (!row) {
       throw new Error('Animal not found.');
+    }
+    if (String(row.farm_id) !== farmId) {
+      throw new Error(ANIMAL_NOT_ON_FARM);
     }
     const fields: AnimalTagFields = {
       tagNumber: row.tag_number != null ? String(row.tag_number) : null,

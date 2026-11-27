@@ -131,8 +131,10 @@ export default function TasksScreen() {
           <EmptyState
             title="No tasks yet"
             description="Track chores, health follow-ups, and other farm to-dos."
-            actionLabel="Add Task"
-            onAction={() => router.push('/(tabs)/more/tasks/add')}
+            actionLabel={canWrite ? 'Add Task' : undefined}
+            onAction={
+              canWrite ? () => router.push('/(tabs)/more/tasks/add') : undefined
+            }
           />
         }
         renderItem={({ item, index }) => (
@@ -141,21 +143,25 @@ export default function TasksScreen() {
               className={`flex-row items-center gap-3 min-h-[76px] px-4 py-2.5 ${
                 index === tasks.length - 1 ? '' : 'border-b border-gray-100'
               }`}>
-              <Pressable
-                onPress={() => toggleTask(item.id, item.completed)}
-                accessibilityLabel={
-                  item.completed ? 'Mark task incomplete' : 'Complete task'
-                }
-                hitSlop={4}
-                className={`w-10 h-10 rounded-full border-[2.5px] items-center justify-center ${
-                  item.completed
-                    ? 'border-[#0f5a33] bg-[#0f5a33]'
-                    : 'border-bloodline-600 bg-white'
-                }`}>
-                {item.completed ? (
-                  <Text className="text-white text-xl font-extrabold">✓</Text>
-                ) : null}
-              </Pressable>
+              {canWrite ? (
+                <Pressable
+                  onPress={() => toggleTask(item.id, item.completed)}
+                  accessibilityLabel={
+                    item.completed ? 'Mark task incomplete' : 'Complete task'
+                  }
+                  hitSlop={4}
+                  className={`w-10 h-10 rounded-full border-[2.5px] items-center justify-center ${
+                    item.completed
+                      ? 'border-[#0f5a33] bg-[#0f5a33]'
+                      : 'border-bloodline-600 bg-white'
+                  }`}>
+                  {item.completed ? (
+                    <Text className="text-white text-xl font-extrabold">✓</Text>
+                  ) : null}
+                </Pressable>
+              ) : (
+                <View className="w-10 h-10" />
+              )}
               <Pressable
                 onPress={() => router.push(`/(tabs)/more/tasks/${item.id}`)}
                 className="flex-1 flex-row items-center gap-3">

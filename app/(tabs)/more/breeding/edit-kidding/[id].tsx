@@ -59,10 +59,10 @@ export default function EditKiddingScreen() {
   );
 
   const { data: litterKidRows } = useQuery(
-    id
-      ? 'SELECT COUNT(*) as count FROM animals WHERE litter_id = ?'
+    id && activeFarm
+      ? 'SELECT COUNT(*) as count FROM animals WHERE litter_id = ? AND farm_id = ?'
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const registeredKidCount = Number(
@@ -70,9 +70,10 @@ export default function EditKiddingScreen() {
   );
 
   useEffect(() => {
-    if (!id) {
+    if (!id || !activeFarm) {
       return;
     }
+    const farmId = activeFarm.id;
     let cancelled = false;
 
     async function load() {
@@ -81,6 +82,10 @@ export default function EditKiddingScreen() {
         const event = await getKiddingEventById(id);
         if (cancelled || !event) {
           setErrorMessage('Kidding record not found.');
+          return;
+        }
+        if (event.farmId !== farmId) {
+          setErrorMessage('That kidding is not on this farm.');
           return;
         }
         setSireId(event.sireId);
@@ -109,10 +114,10 @@ export default function EditKiddingScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [activeFarm, id]);
 
   async function handleSave() {
-    if (!id) {
+    if (!activeFarm || !id) {
       return;
     }
     const born = Number.parseInt(kidsBorn, 10);
@@ -129,7 +134,7 @@ export default function EditKiddingScreen() {
     setSaving(true);
     setErrorMessage('');
     try {
-      await updateKiddingEvent(id, {
+      await updateKiddingEvent(activeFarm.id, id, {
         kidDate,
         kidsBorn: born,
         kidsSurviving: surviving,
@@ -149,7 +154,7 @@ export default function EditKiddingScreen() {
   }
 
   async function handleDelete() {
-    if (!id) {
+    if (!activeFarm || !id) {
       return;
     }
     const kids = await getKidsForKidding(id);
@@ -162,7 +167,7 @@ export default function EditKiddingScreen() {
         'Delete kids',
       );
     }
-    await deleteKiddingEvent(id, { deleteRegisteredKids });
+    await deleteKiddingEvent(activeFarm.id, id, { deleteRegisteredKids });
     router.back();
   }
 

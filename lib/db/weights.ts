@@ -2,8 +2,17 @@ import * as Crypto from 'expo-crypto';
 
 import type { Transaction } from '@powersync/common';
 
+import {
+  assertFarmWriteAllowed,
+  assertFarmWriteAllowedForWeighSession,
+  assertFarmWriteAllowedForWeightLog,
+} from '@/lib/db/farm-write-guard';
 import { mapWeighSession, mapWeightLog } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
+import {
+  assertAnimalsOnFarm,
+  assertRecordOnFarm,
+} from '@/lib/domain/same-farm';
 import { powersync } from '@/lib/powersync/system';
 import type { WeighSession, WeightLog } from '@/lib/types/weight';
 
@@ -23,6 +32,7 @@ export async function createWeighSessionWithLogs(
     markWeaned?: boolean;
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const sessionId = Crypto.randomUUID();
   const now = dbNow();
 
@@ -66,6 +76,7 @@ export async function startOrAppendWeighSession(
     markWeaned?: boolean;
   },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   if (!input.sessionId) {
     return createWeighSessionWithLogs(farmId, input);
   }
@@ -102,6 +113,12 @@ async function writeWeighEntries(
     now: string;
   },
 ) {
+  await assertRecordOnFarm(tx, 'weigh_sessions', input.sessionId, input.farmId);
+  await assertAnimalsOnFarm(
+    tx,
+    input.farmId,
+    input.entries.map((entry) => entry.animalId),
+  );
   for (const entry of input.entries) {
     const existing = await tx.getOptional<{ id: string }>(
       `SELECT id FROM weight_logs
@@ -179,17 +196,28 @@ export async function getWeightLogById(
 }
 
 export async function updateWeightLog(
+  farmId: string,
   logId: string,
   weightValue: number,
 ): Promise<void> {
+  await assertFarmWriteAllowedForWeightLog(logId);
   const now = dbNow();
+  const row = await powersync.getOptional<{ animal_id: string }>(
+    'SELECT animal_id FROM weight_logs WHERE id = ? AND farm_id = ?',
+    [logId, farmId],
+  );
+  if (!row) {
+    throw new Error('That record is not on this farm.');
+  }
+  await assertAnimalsOnFarm(powersync, farmId, [String(row.animal_id)]);
   await powersync.execute(
-    'UPDATE weight_logs SET weight_value = ?, updated_at = ? WHERE id = ?',
-    [weightValue, now, logId],
+    'UPDATE weight_logs SET weight_value = ?, updated_at = ? WHERE id = ? AND farm_id = ?',
+    [weightValue, now, logId, farmId],
   );
 }
 
 export async function deleteWeightLog(logId: string): Promise<void> {
+  await assertFarmWriteAllowedForWeightLog(logId);
   await powersync.writeTransaction(async (tx: Transaction) => {
     const row = await tx.getOptional<Record<string, unknown>>(
       'SELECT weigh_session_id FROM weight_logs WHERE id = ?',
@@ -216,6 +244,7 @@ export async function deleteWeightLog(logId: string): Promise<void> {
 }
 
 export async function deleteWeighSession(sessionId: string): Promise<void> {
+  await assertFarmWriteAllowedForWeighSession(sessionId);
   await powersync.writeTransaction(async (tx: Transaction) => {
     await tx.execute(
       'DELETE FROM weight_logs WHERE weigh_session_id = ?',

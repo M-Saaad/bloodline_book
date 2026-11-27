@@ -6,6 +6,10 @@ import {
   animalDeleteBlockedMessage,
   type AnimalDeleteBlocker,
 } from '@/lib/domain/animal-delete';
+import {
+  assertFarmWriteAllowed,
+  assertFarmWriteAllowedForAnimal,
+} from '@/lib/db/farm-write-guard';
 import { mapAnimal, mapBreed } from '@/lib/db/mappers';
 import { dbNow } from '@/lib/db/now';
 import {
@@ -15,6 +19,7 @@ import {
   syncChangedTagsInTx,
 } from '@/lib/db/tag-history';
 import { todayIso } from '@/lib/dates';
+import { assertAnimalsOnFarm } from '@/lib/domain/same-farm';
 import { powersync } from '@/lib/powersync/system';
 import type { Animal, Breed } from '@/lib/types/animals';
 
@@ -156,6 +161,7 @@ export async function createAnimal(
   farmId: string,
   input: AnimalWriteInput & { sex: Animal['sex'] },
 ): Promise<string> {
+  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
   const createdBy = await currentUserId();
@@ -166,6 +172,7 @@ export async function createAnimal(
   };
 
   await powersync.writeTransaction(async (tx: Transaction) => {
+    await assertAnimalsOnFarm(tx, farmId, [input.damId, input.sireId]);
     await tx.execute(
       `INSERT INTO animals (
         id, farm_id, name, tag_number, official_id, sex, status, lifecycle_stage,
@@ -231,6 +238,7 @@ export async function updateAnimal(
   animalId: string,
   input: AnimalWriteInput,
 ): Promise<void> {
+  await assertFarmWriteAllowedForAnimal(animalId);
   const now = dbNow();
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -303,6 +311,20 @@ export async function updateAnimal(
 
   if (fields.length === 0) {
     return;
+  }
+
+  if (input.damId || input.sireId) {
+    const owner = await powersync.getOptional<{ farm_id: string }>(
+      'SELECT farm_id FROM animals WHERE id = ?',
+      [animalId],
+    );
+    if (!owner) {
+      throw new Error('Animal not found.');
+    }
+    await assertAnimalsOnFarm(powersync, String(owner.farm_id), [
+      input.damId,
+      input.sireId,
+    ]);
   }
 
   fields.push('updated_at = ?');
@@ -431,6 +453,7 @@ export class AnimalDeleteBlockedError extends Error {
 }
 
 export async function deleteAnimal(animalId: string): Promise<void> {
+  await assertFarmWriteAllowedForAnimal(animalId);
   const info = await getAnimalDeleteInfo(animalId);
   if (info.blockers.length > 0) {
     throw new AnimalDeleteBlockedError(info.blockers);

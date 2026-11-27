@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 
+import { assertFarmWriteAllowed } from '@/lib/db/farm-write-guard';
 import { mapFarm } from '@/lib/db/mappers';
 import { powersync } from '@/lib/powersync/system';
 import { supabase } from '@/lib/supabase/client';
@@ -7,8 +8,8 @@ import type { Farm } from '@/lib/types/tenancy';
 
 export const FARMS_FOR_USER_SQL = `SELECT f.*, fm.user_id AS member_user_id
      FROM farms f
-     INNER JOIN farm_members fm ON fm.farm_id = f.id
-     WHERE fm.user_id = ?
+     INNER JOIN farm_members fm ON lower(fm.farm_id) = lower(f.id)
+     WHERE lower(fm.user_id) = lower(?)
      ORDER BY f.name`;
 
 export async function getFarmsForUser(userId: string): Promise<Farm[]> {
@@ -116,6 +117,7 @@ export async function updateFarmSettings(
     kiddingSeasonStart?: string | null;
   },
 ): Promise<void> {
+  await assertFarmWriteAllowed(farmId);
   const now = new Date().toISOString();
   const fields: string[] = [];
   const values: unknown[] = [];

@@ -39,7 +39,7 @@ async function copyDetails(row: UploadFailureRow): Promise<void> {
   const payload = {
     record: uploadFailureTableLabel(row.table_name),
     when: row.created_at,
-    reason: uploadFailurePlainReason(row.error_code),
+    reason: uploadFailurePlainReason(row.error_code, row.error_message),
     errorCode: row.error_code,
     errorMessage: row.error_message,
     operation: row.op,
@@ -78,6 +78,7 @@ function FailureCard({
         {uploadFailureSummary({
           tableName: row.table_name,
           errorCode: row.error_code,
+          errorMessage: row.error_message,
         })}
       </Text>
 

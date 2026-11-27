@@ -8,6 +8,7 @@ import {
   PastureStatusBadge,
   pastureStatusLabel,
 } from '@/components/land/PastureStatusBadge';
+import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Chip, ChipRow } from '@/components/ui/Chip';
@@ -22,6 +23,7 @@ import { mapAnimal, mapFeedLog, mapGrazingRecord, mapPasture } from '@/lib/db/ma
 import type { PastureStatus } from '@/lib/types/land';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
 import { formatForageType } from '@/lib/ui/pasture-labels';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
@@ -35,6 +37,7 @@ const PASTURE_STATUSES: PastureStatus[] = [
 export default function PastureDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { activeFarm } = useFarm();
+  const { canWrite } = useFarmRole();
   const [errorMessage, setErrorMessage] = useState('');
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [endingIds, setEndingIds] = useState<string[]>([]);
@@ -115,6 +118,9 @@ export default function PastureDetailScreen() {
   );
 
   async function handleStatus(next: PastureStatus) {
+    if (!canWrite) {
+      return;
+    }
     setErrorMessage('');
     setUpdatingStatus(true);
     try {
@@ -129,6 +135,9 @@ export default function PastureDetailScreen() {
   }
 
   async function handleMoveOut(recordId: string) {
+    if (!canWrite) {
+      return;
+    }
     setErrorMessage('');
     setEndingIds((current) => [...current, recordId]);
     try {
@@ -165,50 +174,54 @@ export default function PastureDetailScreen() {
         {pasture.notes ? (
           <Text className="text-base text-ink mt-3">{pasture.notes}</Text>
         ) : null}
-        <View className="mt-3.5">
-          <FieldLabel>Status</FieldLabel>
-          <ChipRow>
-            {PASTURE_STATUSES.map((option) => (
-              <Chip
-                key={option}
-                label={pastureStatusLabel(option)}
-                selected={pasture.status === option}
-                disabled={updatingStatus}
-                onPress={() => handleStatus(option)}
-              />
-            ))}
-          </ChipRow>
-        </View>
+        <FarmWriteGate>
+          <View className="mt-3.5">
+            <FieldLabel>Status</FieldLabel>
+            <ChipRow>
+              {PASTURE_STATUSES.map((option) => (
+                <Chip
+                  key={option}
+                  label={pastureStatusLabel(option)}
+                  selected={pasture.status === option}
+                  disabled={updatingStatus}
+                  onPress={() => handleStatus(option)}
+                />
+              ))}
+            </ChipRow>
+          </View>
+        </FarmWriteGate>
       </Card>
 
-      <View className="flex-row gap-2.5">
+      <FarmWriteGate>
+        <View className="flex-row gap-2.5">
+          <Button
+            className="flex-1"
+            title="Move here"
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/land/add-grazing',
+                params: { pastureId: pasture.id },
+              })
+            }
+          />
+          <Button
+            className="flex-1"
+            title="Log feed"
+            variant="outline"
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/land/add-feed',
+                params: { pastureId: pasture.id },
+              })
+            }
+          />
+        </View>
         <Button
-          className="flex-1"
-          title="Move here"
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/land/add-grazing',
-              params: { pastureId: pasture.id },
-            })
-          }
+          title="Edit pasture details"
+          variant="secondary"
+          onPress={() => router.push(`/(tabs)/land/edit-pasture/${pasture.id}`)}
         />
-        <Button
-          className="flex-1"
-          title="Log feed"
-          variant="outline"
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/land/add-feed',
-              params: { pastureId: pasture.id },
-            })
-          }
-        />
-      </View>
-      <Button
-        title="Edit pasture details"
-        variant="secondary"
-        onPress={() => router.push(`/(tabs)/land/edit-pasture/${pasture.id}`)}
-      />
+      </FarmWriteGate>
 
       <SectionTitle>{`On this pasture now (${openRecords.length})`}</SectionTitle>
       {grazingLoading ? (
@@ -229,7 +242,11 @@ export default function PastureDetailScreen() {
                   index === openRecords.length - 1 ? '' : 'border-b border-gray-100'
                 }`}>
                 <Pressable
-                  onPress={() => router.push(`/(tabs)/land/edit-grazing/${record.id}`)}
+                  onPress={() => {
+                    if (canWrite) {
+                      router.push(`/(tabs)/land/edit-grazing/${record.id}`);
+                    }
+                  }}
                   accessibilityRole="button"
                   className="flex-1">
                   <GoatName label={animal.label} tag={animal.tag} />
@@ -237,17 +254,19 @@ export default function PastureDetailScreen() {
                     Since {formatDisplayDate(record.startDate)}
                   </Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => handleMoveOut(record.id)}
-                  disabled={ending}
-                  accessibilityRole="button"
-                  className={`h-12 min-w-[110px] rounded-[18px] bg-bloodline-100 items-center justify-center px-3 active:bg-bloodline-200 ${
-                    ending ? 'opacity-50' : ''
-                  }`}>
-                  <Text className="text-base font-extrabold text-bloodline-900">
-                    {ending ? 'Moving…' : 'Move out'}
-                  </Text>
-                </Pressable>
+                {canWrite ? (
+                  <Pressable
+                    onPress={() => handleMoveOut(record.id)}
+                    disabled={ending}
+                    accessibilityRole="button"
+                    className={`h-12 min-w-[110px] rounded-[18px] bg-bloodline-100 items-center justify-center px-3 active:bg-bloodline-200 ${
+                      ending ? 'opacity-50' : ''
+                    }`}>
+                    <Text className="text-base font-extrabold text-bloodline-900">
+                      {ending ? 'Moving…' : 'Move out'}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             );
           })}

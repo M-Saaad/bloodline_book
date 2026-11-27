@@ -19,12 +19,14 @@ export default function KiddingSummaryScreen() {
   const { activeFarm } = useFarm();
 
   const { data: kiddingRows, isLoading } = useQuery(
-    id ? 'SELECT * FROM kidding_events WHERE id = ?' : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm
+      ? 'SELECT * FROM kidding_events WHERE id = ? AND farm_id = ?'
+      : 'SELECT 1 WHERE 0',
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   const { data: kidRows } = useQuery(
-    id
+    id && activeFarm
       ? `SELECT a.*,
            (SELECT wl.weight_value
             FROM weight_logs wl
@@ -41,10 +43,10 @@ export default function KiddingSummaryScreen() {
             ORDER BY COALESCE(ws.date, a.date_of_birth) ASC
             LIMIT 1) AS weight_unit
          FROM animals a
-         WHERE a.litter_id = ?
+         WHERE a.litter_id = ? AND a.farm_id = ?
          ORDER BY COALESCE(a.birth_order, 999), a.created_at ASC`
       : 'SELECT 1 WHERE 0',
-    id ? [id] : [],
+    id && activeFarm ? [id, activeFarm.id] : [],
   );
 
   if (!activeFarm || !id) {

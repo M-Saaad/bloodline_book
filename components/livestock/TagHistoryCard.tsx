@@ -10,6 +10,7 @@ import { FormMessage } from '@/components/ui/FormMessage';
 import { Input } from '@/components/ui/Input';
 import { formatDisplayDate } from '@/lib/dates';
 import { changeAnimalTag } from '@/lib/db/tag-history';
+import { useFarm } from '@/providers/FarmProvider';
 import {
   normalizeTagValue,
   sortTagHistory,
@@ -136,6 +137,7 @@ function TagActionSheet({
   action: TagChangeAction | null;
   onClose: () => void;
 }) {
+  const { activeFarm } = useFarm();
   const insets = useSafeAreaInsets();
   const eligible = TAG_KINDS.filter((kind) => {
     const current = currentValue(animal, kind);
@@ -161,10 +163,14 @@ function TagActionSheet({
     if (!action || !selected) {
       return;
     }
+    if (!activeFarm || animal.farmId !== activeFarm.id) {
+      setError('That goat is not on this farm.');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      await changeAnimalTag(animal.id, {
+      await changeAnimalTag(activeFarm.id, animal.id, {
         action,
         kind: selected,
         value,

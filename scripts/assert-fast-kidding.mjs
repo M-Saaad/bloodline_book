@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ANIMAL_NOT_ON_FARM, idsOnHerd } from '../lib/domain/same-farm.ts';
 import {
   applyFastKidding,
   defaultKiddingSeasonStart,
@@ -628,6 +629,101 @@ try {
   noHistory.close();
 }
 
+const switched = new DatabaseSync(':memory:');
+try {
+  switched.exec(HERD_SQL);
+  switched.prepare(
+    `INSERT INTO animals (
+      id, farm_id, name, tag_number, sex, status, lifecycle_stage, created_at, updated_at
+    ) VALUES ('doe-prev', 'farm-prev', 'Salt', '104', 'female', 'active', 'adult', 't', 't')`,
+  ).run();
+  switched.prepare(
+    `INSERT INTO animals (
+      id, farm_id, name, tag_number, sex, status, lifecycle_stage, created_at, updated_at
+    ) VALUES ('doe-here', 'farm-now', 'Clover', '2', 'female', 'active', 'adult', 't', 't')`,
+  ).run();
+  const beforeAnimals = switched.prepare('SELECT COUNT(*) AS c FROM animals').get().c;
+  const cross = prepareFastKidding({
+    damId: 'doe-prev',
+    kidDate: '2027-01-18',
+    kids: [{ ...baseKids[0], tagNumber: '', birthWeight: '' }],
+  });
+  assert.equal(cross.ok, true);
+  let thrown = false;
+  try {
+    await applyFastKidding(sqlOf(switched), {
+      farmId: 'farm-now',
+      damId: 'doe-prev',
+      kidDate: '2027-01-18',
+      kids: cross.ok ? cross.kids : [],
+      breedingEventId: null,
+      weaningDays: 90,
+      weightUnit: 'lb',
+      damLabel: 'Salt',
+      createdBy: null,
+      now: '2027-01-18T12:00:00.000Z',
+      newId: ids(),
+    });
+  } catch (error) {
+    thrown = true;
+    assert.equal(error.message, ANIMAL_NOT_ON_FARM);
+  }
+  assert.equal(thrown, true);
+  assert.equal(switched.prepare('SELECT COUNT(*) AS c FROM kidding_events').get().c, 0);
+  assert.equal(switched.prepare('SELECT COUNT(*) AS c FROM animals').get().c, beforeAnimals);
+  assert.equal(switched.prepare('SELECT COUNT(*) AS c FROM weight_logs').get().c, 0);
+  assert.equal(switched.prepare('SELECT COUNT(*) AS c FROM tasks').get().c, 0);
+  assert.equal(switched.prepare('SELECT COUNT(*) AS c FROM tag_history').get().c, 0);
+
+  switched.prepare(
+    `INSERT INTO animals (
+      id, farm_id, name, tag_number, sex, status, lifecycle_stage, created_at, updated_at
+    ) VALUES ('buck-prev', 'farm-prev', 'Duke', '9', 'male', 'active', 'adult', 't', 't')`,
+  ).run();
+  switched.prepare(
+    `INSERT INTO breeding_events (
+      id, farm_id, dam_id, sire_id, status, bred_date, updated_at
+    ) VALUES ('breed-cross', 'farm-now', 'doe-here', 'buck-prev', 'bred', '2026-08-01', 't')`,
+  ).run();
+  const sireKids = prepareFastKidding({
+    damId: 'doe-here',
+    kidDate: '2027-01-18',
+    kids: [{ ...baseKids[0], tagNumber: '', birthWeight: '' }],
+  });
+  thrown = false;
+  try {
+    await applyFastKidding(sqlOf(switched), {
+      farmId: 'farm-now',
+      damId: 'doe-here',
+      kidDate: '2027-01-18',
+      kids: sireKids.ok ? sireKids.kids : [],
+      breedingEventId: 'breed-cross',
+      weaningDays: null,
+      weightUnit: 'lb',
+      damLabel: 'Clover',
+      createdBy: null,
+      now: '2027-01-18T12:00:00.000Z',
+      newId: ids(),
+    });
+  } catch (error) {
+    thrown = true;
+    assert.equal(error.message, ANIMAL_NOT_ON_FARM);
+  }
+  assert.equal(thrown, true);
+  assert.equal(switched.prepare('SELECT COUNT(*) AS c FROM kidding_events').get().c, 0);
+  assert.equal(
+    switched.prepare("SELECT status FROM breeding_events WHERE id = 'breed-cross'").get().status,
+    'bred',
+  );
+} finally {
+  switched.close();
+}
+
+assert.deepEqual(
+  idsOnHerd(['doe-prev', 'doe-here', null], [{ id: 'doe-here' }]),
+  ['doe-here'],
+);
+
 const migration = read('supabase/migrations/0019_fast_kidding.sql');
 assert.match(migration, /alter column weigh_session_id drop not null/i);
 assert.match(migration, /add column if not exists kidding_season_start/i);
@@ -644,6 +740,21 @@ assert.match(read('powersync/sync-config.yaml'), /SELECT \* FROM kidding_season_
 assert.match(read('lib/powersync/schema.ts'), /kidding_season_marks: kiddingSeasonMarks/);
 assert.match(read('lib/powersync/schema.ts'), /kidding_season_start: column.text/);
 assert.match(read('lib/db/fast-kidding.ts'), /writeTransaction/);
+assert.match(read('app/(tabs)/more/breeding/add-kidding.tsx'), /dam\.id/);
+assert.match(
+  read('app/(tabs)/more/breeding/add-kidding.tsx'),
+  /farm_id = \? AND status = 'active'/,
+);
+assert.match(
+  read('app/(tabs)/livestock/[id].tsx'),
+  /SELECT \* FROM animals WHERE id = \? AND farm_id = \?/,
+);
+const sameFarmMigration = read('supabase/migrations/0020_same_farm_parents.sql');
+assert.match(sameFarmMigration, /kidding_events_same_farm_parents/);
+assert.match(sameFarmMigration, /animals_same_farm_parents/);
+assert.match(sameFarmMigration, /assert_referenced_animal_same_farm/);
+assert.doesNotMatch(sameFarmMigration, /\bdrop\s+table\b/i);
+assert.doesNotMatch(sameFarmMigration, /drop column/i);
 assert.match(read('app/(tabs)/livestock/[id].tsx'), /LEFT JOIN weigh_sessions/);
 assert.match(
   read('app/(tabs)/more/breeding/kidding/[id].tsx'),
