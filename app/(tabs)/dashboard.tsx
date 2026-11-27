@@ -5,7 +5,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 
 import { EnvironmentBadge } from '@/components/EnvironmentBadge';
 import { FarmWriteGate } from '@/components/FarmWriteGate';
-import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
+import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { SyncBadge } from '@/components/SyncBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Banner } from '@/components/ui/Banner';
@@ -46,7 +46,7 @@ import { Text } from '@/components/ui/Text';
 
 function DashboardScreen() {
   const { activeFarm, isLoading: farmLoading } = useFarm();
-  const { canWrite } = useFarmRole();
+  const { isHand, canWrite } = useFarmRole();
   const [weekOpen, setWeekOpen] = useState(false);
   const today = todayIso();
 
@@ -338,7 +338,7 @@ function DashboardScreen() {
         </View>
         <SyncBadge />
       </View>
-      <FarmRoleStatusBanner />
+      {isHand ? <ReadOnlyFarmBanner /> : null}
 
       {animals.length > 0 ? (
         <View className="rounded-[22px] bg-bloodline-900 px-5 py-4 flex-row items-center gap-4">
@@ -483,7 +483,7 @@ function DashboardScreen() {
               pillText="text-[#7a200f]"
               pillSymbol=""
               onPress={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={canWrite ? () => tickTask(task.id) : undefined}
+              onTick={() => tickTask(task.id)}
             />
           ))}
         </View>
@@ -498,7 +498,7 @@ function DashboardScreen() {
               title={shownTaskTitle(task)}
               detail={task.dueDate ? `Due ${formatDisplayDate(task.dueDate)}` : ''}
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={canWrite ? () => tickTask(task.id) : undefined}
+              onTick={() => tickTask(task.id)}
             />
           ))}
           {partitioned.undated.map((task) => (
@@ -507,7 +507,7 @@ function DashboardScreen() {
               title={shownTaskTitle(task)}
               detail="No date"
               onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-              onTick={canWrite ? () => tickTask(task.id) : undefined}
+              onTick={() => tickTask(task.id)}
             />
           ))}
         </View>
@@ -531,7 +531,7 @@ function DashboardScreen() {
                   title={shownTaskTitle(task)}
                   detail={task.dueDate ? formatDisplayDate(task.dueDate) : ''}
                   onOpen={() => router.push(`/(tabs)/more/tasks/${task.id}`)}
-                  onTick={canWrite ? () => tickTask(task.id) : undefined}
+                  onTick={() => tickTask(task.id)}
                 />
               ))
             : null}
@@ -687,11 +687,11 @@ function TaskRow({
   title: string;
   detail: string;
   onOpen: () => void;
-  onTick?: () => void;
+  onTick: () => void;
 }) {
   return (
     <View className="flex-row items-center gap-2 min-h-[56px]">
-      {onTick ? <CheckCircle onPress={onTick} /> : <View className="w-12 h-12" />}
+      <CheckCircle onPress={onTick} />
       <Pressable onPress={onOpen} className="flex-1 flex-row items-center gap-2 min-h-[52px]">
         <Text className="flex-1 text-[17px] font-medium text-ink">{title}</Text>
         {detail ? (

@@ -7,10 +7,6 @@ import {
   pastureStatusAfterLastMoveOut,
   pastureStatusAfterMoveIn,
 } from '@/lib/domain/land';
-import {
-  assertFarmWriteAllowed,
-  assertFarmWriteAllowedByRecord,
-} from '@/lib/db/farm-write-guard';
 import { dbNow } from '@/lib/db/now';
 import { powersync } from '@/lib/powersync/system';
 import type {
@@ -32,7 +28,6 @@ export async function createPasture(
     notes?: string;
   },
 ): Promise<string> {
-  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
 
@@ -60,7 +55,6 @@ export async function updatePastureStatus(
   pastureId: string,
   status: PastureStatus,
 ): Promise<void> {
-  await assertFarmWriteAllowedByRecord('pastures', pastureId);
   const now = dbNow();
   await powersync.execute(
     'UPDATE pastures SET status = ?, updated_at = ? WHERE id = ?',
@@ -91,7 +85,6 @@ export async function moveAnimalsToPasture(
     return;
   }
 
-  await assertFarmWriteAllowed(farmId);
   const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
@@ -172,9 +165,6 @@ export async function endGrazingRecords(
     return;
   }
 
-  for (const recordId of recordIds) {
-    await assertFarmWriteAllowedByRecord('grazing_records', recordId);
-  }
   const now = dbNow();
 
   await powersync.writeTransaction(async (tx: Transaction) => {
@@ -244,7 +234,6 @@ export async function createFeedLog(
     notes?: string;
   },
 ): Promise<string> {
-  await assertFarmWriteAllowed(farmId);
   const id = Crypto.randomUUID();
   const now = dbNow();
 
@@ -288,7 +277,6 @@ export async function updatePasture(
     notes?: string;
   },
 ): Promise<void> {
-  await assertFarmWriteAllowedByRecord('pastures', pastureId);
   const now = dbNow();
   await powersync.execute(
     `UPDATE pastures SET
@@ -326,7 +314,6 @@ export async function updateFeedLog(
     notes?: string;
   },
 ): Promise<void> {
-  await assertFarmWriteAllowedByRecord('feed_logs', feedLogId);
   const now = dbNow();
   await powersync.execute(
     `UPDATE feed_logs SET
@@ -346,7 +333,6 @@ export async function updateFeedLog(
 }
 
 export async function deleteFeedLog(feedLogId: string): Promise<void> {
-  await assertFarmWriteAllowedByRecord('feed_logs', feedLogId);
   await powersync.execute('DELETE FROM feed_logs WHERE id = ?', [feedLogId]);
 }
 
@@ -364,7 +350,6 @@ export async function updateGrazingRecordDates(
   recordId: string,
   input: { startDate: string; endDate: string | null },
 ): Promise<void> {
-  await assertFarmWriteAllowedByRecord('grazing_records', recordId);
   const now = dbNow();
   await powersync.execute(
     `UPDATE grazing_records SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?`,

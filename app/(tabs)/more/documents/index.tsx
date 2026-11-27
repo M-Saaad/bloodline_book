@@ -4,19 +4,16 @@ import { FlatList, View } from 'react-native';
 
 import { CardRowShell } from '@/components/breeding/parts';
 import { Badge } from '@/components/ui/Badge';
-import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListRow } from '@/components/ui/ListRow';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { mapDocument } from '@/lib/db/mappers';
-import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
 export default function DocumentsScreen() {
   const { activeFarm } = useFarm();
-  const { canWrite } = useFarmRole();
 
   const { data, isLoading } = useQuery(
     activeFarm
@@ -42,13 +39,11 @@ export default function DocumentsScreen() {
   return (
     <View className="flex-1 bg-paper">
       <View className="px-5 pt-2 pb-3 items-end">
-        <FarmWriteGate>
-          <Button
-            title="＋ Add"
-            className="w-[104px] min-h-[48px] py-0"
-            onPress={() => router.push('/(tabs)/more/documents/add')}
-          />
-        </FarmWriteGate>
+        <Button
+          title="＋ Add"
+          className="w-[104px] min-h-[48px] py-0"
+          onPress={() => router.push('/(tabs)/more/documents/add')}
+        />
       </View>
 
       <FlatList
@@ -61,10 +56,8 @@ export default function DocumentsScreen() {
           <EmptyState
             title="No papers yet"
             description="Track registrations, health certificates, and other farm paperwork."
-            actionLabel={canWrite ? 'Add paper' : undefined}
-            onAction={
-              canWrite ? () => router.push('/(tabs)/more/documents/add') : undefined
-            }
+            actionLabel="Add paper"
+            onAction={() => router.push('/(tabs)/more/documents/add')}
           />
         }
         ListFooterComponent={

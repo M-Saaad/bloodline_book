@@ -1,6 +1,5 @@
 import * as Crypto from 'expo-crypto';
 
-import { assertFarmWriteAllowed } from '@/lib/db/farm-write-guard';
 import { mapFarm } from '@/lib/db/mappers';
 import { powersync } from '@/lib/powersync/system';
 import { supabase } from '@/lib/supabase/client';
@@ -117,7 +116,6 @@ export async function updateFarmSettings(
     kiddingSeasonStart?: string | null;
   },
 ): Promise<void> {
-  await assertFarmWriteAllowed(farmId);
   const now = new Date().toISOString();
   const fields: string[] = [];
   const values: unknown[] = [];

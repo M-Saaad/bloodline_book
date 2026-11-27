@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { FlatList, Pressable, View } from 'react-native';
 
 import { PageHeading } from '@/components/land/PageHeading';
-import { FarmWriteGate } from '@/components/FarmWriteGate';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -11,13 +10,11 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { mapTransaction } from '@/lib/db/mappers';
 import { formatDisplayDate } from '@/lib/dates';
 import { formatFarmCurrency } from '@/lib/format/money';
-import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 import { Text } from '@/components/ui/Text';
 
 export default function FinancesScreen() {
   const { activeFarm } = useFarm();
-  const { canWrite } = useFarmRole();
 
   const { data, isLoading } = useQuery(
     activeFarm
@@ -79,12 +76,10 @@ export default function FinancesScreen() {
           </View>
         </View>
       </Card>
-      <FarmWriteGate>
-        <Button
-          title="Add transaction"
-          onPress={() => router.push('/(tabs)/finances/add')}
-        />
-      </FarmWriteGate>
+      <Button
+        title="Add transaction"
+        onPress={() => router.push('/(tabs)/finances/add')}
+      />
     </View>
   );
 
@@ -99,10 +94,8 @@ export default function FinancesScreen() {
           <EmptyState
             title="No transactions yet"
             description="Track feed, vet bills, sales, and other farm income and expenses."
-            actionLabel={canWrite ? 'Add transaction' : undefined}
-            onAction={
-              canWrite ? () => router.push('/(tabs)/finances/add') : undefined
-            }
+            actionLabel="Add transaction"
+            onAction={() => router.push('/(tabs)/finances/add')}
           />
         }
         renderItem={({ item, index }) => {
@@ -111,11 +104,7 @@ export default function FinancesScreen() {
           const last = index === transactions.length - 1;
           return (
             <Pressable
-              onPress={() => {
-                if (canWrite) {
-                  router.push(`/(tabs)/finances/edit/${item.id}`);
-                }
-              }}
+              onPress={() => router.push(`/(tabs)/finances/edit/${item.id}`)}
               accessibilityRole="button"
               className={`flex-row items-center gap-3 min-h-[72px] px-4 py-2.5 bg-white border-x border-gray-200 active:bg-gray-50 ${
                 first ? 'border-t rounded-t-[22px]' : ''

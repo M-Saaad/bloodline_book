@@ -12,7 +12,6 @@ import {
   type FastKidDraft,
   type FastKiddingResult,
 } from '@/lib/domain/fast-kidding';
-import { assertFarmWriteAllowed, assertFarmWriteAllowedForKidding } from '@/lib/db/farm-write-guard';
 import { powersync } from '@/lib/powersync/system';
 
 export async function saveFastKidding(
@@ -36,8 +35,6 @@ export async function saveFastKidding(
     throw new Error(prepared.message);
   }
 
-  await assertFarmWriteAllowed(farmId);
-
   const createdBy = await currentUserId();
   const now = dbNow();
 
@@ -59,7 +56,6 @@ export async function saveFastKidding(
 }
 
 export async function undoSavedFastKidding(kiddingId: string): Promise<void> {
-  await assertFarmWriteAllowedForKidding(kiddingId);
   const now = dbNow();
   await powersync.writeTransaction(async (tx: Transaction) => {
     await undoFastKidding(tx, { kiddingId, now });
@@ -71,7 +67,6 @@ export async function markDoeOpenForSeason(
   animalId: string,
   seasonStart: string,
 ): Promise<void> {
-  await assertFarmWriteAllowed(farmId);
   const createdBy = await currentUserId();
   const now = dbNow();
   await powersync.writeTransaction(async (tx: Transaction) => {
