@@ -138,7 +138,7 @@ assert.match(more, /activeFarm && !canSwitch/);
 assert.match(more, /FarmSwitcherSheet/);
 assert.match(
   read('components/FarmSwitcherSheet.tsx'),
-  /SELECT farm_id, role FROM farm_members WHERE user_id = \?/,
+  /SELECT farm_id, role FROM farm_members WHERE lower\(user_id\) = lower\(\?\)/,
 );
 
 const provider = read('providers/FarmProvider.tsx');

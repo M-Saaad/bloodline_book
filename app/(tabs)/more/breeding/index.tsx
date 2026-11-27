@@ -6,6 +6,8 @@ import { ScrollView, View } from 'react-native';
 import { goatParts, ScreenHeading, SectionTitle } from '@/components/breeding/parts';
 import { breedingStatusTone } from '@/components/breeding/status';
 import { Badge } from '@/components/ui/Badge';
+import { FarmWriteGate } from '@/components/FarmWriteGate';
+import { FarmRoleStatusBanner } from '@/components/FarmRoleStatusBanner';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormMessage } from '@/components/ui/FormMessage';
@@ -27,10 +29,12 @@ import { ensureBreedingDueTask } from '@/lib/db/breeding';
 import { isBreedingOpenForKidding } from '@/lib/domain/breeding';
 import { ORDER_DUE_DATE_DESC } from '@/lib/sql/portableOrder';
 import { animalDisplayLabel } from '@/lib/ui/animal-labels';
+import { useFarmRole } from '@/hooks/useFarmRole';
 import { useFarm } from '@/providers/FarmProvider';
 
 export default function BreedingScreen() {
   const { activeFarm } = useFarm();
+  const { canWrite } = useFarmRole();
 
   const {
     data: breedingRows,
@@ -134,19 +138,24 @@ export default function BreedingScreen() {
         title="Breeding"
         subtitle={`${openCount} open breeding${openCount === 1 ? '' : 's'}`}
       />
-      <View className="flex-row gap-2.5 mt-1">
-        <Button
-          title="Log breeding"
-          className="flex-1"
-          onPress={() => router.push('/(tabs)/more/breeding/add-breeding')}
-        />
-        <Button
-          title="Log kidding"
-          variant="outline"
-          className="flex-1"
-          onPress={() => router.push('/(tabs)/more/breeding/add-kidding')}
-        />
+      <View className="mt-1">
+        <FarmRoleStatusBanner />
       </View>
+      <FarmWriteGate>
+        <View className="flex-row gap-2.5 mt-1">
+          <Button
+            title="Log breeding"
+            className="flex-1"
+            onPress={() => router.push('/(tabs)/more/breeding/add-breeding')}
+          />
+          <Button
+            title="Log kidding"
+            variant="outline"
+            className="flex-1"
+            onPress={() => router.push('/(tabs)/more/breeding/add-kidding')}
+          />
+        </View>
+      </FarmWriteGate>
       <Button
         title="Breeding calendar"
         variant="secondary"
@@ -157,8 +166,12 @@ export default function BreedingScreen() {
         <EmptyState
           title="No breeding records yet"
           description="Track breedings with estimated due dates, log kiddings, and register kids in the herd. Due-date tasks are added automatically."
-          actionLabel="Log Breeding"
-          onAction={() => router.push('/(tabs)/more/breeding/add-breeding')}
+          actionLabel={canWrite ? 'Log Breeding' : undefined}
+          onAction={
+            canWrite
+              ? () => router.push('/(tabs)/more/breeding/add-breeding')
+              : undefined
+          }
         />
       ) : null}
 

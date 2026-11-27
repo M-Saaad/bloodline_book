@@ -16,6 +16,7 @@ const farms = new Table(
   { indexes: { farm_segment: ['segment'] } },
 );
 
+/** Postgres PK is (farm_id, user_id). The sync stream supplies text `id`. */
 const farmMembers = new Table(
   {
     farm_id: column.text,

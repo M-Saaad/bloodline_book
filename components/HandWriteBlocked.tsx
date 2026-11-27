@@ -4,12 +4,17 @@ import { ScrollView, View } from 'react-native';
 
 import { ReadOnlyFarmBanner } from '@/components/ReadOnlyFarmBanner';
 import { Button } from '@/components/ui/Button';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { useFarmRole } from '@/hooks/useFarmRole';
 
 export function HandWriteBlocked({ children }: { children: ReactNode }) {
-  const { isHand } = useFarmRole();
+  const { canWrite, isRolePending } = useFarmRole();
 
-  if (!isHand) {
+  if (isRolePending) {
+    return <LoadingState message="Checking permissions…" />;
+  }
+
+  if (canWrite) {
     return children;
   }
 

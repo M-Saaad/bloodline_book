@@ -106,6 +106,8 @@ export class SupabaseConnector implements PowerSyncBackendConnector {
 
   private async applyCrud(op: CrudEntry): Promise<void> {
     if (SERVER_MANAGED_UPLOAD_TABLES.has(op.table)) {
+      // farm_members is membership written by Postgres triggers. It has no id
+      // column, so a client upload of the sync id would be rejected.
       return;
     }
 
